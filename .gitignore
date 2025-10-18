@@ -1,0 +1,58 @@
+# 依賴套件
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 環境變數
+.env
+.env.local
+.env.*.local
+
+# 編輯器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 建置輸出
+dist/
+build/
+*.egg-info/
+.next/
+out/
+
+# 測試覆蓋率
+coverage/
+.nyc_output/
+*.coverage
+htmlcov/
+
+# 日誌
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 臨時檔案
+tmp/
+temp/
+*.tmp
+
+# 系統檔案
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 範本專案特定
+# 注意：實際專案使用時，這些文件應該被追蹤
+# 這裡標記是為了在使用範本時提醒
+
+# 取消註解以下項目來忽略範本檔案（當你開始實際專案時）
+# task-template.md
+# issue-template.md
