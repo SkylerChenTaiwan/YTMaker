@@ -52,19 +52,20 @@
 ## 開發流程
 
 ### 階段 1：產品設計
-1. 撰寫 `product-design/overview.md` - 產品概述
-2. 生成 `product-design/flows.md` - 使用者流程
-3. 生成 `product-design/pages.md` - 頁面設計
+1. 生成 `product-design/overview.md` - 產品概述（使用 `/generate-overview`）
+2. 生成 `product-design/flows.md` - 使用者流程（使用 `/generate-flows`）
+3. 生成 `product-design/pages.md` - 頁面設計（使用 `/generate-pages`）
 
 ### 階段 2：技術規格
-1. 定義 `tech-specs/framework.md` - 技術框架
-2. 生成 `tech-specs/backend-spec.md` - 後端規格
-3. 生成 `tech-specs/frontend-spec.md` - 前端規格
+1. 生成 `tech-specs/framework.md` - 技術框架（使用 `/generate-tech-specs-framework`）
+2. 生成 `tech-specs/backend-spec.md` - 後端規格（使用 `/generate-tech-specs-backend`）
+3. 生成 `tech-specs/frontend-spec.md` - 前端規格（使用 `/generate-tech-specs-frontend`）
 
 ### 階段 3：開發計劃
-1. 規劃 `development/phase-X/overview.md` - 任務總覽
-2. 建立各個 task 文件
-3. 標記任務依賴關係和並行性
+1. 使用 `/plan-phase` 批量生成開發計劃，包含：
+   - `development/phase-X/overview.md` - 任務總覽
+   - 各個 task 文件（task-XXX.md）
+   - 任務依賴關係和並行性標記
 
 ### 階段 4：開發執行
 1. 選擇一個 task
@@ -164,9 +165,11 @@
 
 ---
 
-### 功能分支 (Feature Branches)
+### 開發分支 (Development Branches)
 
 #### 命名規範
+
+**功能開發分支（Task）：**
 ```
 feature/task-XXX-description
 
@@ -176,8 +179,20 @@ feature/task-002-database-schema
 feature/task-015-user-auth-api
 ```
 
+**問題修復分支（Issue）：**
+```
+fix/issue-XXX-description
+
+例如：
+fix/issue-001-login-validation-error
+fix/issue-005-api-timeout-handling
+fix/issue-012-ui-rendering-bug
+```
+
 **規則：**
-- 必須包含 task 編號
+- 功能開發使用 `feature/` 前綴
+- 問題修復使用 `fix/` 前綴
+- 必須包含 task 或 issue 編號
 - 使用小寫字母
 - 用連字號 `-` 分隔
 - 描述要簡短但清楚
@@ -187,7 +202,12 @@ feature/task-015-user-auth-api
 # 從最新的 develop 分支建立
 git checkout develop
 git pull origin develop
+
+# 功能開發
 git checkout -b feature/task-XXX-description
+
+# 問題修復
+git checkout -b fix/issue-XXX-description
 ```
 
 #### 工作流程
@@ -198,30 +218,32 @@ git checkout -b feature/task-XXX-description
 # 2. 測試通過後 commit
 git add .
 git commit -m "feat: 完成任務描述 [task-XXX]"
+# 或：git commit -m "fix: 修正問題描述 [issue-XXX]"
 
 # 3. 推送到 remote (必須！)
 git push origin feature/task-XXX-description
+# 或：git push origin fix/issue-XXX-description
 
 # 4. 合併前先同步 develop
 git checkout develop
 git pull origin develop
-git checkout feature/task-XXX-description
+git checkout feature/task-XXX-description  # 或 fix/issue-XXX-description
 git merge develop
 
 # 5. 解決衝突（如果有）
 # [解決衝突...]
 git add .
 git commit -m "merge: 解決合併衝突"
-git push origin feature/task-XXX-description
+git push origin feature/task-XXX-description  # 或 fix/issue-XXX-description
 
 # 6. 合併到 develop
 git checkout develop
-git merge feature/task-XXX-description
+git merge feature/task-XXX-description  # 或 fix/issue-XXX-description
 
 # 7. 推送並刪除分支 (必須推送！)
 git push origin develop
-git branch -d feature/task-XXX-description
-git push origin --delete feature/task-XXX-description
+git branch -d feature/task-XXX-description  # 或 fix/issue-XXX-description
+git push origin --delete feature/task-XXX-description  # 或 fix/issue-XXX-description
 ```
 
 ---
@@ -275,11 +297,11 @@ Task-006: 登入頁面 (依賴 Task-005 Token 機制)
 ### 格式
 
 ```
-<type>: <description> [task-XXX]
+<type>: <description> [task-XXX 或 issue-XXX]
 
 例如：
 feat: 實作用戶註冊 API [task-004]
-fix: 修正登入驗證錯誤 [task-006]
+fix: 修正登入驗證錯誤 [issue-006]
 test: 新增認證測試案例 [task-005]
 ```
 
@@ -301,7 +323,7 @@ test: 新增認證測試案例 [task-005]
 **必須包含：**
 - ✅ Type 前綴
 - ✅ 清楚的描述
-- ✅ Task 編號（如果相關）
+- ✅ Task 或 Issue 編號（如果相關）
 
 **描述要求：**
 - 用現在式（"新增" 而非 "新增了"）
@@ -314,10 +336,11 @@ test: 新增認證測試案例 [task-005]
 ✅ 好的 commit 訊息
 ```
 feat: 實作 JWT token 生成與驗證 [task-005]
-fix: 修正用戶註冊時的 email 重複檢查 [task-004]
+fix: 修正用戶註冊時的 email 重複檢查 [issue-004]
 test: 新增認證 API 的錯誤處理測試 [task-004]
 docs: 更新 backend-spec.md 中的認證流程 [task-005]
 refactor: 重構 authService 改善可讀性 [task-004]
+fix: 解決登入頁面載入超時問題 [issue-012]
 ```
 
 ❌ 不好的 commit 訊息
@@ -388,8 +411,14 @@ git push origin feature/task-XXX
 可用的自訂命令：
 
 ### 產品設計階段
+- `/generate-overview` - 基於用戶需求生成 overview.md
 - `/generate-flows` - 基於 overview.md 生成 flows.md
 - `/generate-pages` - 基於 flows.md 生成 pages.md
+
+### 技術規格階段
+- `/generate-tech-specs-framework` - 基於產品設計文件生成 framework.md
+- `/generate-tech-specs-backend` - 基於產品設計與框架生成 backend-spec.md
+- `/generate-tech-specs-frontend` - 基於產品設計與框架生成 frontend-spec.md
 
 ### 開發規劃階段
 - `/plan-phase` - 規劃任何開發階段，**批量生成**所有任務
