@@ -159,7 +159,7 @@
 
 #### `develop` 分支
 - **用途：** 開發主線，整合所有完成的功能
-- **保護：** 禁止直接推送，只接受從 feature branch 的 merge
+- **保護：** 禁止直接推送，只接受從開發分支 (feature/fix) 的 merge
 - **部署：** 自動部署到 staging 環境
 - **要求：** 所有測試必須通過才能合併
 
@@ -365,8 +365,8 @@ git checkout develop
 # 2. 拉取最新變更
 git pull origin develop
 
-# 3. 切換回 feature branch
-git checkout feature/task-XXX
+# 3. 切換回開發分支
+git checkout feature/task-XXX  # 或 fix/issue-XXX
 
 # 4. 合併最新的 develop
 git merge develop
@@ -386,9 +386,10 @@ npm test  # 或相應的測試命令
 # 2. Commit 變更
 git add .
 git commit -m "feat: 完成 XXX 功能 [task-XXX]"
+# 或：git commit -m "fix: 修正 XXX 問題 [issue-XXX]"
 
 # 3. 推送到 remote (必須！)
-git push origin feature/task-XXX
+git push origin feature/task-XXX  # 或 fix/issue-XXX
 ```
 
 ---
