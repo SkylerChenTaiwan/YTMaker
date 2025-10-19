@@ -1,8 +1,14 @@
 # Plan Phase Command
 
-規劃一個開發階段並批量生成所有任務。
+規劃一個開發階段，生成 overview.md 和所有 task 骨架。
 
 **用途：** 不論是 Phase 1、Phase 2 還是後續任何階段，只要你要規劃一個開發階段，就用這個命令。
+
+**重要：** 這個命令只會生成：
+1. `overview.md` - 完整的階段規劃、任務列表、依賴關係
+2. 所有 `task-XXX.md` 的**空骨架**（只有標題、元資訊、簡短目標）
+
+**填充詳細內容：** 使用 `/detail-task` 命令來填充單一 task 的詳細內容。
 
 ---
 
@@ -218,57 +224,61 @@ Task-007: 整合測試
 
 ---
 
-### Step 6: 批量生成所有任務
+### Step 6: 批量生成 Overview 和所有 Task 骨架
 
 確認後，我會批量建立：
 
-#### 1. Phase Overview
+#### 1. Phase Overview（完整詳細）
 建立 `development/phase-X/overview.md`，包含：
 - 階段目標
-- 完整任務列表
+- 完整任務列表（每個 task 的簡短描述、預估時間）
 - 依賴關係圖
 - 執行順序規劃
 - 並行開發指南
 - 合併策略
 - 風險評估
-- 預估時間
+- 預估時間統計
 
-#### 2. 所有 Task 文件
-建立所有 `task-XXX.md` 文件，每個包含：
+#### 2. 所有 Task 骨架文件（僅空框架）
+建立所有 `task-XXX.md` 的**空骨架**，每個只包含：
 
-**關聯文件**
-- 引用相關的 spec
-- 引用相關的產品設計
-- 標記依賴任務
+```markdown
+# Task-XXX: [任務標題]
 
-**測試要求（重點）**
-- 單元測試：3-5 個測試案例
-  - 正常流程
-  - 錯誤處理
-  - Edge cases
-- 整合測試（如適用）
-- E2E 測試（如適用）
-- 每個測試包含：
-  - 測試描述
-  - 輸入資料
-  - 預期輸出
-  - 驗證點
+> **建立日期：** YYYY-MM-DD
+> **狀態：** ⏳ 未開始
+> **預計時間：** X 小時
+> **優先級：** P0/P1/P2
 
-**實作規格**
-- 需要建立/修改的檔案列表
-- 每個檔案的職責和方法
-- 資料流程圖
-- 錯誤處理規則
-- 驗證規則
-- 參考對應的 spec 章節
+---
 
-**開發指引**
-- 詳細的開發步驟（TDD 流程）
-- 注意事項
-- 完成檢查清單
+## 任務目標
 
-**可直接使用**
-- 整個文件可以直接複製給 Claude Code 執行開發
+### 簡述
+[一句話描述這個任務要做什麼]
+
+### 關聯 Spec
+- `product-design/xxx.md` - [相關章節]
+- `tech-specs/xxx.md` - [相關章節]
+
+### 前置任務
+- Task-XXX
+- Task-YYY
+
+### 後續任務
+- Task-ZZZ
+
+---
+
+## 📝 詳細內容待填充
+
+使用 `/detail-task XXX` 來填充此任務的詳細內容：
+- 測試要求
+- 實作規格
+- 開發指引
+```
+
+**注意：** 詳細的測試要求、實作規格、開發指引等內容，需要使用 `/detail-task` 命令來填充。
 
 ---
 
@@ -318,9 +328,12 @@ Claude:
 User: 繼續
 
 Claude:
-✅ 已建立 development/phase-1/overview.md
-✅ 已建立 task-001.md ~ task-015.md
-完成！你可以開始執行 Task-001 了。
+✅ 已建立 development/phase-1/overview.md（完整規劃）
+✅ 已建立 task-001.md ~ task-015.md（空骨架）
+
+完成！下一步：
+- 使用 `/detail-task 001` 來填充 Task-001 的詳細內容
+- 或直接查看 overview.md 了解整體規劃
 ```
 
 ---
@@ -367,9 +380,10 @@ Claude:
 User: 可以
 
 Claude:
-✅ 已建立 development/phase-2/overview.md
-✅ 已建立 task-016.md ~ task-024.md
-完成！
+✅ 已建立 development/phase-2/overview.md（完整規劃）
+✅ 已建立 task-016.md ~ task-024.md（空骨架）
+
+完成！使用 `/detail-task 016` 開始填充任務詳細內容。
 ```
 
 ---
@@ -421,8 +435,9 @@ Claude:
 User: 確認
 
 Claude:
-✅ 已建立 task-025.md ~ task-029.md
-完成！
+✅ 已建立 task-025.md ~ task-029.md（空骨架）
+
+完成！使用 `/detail-task 025` 開始填充任務詳細內容。
 
 注意：建議之後將這些任務的實作補充到 spec 中，保持文件同步。
 ```
@@ -435,24 +450,25 @@ Claude:
 
 ```
 development/phase-X/
-├── overview.md                    # 階段總覽
+├── overview.md                    # 階段總覽（完整詳細）
 │   ├─ 階段目標
-│   ├─ 任務列表
+│   ├─ 任務列表（每個 task 的簡短描述）
 │   ├─ 依賴關係圖
 │   ├─ 執行順序
 │   ├─ 並行開發指南
 │   └─ 預估時間
 │
-├── task-001.md                    # 專案初始化
+├── task-001.md                    # 空骨架（僅基本資訊）
+│   ├─ 任務標題
+│   ├─ 元資訊（狀態、時間、優先級）
+│   ├─ 簡短目標
 │   ├─ 關聯 spec
-│   ├─ 詳細測試要求
-│   ├─ 實作規格
-│   └─ 開發指引
+│   └─ 前後置任務
 │
-├── task-002.md                    # 資料庫設計
-├── task-003.md                    # 認證 API
+├── task-002.md                    # 空骨架
+├── task-003.md                    # 空骨架
 ├── ...
-└── task-XXX.md                    # 整合測試
+└── task-XXX.md                    # 空骨架
 ```
 
 **統計資訊：**
@@ -478,134 +494,54 @@ development/phase-X/
 5. Task-010 最後執行（整合測試）
 
 📁 下一步：
-開始執行 Task-001
+使用 `/detail-task 001` 填充 Task-001 的詳細內容
 ```
 
 ---
 
-## 任務文件範例
+## Task 骨架範例
 
-生成的每個 task 文件結構：
+`/plan-phase` 生成的每個 task 文件只包含基本骨架：
 
 ````markdown
 # Task-003: 用戶認證 API 實作
 
-> **建立日期：** 2024-XX-XX
+> **建立日期：** 2025-01-19
 > **狀態：** ⏳ 未開始
 > **預計時間：** 4 小時
-
----
-
-## 關聯文件
-
-### 產品設計
-- **User Flow:** `product-design/flows.md#用戶註冊登入流程`
-- **頁面設計:** `product-design/pages.md#登入頁`
-
-### 技術規格
-- **後端規格:** `tech-specs/backend-spec.md#認證系統API`
-- **資料驗證:** `tech-specs/backend-spec.md#驗證規則`
-
-### 相關任務
-- **前置任務:** Task-001 ✅, Task-002 ✅
-- **後續任務:** Task-004, Task-005
+> **優先級：** P0
 
 ---
 
 ## 任務目標
 
 ### 簡述
-實作完整的用戶認證 API，包含註冊、登入、登出功能。
+實作完整的用戶認證 API，包含註冊、登入、登出功能，支援 JWT token 生成與驗證。
 
-### 成功標準
-- [ ] 所有 API 端點測試通過
-- [ ] 符合 backend-spec.md 定義
-- [ ] 安全性驗證通過
+### 關聯 Spec
+- `product-design/flows.md` - Flow-1: 用戶註冊登入流程
+- `tech-specs/backend/auth.md` - 認證系統設計
+- `tech-specs/backend/api-projects.md` - API 設計規範
 
----
+### 前置任務
+- Task-001: 專案初始化與環境設定
+- Task-002: 資料庫設計與 Migration
 
-## 測試要求
-
-### 單元測試
-
-#### 測試 1：成功註冊新用戶
-**輸入：**
-```json
-{
-  "email": "test@example.com",
-  "password": "SecurePass123",
-  "username": "testuser"
-}
-```
-
-**預期輸出：**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "email": "test@example.com",
-    "username": "testuser",
-    "token": "jwt_token"
-  }
-}
-```
-
-**驗證點：**
-- [ ] 回傳 201 狀態碼
-- [ ] 密碼已加密儲存
-- [ ] JWT token 有效
-- [ ] 用戶記錄已建立
-
-#### 測試 2：Email 重複時註冊失敗
-[...]
-
-#### 測試 3：登入成功
-[...]
-
-### 整合測試
-[...]
+### 後續任務
+- Task-004: 用戶管理 API
+- Task-017: 登入註冊頁面
 
 ---
 
-## 實作規格
+## 📝 詳細內容待填充
 
-### 需要建立的檔案
-
-#### 1. Controller: `backend/src/controllers/authController.ts`
-```typescript
-class AuthController {
-  async register(req: Request, res: Response) {
-    // 實作註冊邏輯
-  }
-
-  async login(req: Request, res: Response) {
-    // 實作登入邏輯
-  }
-}
-```
-
-[詳細規格...]
-
----
-
-## 開發指引
-
-1. 閱讀 `tech-specs/backend-spec.md#認證系統`
-2. 先撰寫所有測試
-3. 實作功能讓測試通過
-4. 檢查安全性
-5. 標記完成
-
----
-
-## 完成檢查清單
-
-- [ ] 所有測試通過
-- [ ] Spec 已同步
-- [ ] 安全性檢查完成
-- [ ] 程式碼已審查
+使用 `/detail-task 003` 來填充此任務的詳細內容：
+- 測試要求（單元測試、整合測試、E2E 測試）
+- 實作規格（需要建立/修改的檔案、API 端點、資料流程）
+- 開發指引（TDD 流程、注意事項、完成檢查清單）
 ````
+
+**填充詳細內容：** 使用 `/detail-task 003` 命令來生成完整的測試要求、實作規格、開發指引等內容。
 
 ---
 
