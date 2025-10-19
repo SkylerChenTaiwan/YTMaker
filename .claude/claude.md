@@ -4,6 +4,56 @@
 
 ---
 
+## ⚠️ 每次對話開始必做 (START OF CONVERSATION CHECKLIST)
+
+**在做任何事情之前，必須先完成以下檢查：**
+
+### 1. 檢查並創建工作分支
+
+```bash
+# 檢查當前分支
+git branch --show-current
+
+# 如果在 develop 分支，立即創建新分支
+# 功能開發：
+git checkout -b feature/task-XXX-description
+# 或問題修復：
+git checkout -b fix/issue-XXX-description
+# 或更新 spec：
+git checkout -b feature/update-specs-description
+```
+
+**規則：**
+- ✅ **每個新對話都必須開一個新的工作分支**
+- ❌ **絕對不要直接在 develop 分支上工作**
+- ❌ **唯一例外：極小的緊急修正（錯字、格式）**
+
+### 2. 確認工作內容
+
+明確這次對話要做什麼：
+- [ ] 是開發新 task？→ 使用 `feature/task-XXX-description`
+- [ ] 是修復 issue？→ 使用 `fix/issue-XXX-description`
+- [ ] 是撰寫/修改 spec？→ 使用 `feature/update-specs-description`
+- [ ] 是討論或規劃？→ 可能不需要分支，先與用戶確認
+
+### 3. 確認是否需要開分支
+
+**需要開分支的情況：**
+- ✅ 開發新功能或 task
+- ✅ 修復 issue
+- ✅ 撰寫或大幅修改 spec 文件
+- ✅ 任何會產生 commit 的工作
+- ✅ 預期會有多個檔案變更的工作
+
+**不需要開分支的情況：**
+- ❌ 純粹討論、分析、規劃（沒有任何檔案修改）
+- ❌ 用戶只是詢問問題
+- ❌ 回答技術問題
+
+**如果不確定，請先問用戶！**
+
+---
+
 ## 核心原則
 
 ### 1. 有文件才有開發
