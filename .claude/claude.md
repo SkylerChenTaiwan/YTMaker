@@ -33,8 +33,18 @@
 │   └── pages.md         # 頁面設計
 ├── tech-specs/          # 技術規格
 │   ├── framework.md     # 技術框架
-│   ├── backend-spec.md  # 後端規格
-│   └── frontend-spec.md # 前端規格
+│   ├── backend/         # 後端規格（拆分後）
+│   │   ├── _index.md   # 後端模塊索引
+│   │   ├── database.md # 資料庫設計
+│   │   ├── auth.md     # 認證授權
+│   │   ├── api-*.md    # API 規格
+│   │   └── ...
+│   └── frontend/        # 前端規格（拆分後）
+│       ├── _index.md   # 前端模塊索引
+│       ├── routing.md  # 路由設計
+│       ├── state.md    # 狀態管理
+│       ├── page-*.md   # 頁面規格
+│       └── ...
 ├── development/         # 開發計劃
 │   ├── phase-1/        # 階段一
 │   │   ├── overview.md # 任務總覽
@@ -56,10 +66,49 @@
 2. 生成 `product-design/flows.md` - 使用者流程（使用 `/generate-flows`）
 3. 生成 `product-design/pages.md` - 頁面設計（使用 `/generate-pages`）
 
-### 階段 2：技術規格
+### 階段 2：技術規格（初稿）
 1. 生成 `tech-specs/framework.md` - 技術框架（使用 `/generate-tech-specs-framework`）
-2. 生成 `tech-specs/backend-spec.md` - 後端規格（使用 `/generate-tech-specs-backend`）
-3. 生成 `tech-specs/frontend-spec.md` - 前端規格（使用 `/generate-tech-specs-frontend`）
+2. 生成 `tech-specs/backend-spec.md` - 後端規格初稿（使用 `/generate-tech-specs-backend`）
+3. 生成 `tech-specs/frontend-spec.md` - 前端規格初稿（使用 `/generate-tech-specs-frontend`）
+
+### 階段 2.5：拆分與檢查 Spec
+使用 `/split-specs` 命令進行 spec 拆分與品質檢查：
+
+**目的：**
+- 將大型 spec 文件拆分成模塊化結構
+- 檢查 spec 的完整性與正確性
+- 建立清晰的索引便於後續查找
+
+**執行流程：**
+1. 讀取 `backend-spec.md` 和 `frontend-spec.md`
+2. 分析內容並規劃模塊化結構
+3. 品質檢查：
+   - 是否有缺失或不清楚的部分
+   - 是否有矛盾或不一致
+   - 是否符合最佳實踐
+4. 拆分成適當大小的文件（100-300 行）
+5. 生成 `_index.md` 索引文件
+6. 刪除原始的單一大文件
+
+**產出結構：**
+```
+tech-specs/
+├── framework.md
+├── backend/
+│   ├── _index.md          # 模塊索引與導航
+│   ├── overview.md        # 整體架構
+│   ├── database.md        # 資料庫設計
+│   ├── auth.md           # 認證授權
+│   ├── api-*.md          # 各功能 API
+│   └── ...
+└── frontend/
+    ├── _index.md         # 模塊索引與導航
+    ├── overview.md       # 整體架構
+    ├── routing.md        # 路由設計
+    ├── state.md          # 狀態管理
+    ├── page-*.md         # 各頁面規格
+    └── ...
+```
 
 ### 階段 3：開發計劃
 1. 使用 `/plan-phase` 批量生成開發計劃，包含：
@@ -537,6 +586,7 @@ git push origin feature/task-XXX  # 或 fix/issue-XXX
 - `/generate-tech-specs-framework` - 基於產品設計文件生成 framework.md
 - `/generate-tech-specs-backend` - 基於產品設計與框架生成 backend-spec.md
 - `/generate-tech-specs-frontend` - 基於產品設計與框架生成 frontend-spec.md
+- `/split-specs` - 拆分並檢查 tech specs（在生成初稿後使用）
 
 ### 開發規劃階段
 - `/plan-phase` - 規劃任何開發階段，**批量生成**所有任務
