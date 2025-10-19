@@ -1,494 +1,644 @@
-# 技術框架規範 (Technical Framework)
+# 技術框架規格
 
-> **建立日期：** [日期]
-> **最後更新：** [日期]
-> **關聯文件：** `product-design/overview.md`
+## 1. 技術棧選擇 (Tech Stack)
 
----
+### 1.1 前端技術棧
 
-## 1. 技術棧選擇
+#### 核心框架
+- **框架：** Next.js 14 (React 18)
+- **理由：**
+  - 支援 SSR/SSG，提升首次載入速度
+  - 內建路由系統,符合頁面架構需求
+  - 豐富的生態系統，適合桌面應用開發
+  - 支援 Electron 整合，可打包為桌面應用
 
-### 前端技術
+#### UI 函式庫
+- **元件庫：** Ant Design 5.x
+- **理由：**
+  - 完整的企業級元件（Table、Form、Modal 等）
+  - 內建 Design System，符合產品設計規範
+  - 中文友善，支援繁體中文
+  - 良好的無障礙支援
 
-**框架：** [例如：React / Vue / Angular / Next.js]
-- 版本：[版本號]
-- 選擇理由：[為什麼選這個]
+#### 狀態管理
+- **全局狀態：** Zustand
+- **理由：**
+  - 輕量、簡單易用
+  - 適合中小型應用
+  - 無需 Provider 包裹
+  - 支援 TypeScript
 
-**UI 框架：** [例如：Tailwind CSS / Material-UI / Ant Design]
-- 版本：[版本號]
-- 選擇理由：[為什麼選這個]
+#### 拖拽與視覺化
+- **拖拽庫：** react-dnd
+- **理由：**
+  - 強大的拖拽功能，適合視覺化配置
+  - 支援自訂拖拽邏輯
+  - 良好的觸控支援
 
-**狀態管理：** [例如：Redux / Zustand / Context API]
-- 版本：[版本號]
-- 選擇理由：[為什麼選這個]
+- **畫布渲染：** Konva.js (react-konva)
+- **理由：**
+  - 高效能的 Canvas 渲染
+  - 適合即時預覽視覺效果
+  - 支援影片幀預覽
 
-**其他關鍵套件：**
-- [套件名稱 1]：[用途]
-- [套件名稱 2]：[用途]
-- [套件名稱 3]：[用途]
+#### 資料請求
+- **HTTP 客戶端：** Axios
+- **理由：**
+  - 支援請求攔截、錯誤處理
+  - 支援取消請求
+  - 良好的 TypeScript 支援
 
----
+- **即時通訊：** Socket.IO Client
+- **理由：**
+  - 即時接收進度更新
+  - 自動重連機制
+  - 支援跨平台
 
-### 後端技術
-
-**語言：** [例如：Node.js / Python / Go / Java]
-- 版本：[版本號]
-
-**框架：** [例如：Express / FastAPI / Gin / Spring Boot]
-- 版本：[版本號]
-- 選擇理由：[為什麼選這個]
-
-**資料庫：** [例如：PostgreSQL / MongoDB / MySQL]
-- 版本：[版本號]
-- 選擇理由：[為什麼選這個]
-
-**ORM/ODM：** [例如：Prisma / SQLAlchemy / GORM / Mongoose]
-- 版本：[版本號]
-
-**其他關鍵套件：**
-- [套件名稱 1]：[用途]
-- [套件名稱 2]：[用途]
-- [套件名稱 3]：[用途]
-
----
-
-### DevOps & 基礎設施
-
-**版本控制：** Git
-- 託管平台：[GitHub / GitLab / Bitbucket]
-- 分支策略：見專案根目錄 Git 工作流程文件
-
-**CI/CD：** [例如：GitHub Actions / GitLab CI / Jenkins]
-- 自動化測試：[是/否]
-- 自動化部署：[是/否]
-
-**容器化：** [例如：Docker]
-- 是否使用：[是/否]
-- Orchestration：[Kubernetes / Docker Compose]
-
-**雲端服務：** [例如：AWS / GCP / Azure / Vercel]
-- 主要服務：
-  - [服務 1]：[用途]
-  - [服務 2]：[用途]
-
-**監控與日誌：**
-- 監控工具：[例如：Prometheus / Datadog]
-- 日誌系統：[例如：ELK / Cloudwatch]
-- 錯誤追蹤：[例如：Sentry / Rollbar]
+#### 開發工具
+- **語言：** TypeScript 5.x
+- **樣式：** Tailwind CSS + CSS Modules
+- **打包：** Webpack (Next.js 內建)
+- **桌面打包：** Electron Builder
 
 ---
 
-## 2. 專案結構
+### 1.2 後端技術棧
 
-### 前端專案結構
+#### 核心框架
+- **框架：** FastAPI (Python 3.9+)
+- **理由：**
+  - 高效能（基於 Starlette 和 Pydantic）
+  - 自動生成 OpenAPI 文件
+  - 原生支援 async/await
+  - 強大的型別驗證
+  - 適合 AI 相關專案（Python 生態系統）
+
+#### Web 伺服器
+- **ASGI 伺服器：** Uvicorn
+- **理由：**
+  - 高效能 ASGI 實作
+  - 支援 WebSocket
+  - 適合 FastAPI
+
+#### 任務佇列
+- **任務佇列：** Celery
+- **訊息代理：** Redis
+- **理由：**
+  - 支援長時間背景任務（影片生成）
+  - 支援任務排程、重試、優先級
+  - 分散式任務執行
+  - 豐富的監控工具（Flower）
+
+#### 資料處理
+- **影片處理：** FFmpeg (透過 ffmpeg-python)
+- **圖片處理：** Pillow
+- **音訊處理：** pydub
+
+#### AI/API 客戶端
+- **Google Gemini：** google-generativeai
+- **Stability AI：** requests (直接調用 REST API)
+- **D-ID：** requests
+- **YouTube：** google-api-python-client
+
+---
+
+### 1.3 資料庫選擇
+
+#### 主要資料庫
+- **資料庫：** SQLite (本地端)
+- **理由：**
+  - 無需額外伺服器，適合本地端應用
+  - 零配置，易於部署
+  - 支援 ACID 事務
+  - 輕量、快速
+  - 檔案基於單一檔案，易於備份和遷移
+
+- **ORM：** SQLAlchemy 2.x
+- **理由：**
+  - 成熟的 Python ORM
+  - 支援複雜查詢和關聯
+  - 支援資料庫遷移（Alembic）
+
+#### 快取
+- **快取：** Redis
+- **理由：**
+  - 高效能鍵值儲存
+  - 支援任務佇列（Celery broker）
+  - 支援 TTL，適合快取 API 結果
+  - 支援發布/訂閱（進度更新）
+
+---
+
+### 1.4 開發工具與測試框架
+
+#### 前端測試
+- **單元測試：** Jest + React Testing Library
+- **E2E 測試：** Playwright
+- **理由：**
+  - Jest：成熟的 React 測試框架
+  - React Testing Library：符合最佳實踐
+  - Playwright：跨瀏覽器、跨平台 E2E 測試
+
+#### 後端測試
+- **單元測試：** pytest
+- **整合測試：** pytest + httpx
+- **理由：**
+  - pytest：Python 最流行的測試框架
+  - httpx：支援非同步測試
+  - 豐富的插件生態系統
+
+#### 程式碼品質
+- **Linter（前端）：** ESLint + Prettier
+- **Linter（後端）：** Ruff (替代 pylint + black)
+- **型別檢查（後端）：** mypy
+
+#### 版本控制
+- **版本控制：** Git
+- **Git Flow：** 短命分支策略（詳見 CLAUDE.md）
+
+---
+
+### 1.5 部署與 CI/CD 工具
+
+#### 本地端打包
+- **前端打包：** Electron Builder
+- **理由：**
+  - 支援 macOS、Linux、Windows
+  - 自動簽名和公證
+  - 支援自動更新
+
+- **後端打包：** PyInstaller 或 cx_Freeze
+- **理由：**
+  - 將 Python 應用打包為可執行檔
+  - 支援多平台
+  - 無需用戶安裝 Python
+
+#### CI/CD
+- **CI/CD 平台：** GitHub Actions
+- **理由：**
+  - 與 GitHub 深度整合
+  - 免費額度充足
+  - 支援多平台 Runner（macOS、Linux、Windows）
+  - 豐富的 Action 市場
+
+#### 容器化（開發環境）
+- **容器化：** Docker + Docker Compose
+- **理由：**
+  - 統一開發環境
+  - 快速啟動 Redis 等服務
+  - 易於部署測試環境
+
+---
+
+## 2. 系統架構 (System Architecture)
+
+### 2.1 整體架構設計
+
+**架構模式：** 本地端前後端分離架構（Local Client-Server）
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    桌面應用程式                      │
+│  ┌──────────────────────────────────────────────┐  │
+│  │         前端 (Electron + Next.js)            │  │
+│  │  ┌────────┐  ┌────────┐  ┌────────┐         │  │
+│  │  │ UI 層  │  │狀態管理│  │ Socket │         │  │
+│  │  └────────┘  └────────┘  └────────┘         │  │
+│  └──────────────────┬───────────────────────────┘  │
+│                     │ HTTP/WebSocket               │
+│  ┌──────────────────┴───────────────────────────┐  │
+│  │         後端 (FastAPI + Celery)              │  │
+│  │  ┌────────┐  ┌────────┐  ┌────────┐         │  │
+│  │  │ API 層 │  │業務邏輯│  │任務佇列│         │  │
+│  │  └────────┘  └────────┘  └────────┘         │  │
+│  └──────────────────┬───────────────────────────┘  │
+│                     │                               │
+│  ┌──────────────────┴───────────────────────────┐  │
+│  │              本地資料層                       │  │
+│  │  ┌────────┐  ┌────────┐  ┌────────┐         │  │
+│  │  │ SQLite │  │ Redis  │  │檔案系統│         │  │
+│  │  └────────┘  └────────┘  └────────┘         │  │
+│  └──────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+                      │
+                      │ HTTPS API Calls
+                      ▼
+         ┌────────────────────────────┐
+         │      外部 API 服務          │
+         │  ┌──────────────────────┐  │
+         │  │ • Google Gemini API  │  │
+         │  │ • Stability AI API   │  │
+         │  │ • D-ID API           │  │
+         │  │ • YouTube Data API   │  │
+         │  └──────────────────────┘  │
+         └────────────────────────────┘
+```
+
+**理由：**
+- **本地端運行：** 保護用戶隱私，無需雲端伺服器
+- **前後端分離：** 前端專注 UI，後端專注業務邏輯
+- **單用戶模式：** 無需複雜的權限管理
+- **離線工作：** 除 API 調用外，所有功能可離線使用
+
+---
+
+### 2.2 前後端分離策略
+
+#### 通訊方式
+- **RESTful API：** 一般 CRUD 操作（專案管理、配置管理等）
+- **WebSocket：** 即時進度更新（影片生成進度）
+- **Server-Sent Events (SSE)：** 單向即時日誌推送（備選方案）
+
+#### 資料格式
+- **請求/回應格式：** JSON
+- **錯誤格式：** 統一錯誤格式（詳見 API 設計）
+
+#### API 版本管理
+- **版本策略：** URL 版本化（`/api/v1/...`）
+- **向下相容：** Minor version 必須向下相容
+
+---
+
+### 2.3 API 設計風格
+
+**風格：** RESTful API
+
+**理由：**
+- 簡單、易於理解
+- 符合前端需求（CRUD 操作為主）
+- 不需要 GraphQL 的複雜查詢能力
+- 工具鏈成熟（OpenAPI、Swagger UI）
+
+#### 端點命名規範
+
+**資源命名：**
+- 使用複數名詞（`/api/v1/projects`）
+- 使用小寫和連字號（`/api/v1/prompt-templates`）
+
+**HTTP 方法：**
+- `GET`：查詢資源
+- `POST`：建立資源
+- `PUT`：更新資源（完整更新）
+- `PATCH`：更新資源（部分更新）
+- `DELETE`：刪除資源
+
+**範例端點：**
+```
+GET    /api/v1/projects               # 列出所有專案
+POST   /api/v1/projects               # 建立新專案
+GET    /api/v1/projects/:id           # 取得單一專案
+PUT    /api/v1/projects/:id           # 更新專案
+DELETE /api/v1/projects/:id           # 刪除專案
+POST   /api/v1/projects/:id/generate  # 開始生成影片
+GET    /api/v1/projects/:id/progress  # 取得生成進度（WebSocket）
+```
+
+---
+
+## 3. 開發環境 (Development Environment)
+
+### 3.1 本地開發環境設定
+
+#### 系統需求
+- **作業系統：** macOS 10.15+, Linux (Ubuntu 20.04+), Windows 10/11
+- **Node.js：** v18.x 或更高
+- **Python：** 3.9 或更高
+- **FFmpeg：** 4.4 或更高
+- **Docker：** 最新版本（用於 Redis）
+
+---
+
+### 3.2 開發工具與編輯器配置
+
+#### 推薦編輯器
+- **VS Code**（推薦）
+- **WebStorm**（前端）
+- **PyCharm**（後端）
+
+#### VS Code 擴充套件
+**前端：**
+- ESLint
+- Prettier - Code formatter
+- Tailwind CSS IntelliSense
+- TypeScript Importer
+
+**後端：**
+- Python
+- Pylance
+- Ruff
+- autoDocstring
+
+---
+
+### 3.3 程式碼風格與 Linting 規則
+
+#### 前端（JavaScript/TypeScript）
+
+**ESLint 配置（`.eslintrc.js`）**
+```javascript
+module.exports = {
+  extends: [
+    'next/core-web-vitals',
+    'plugin:@typescript-eslint/recommended',
+    'prettier'
+  ],
+  rules: {
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    'react/react-in-jsx-scope': 'off',
+    'react/prop-types': 'off'
+  }
+}
+```
+
+**Prettier 配置（`.prettierrc`）**
+```json
+{
+  "semi": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "arrowParens": "always"
+}
+```
+
+#### 後端（Python）
+
+**Ruff 配置（`pyproject.toml`）**
+```toml
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+```
+
+---
+
+### 3.4 Git Workflow 與分支策略
+
+**詳細策略請參考：** `CLAUDE.md` 中的 Git 工作流程
+
+**核心原則：**
+- `main` 分支：穩定的正式版本（僅接受從 `develop` 的 merge）
+- `develop` 分支：開發主線（禁止直接推送）
+- 短命分支：每個 task/issue 開一個分支（`feature/task-XXX-*` 或 `fix/issue-XXX-*`）
+
+**Commit 訊息規範：**
+```
+<type>: <description> [task-XXX 或 issue-XXX]
+
+範例：
+feat: 實作用戶認證 API [task-004]
+fix: 修正登入驗證錯誤 [issue-006]
+test: 新增認證測試案例 [task-005]
+docs: 更新 API 規格文件 [task-005]
+```
+
+---
+
+## 4. 測試策略 (Testing Strategy)
+
+### 4.1 單元測試
+
+#### 前端單元測試
+**框架：** Jest + React Testing Library
+
+**測試範圍：**
+- UI 元件渲染
+- 使用者互動
+- 狀態變更
+- 工具函數
+
+#### 後端單元測試
+**框架：** pytest
+
+**測試範圍：**
+- API 端點
+- 業務邏輯函數
+- 資料庫操作
+- 工具函數
+
+---
+
+### 4.2 整合測試
+
+#### 測試範圍
+- 多個元件互動
+- API 整合
+- 資料庫整合
+
+---
+
+### 4.3 E2E 測試
+
+**框架：** Playwright
+
+**測試範圍：**
+- 完整使用者流程
+- 跨頁面導航
+- 錯誤處理流程
+
+---
+
+### 4.4 測試覆蓋率目標
+
+- **一般程式碼：** > 80%
+- **核心業務邏輯：** > 90%
+
+---
+
+## 5. 部署架構 (Deployment Architecture)
+
+### 5.1 環境劃分
+
+#### 開發環境（Development）
+- 本地開發與測試
+- SQLite（檔案：`dev.db`）
+- Docker 本地運行 Redis
+
+#### 測試環境（Staging）
+- 整合測試、E2E 測試
+- SQLite（檔案：`staging.db`）
+
+#### 生產環境（Production）
+- 最終用戶使用
+- SQLite（檔案：`production.db`）
+- 用戶自行配置 API Keys
+
+---
+
+### 5.2 CI/CD Pipeline
+
+**平台：** GitHub Actions
+
+**主要流程：**
+1. 程式碼推送
+2. 自動執行測試
+3. 測試通過後打包
+4. 建立 Release
+
+---
+
+### 5.3 版本管理策略
+
+**語義化版本（Semantic Versioning）**
+
+**版本格式：** `MAJOR.MINOR.PATCH`
+
+**版本號規則：**
+- `MAJOR`：不相容的 API 變更
+- `MINOR`：向下相容的新功能
+- `PATCH`：向下相容的錯誤修復
+
+---
+
+## 6. 安全架構 (Security Architecture)
+
+### 6.1 認證與授權機制
+
+#### API Key 管理
+**儲存方式：** 使用作業系統的 Keychain/Credential Manager
+- macOS: Keychain
+- Linux: Secret Service API
+- Windows: Credential Manager
+
+---
+
+### 6.2 資料加密策略
+
+#### 敏感資料
+- API Keys
+- OAuth Tokens
+
+**加密方式：**
+- 作業系統 Keychain 加密儲存
+- 不寫入日誌檔案
+
+---
+
+### 6.3 API 安全防護
+
+#### 速率限制
+防止過度使用外部 API 配額
+
+#### 請求驗證
+- 使用 Pydantic 驗證所有輸入
+- 檢查檔案大小、類型
+- 檢查文字長度、字元編碼
+
+---
+
+## 7. 效能與擴展性 (Performance & Scalability)
+
+### 7.1 快取策略
+
+#### Redis 快取
+**快取內容：**
+- API 回應
+- 模板資料
+- 統計資料
+
+---
+
+### 7.2 資料庫優化策略
+
+#### 索引設計
+- 頻繁查詢的欄位建立索引
+- 外鍵欄位建立索引
+
+#### 查詢優化
+- 使用 Eager Loading 避免 N+1 查詢
+- 分頁查詢
+
+---
+
+## 8. 專案結構 (Project Structure)
+
+### 8.1 前端專案目錄結構
+
 ```
 frontend/
+├── public/
 ├── src/
-│   ├── components/       # 共用元件
-│   │   ├── common/      # 通用元件 (Button, Input, etc.)
-│   │   └── layout/      # 佈局元件 (Header, Footer, etc.)
-│   ├── pages/           # 頁面元件
-│   ├── hooks/           # 自定義 Hooks
-│   ├── store/           # 狀態管理
-│   ├── services/        # API 服務
-│   ├── utils/           # 工具函數
-│   ├── types/           # TypeScript 類型定義
-│   ├── assets/          # 靜態資源
-│   └── styles/          # 全域樣式
-├── public/              # 公開資源
-├── tests/               # 測試檔案
-├── .env.example         # 環境變數範例
+│   ├── app/
+│   ├── components/
+│   ├── hooks/
+│   ├── store/
+│   ├── services/
+│   ├── types/
+│   ├── utils/
+│   └── styles/
+├── tests/
 └── package.json
 ```
 
 ---
 
-### 後端專案結構
+### 8.2 後端專案目錄結構
+
 ```
 backend/
-├── src/
-│   ├── controllers/     # 控制器 (處理請求)
-│   ├── services/        # 業務邏輯
-│   ├── models/          # 資料模型
-│   ├── middlewares/     # 中介軟體
-│   ├── routes/          # 路由定義
-│   ├── utils/           # 工具函數
-│   ├── config/          # 配置檔案
-│   └── types/           # 類型定義
-├── tests/               # 測試檔案
-├── migrations/          # 資料庫遷移
-├── seeds/               # 測試資料
-├── .env.example         # 環境變數範例
-└── package.json / requirements.txt
+├── app/
+│   ├── api/
+│   ├── models/
+│   ├── schemas/
+│   ├── services/
+│   ├── tasks/
+│   ├── utils/
+│   └── security/
+├── tests/
+├── logs/
+└── requirements.txt
 ```
 
 ---
 
-## 3. 開發環境設定
+## 總結
 
-### 必要安裝
-- **Node.js：** [版本]
-- **套件管理器：** [npm / yarn / pnpm]
-- **資料庫：** [名稱與版本]
-- **其他工具：** [列出]
-
-### 環境變數
-
-**前端 (.env)**
-```bash
-VITE_API_URL=http://localhost:3000
-VITE_API_KEY=your_api_key
-# [其他變數]
-```
-
-**後端 (.env)**
-```bash
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-JWT_SECRET=your_jwt_secret
-PORT=3000
-NODE_ENV=development
-# [其他變數]
-```
-
-### 本地開發啟動
+### 核心技術棧
 
 **前端：**
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- Next.js 14 + React 18 + TypeScript
+- Ant Design + Tailwind CSS
+- Electron
 
 **後端：**
-```bash
-cd backend
-npm install
-npm run dev
-```
+- FastAPI + Python 3.9+
+- SQLAlchemy + SQLite
+- Celery + Redis
 
-**資料庫：**
-```bash
-# [啟動資料庫的命令]
-docker-compose up -d
-```
+**外部服務：**
+- Google Gemini API
+- Stability AI API
+- D-ID API
+- YouTube Data API
 
----
+### 架構決策
 
-## 4. 程式碼規範
-
-### 命名規範
-
-**檔案命名：**
-- 元件檔案：PascalCase (例如：`UserProfile.tsx`)
-- 工具函數：camelCase (例如：`formatDate.ts`)
-- 常數檔案：UPPER_SNAKE_CASE (例如：`API_ENDPOINTS.ts`)
-
-**變數命名：**
-- 變數和函數：camelCase
-- 類別和元件：PascalCase
-- 常數：UPPER_SNAKE_CASE
-- 私有屬性：前綴 `_` (例如：`_privateMethod`)
-
-**資料庫命名：**
-- 表格名稱：snake_case, 複數 (例如：`user_profiles`)
-- 欄位名稱：snake_case (例如：`created_at`)
+**本地端前後端分離架構：**
+- 前端：Electron 包裝的 Next.js 應用
+- 後端：FastAPI 伺服器
+- 資料庫：SQLite
+- 任務佇列：Celery + Redis
 
 ---
 
-### 程式碼風格
+## 需要回到產品設計階段釐清的問題
 
-**Linter：** [ESLint / Pylint / Golint]
-- 配置檔：[`.eslintrc.js`]
-- 規則：[Airbnb / Standard / Google]
+**無。**
 
-**Formatter：** [Prettier / Black / gofmt]
-- 配置檔：[`.prettierrc`]
-- 自動格式化：保存時執行
-
-**TypeScript (如果使用)：**
-- 嚴格模式：[啟用/停用]
-- 配置檔：`tsconfig.json`
-
----
-
-### 註解規範
-
-**函數註解：**
-```javascript
-/**
- * 計算兩個數字的總和
- * @param {number} a - 第一個數字
- * @param {number} b - 第二個數字
- * @returns {number} 兩數的總和
- */
-function add(a, b) {
-  return a + b;
-}
-```
-
-**TODO 註解：**
-```javascript
-// TODO: 實作錯誤處理
-// FIXME: 修復效能問題
-// NOTE: 這裡需要特別注意...
-```
-
----
-
-## 5. 測試策略
-
-### 測試框架
-
-**前端測試：**
-- 單元測試：[例如：Jest / Vitest]
-- 元件測試：[例如：React Testing Library]
-- E2E 測試：[例如：Playwright / Cypress]
-
-**後端測試：**
-- 單元測試：[例如：Jest / pytest / testing package]
-- 整合測試：[例如：Supertest]
-- API 測試：[例如：Postman / REST Client]
-
----
-
-### 測試覆蓋率目標
-- 單元測試：> 80%
-- 關鍵業務邏輯：> 90%
-- E2E 測試：覆蓋所有主要流程
-
----
-
-### 測試檔案結構
-```
-tests/
-├── unit/               # 單元測試
-│   ├── components/
-│   ├── services/
-│   └── utils/
-├── integration/        # 整合測試
-└── e2e/               # E2E 測試
-```
-
----
-
-### 測試命名規範
-```javascript
-describe('UserService', () => {
-  describe('createUser', () => {
-    it('應該成功建立新用戶', () => {
-      // ...
-    });
-
-    it('當 email 重複時應該拋出錯誤', () => {
-      // ...
-    });
-  });
-});
-```
-
----
-
-## 6. API 設計規範
-
-### RESTful API 原則
-
-**HTTP 方法：**
-- `GET`：讀取資源
-- `POST`：建立資源
-- `PUT`：完整更新資源
-- `PATCH`：部分更新資源
-- `DELETE`：刪除資源
-
-**URL 結構：**
-```
-/api/v1/{resource}
-/api/v1/{resource}/{id}
-/api/v1/{resource}/{id}/{sub-resource}
-```
-
-**範例：**
-```
-GET    /api/v1/users          # 取得用戶列表
-GET    /api/v1/users/:id      # 取得單一用戶
-POST   /api/v1/users          # 建立用戶
-PUT    /api/v1/users/:id      # 更新用戶
-DELETE /api/v1/users/:id      # 刪除用戶
-```
-
----
-
-### API 回應格式
-
-**成功回應：**
-```json
-{
-  "success": true,
-  "data": {
-    // 資料內容
-  },
-  "message": "操作成功"
-}
-```
-
-**錯誤回應：**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "錯誤訊息",
-    "details": []
-  }
-}
-```
-
-**分頁回應：**
-```json
-{
-  "success": true,
-  "data": [],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 100,
-    "totalPages": 10
-  }
-}
-```
-
----
-
-### HTTP 狀態碼
-
-- `200` OK：請求成功
-- `201` Created：資源建立成功
-- `204` No Content：請求成功但無內容
-- `400` Bad Request：請求格式錯誤
-- `401` Unauthorized：未認證
-- `403` Forbidden：無權限
-- `404` Not Found：資源不存在
-- `422` Unprocessable Entity：驗證失敗
-- `500` Internal Server Error：伺服器錯誤
-
----
-
-## 7. 安全性規範
-
-### 認證與授權
-- 認證機制：[JWT / Session / OAuth]
-- Token 有效期：[時間]
-- Refresh Token：[是否使用]
-- 權限控制：[RBAC / ABAC]
-
-### 資料驗證
-- 前端驗證：必須
-- 後端驗證：必須（不信任前端輸入）
-- 驗證庫：[例如：Zod / Joi / class-validator]
-
-### 資料加密
-- 傳輸加密：HTTPS (TLS 1.2+)
-- 密碼加密：[bcrypt / argon2]
-- 敏感資料：加密儲存
-
-### 防護措施
-- [ ] SQL Injection 防護
-- [ ] XSS 防護
-- [ ] CSRF Token
-- [ ] Rate Limiting
-- [ ] Input Sanitization
-- [ ] CORS 設定
-
----
-
-## 8. 效能優化策略
-
-### 前端優化
-- [ ] Code Splitting
-- [ ] Lazy Loading
-- [ ] Image Optimization
-- [ ] Caching Strategy
-- [ ] Bundle Size Optimization
-
-### 後端優化
-- [ ] Database Indexing
-- [ ] Query Optimization
-- [ ] Caching (Redis)
-- [ ] Connection Pooling
-- [ ] Load Balancing
-
----
-
-## 9. 部署策略
-
-### 環境
-- **Development：** 開發環境
-- **Staging：** 測試環境
-- **Production：** 正式環境
-
-### 部署流程
-1. 程式碼推送到 Git
-2. 自動執行測試
-3. 測試通過後建立 Docker Image
-4. 部署到對應環境
-5. 健康檢查
-6. 完成部署
-
-### 回滾策略
-- 保留最近 [X] 個版本
-- 快速回滾機制
-- 資料庫遷移回滾計劃
-
----
-
-## 10. 文件化要求
-
-### 必須文件
-- [ ] API 文件 (Swagger / OpenAPI)
-- [ ] 環境設定說明
-- [ ] 部署指南
-- [ ] 故障排除指南
-
-### 程式碼文件
-- [ ] 所有公開 API 有註解
-- [ ] 複雜邏輯有說明
-- [ ] README.md 保持更新
-
----
-
-## 11. 依賴管理
-
-### 套件更新政策
-- 安全性更新：立即處理
-- 主要版本更新：評估後決定
-- 次要版本更新：定期更新
-- 停止維護的套件：尋找替代方案
-
-### 套件選擇原則
-- [ ] 活躍維護
-- [ ] 良好文件
-- [ ] 社群支持
-- [ ] 授權許可合適
-- [ ] 效能與大小考量
-
----
-
-## 12. 技術債務管理
-
-### 識別技術債務
-- 程式碼審查時標記
-- 使用 TODO/FIXME 註解
-- 定期技術債務會議
-
-### 償還計劃
-- 優先級評估
-- 每個 Sprint 分配時間
-- 重構前必須有測試
-
----
-
-## 更新記錄
-
-| 日期 | 版本 | 修改內容 | 修改人 |
-|------|------|----------|--------|
-| [日期] | 1.0 | 初始版本 | [名字] |
-| | | | |
+所有技術選擇都基於產品需求明確定義，技術框架設計完整且可執行。
