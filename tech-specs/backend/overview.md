@@ -1,369 +1,296 @@
 # Backend 整體架構
 
-> **關聯文件:** [framework.md](../framework.md), [database.md](./database.md), [api-design.md](./api-design.md)
+> **關聯文件:** [framework.md](../framework.md)
 
 ---
 
-## 1. 技術棧概覽
+## 文件導航
+
+本目錄包含完整的後端技術規格，已拆分為以下模塊：
+
+### API 設計
+- **[api-system.md](./api-system.md)** - 系統初始化 API（3 個端點）
+- **[api-projects.md](./api-projects.md)** - 專案管理 API（10 個端點）
+- **[api-configurations.md](./api-configurations.md)** - 配置與模板管理 API（5 個端點）
+- **[api-youtube.md](./api-youtube.md)** - YouTube 授權 API（4 個端點）
+- **[api-stats.md](./api-stats.md)** - 統計與配額 API（2 個端點）
+- **[api-batch.md](./api-batch.md)** - 批次處理 API（3 個端點）
+
+### 資料與業務邏輯
+- **[database.md](./database.md)** - 資料模型與資料庫設計（7 個資料表）
+- **[business-logic.md](./business-logic.md)** - 核心業務邏輯（腳本、素材、渲染、上傳）
+
+### 安全與效能
+- **[auth.md](./auth.md)** - 認證與授權（API Key、OAuth Token 管理）
+- **[security.md](./security.md)** - 安全措施（輸入驗證、SQL Injection 防護、敏感資料保護）
+- **[caching.md](./caching.md)** - 快取策略（Redis、查詢快取、失效策略）
+- **[performance.md](./performance.md)** - 效能優化（資料庫、非同步、檔案系統）
+
+### 整合與測試
+- **[background-jobs.md](./background-jobs.md)** - 背景任務（Celery、影片生成、批次處理）
+- **[integrations.md](./integrations.md)** - 第三方整合（Gemini、Stability AI、D-ID、YouTube）
+- **[testing.md](./testing.md)** - 測試規格（單元測試、整合測試、Mock 設計）
+
+---
+
+## 1. 技術棧
 
 ### 核心框架
-- **框架:** FastAPI (Python 3.9+)
+- **Web 框架:** FastAPI (Python 3.9+)
 - **ASGI 伺服器:** Uvicorn
 - **ORM:** SQLAlchemy 2.x
-- **資料庫:** SQLite
-- **任務佇列:** Celery
-- **訊息代理:** Redis
+- **資料庫:** SQLite (本地端)
+- **快取:** Redis
+- **任務佇列:** Celery + Redis
 
-### 理由選擇
-- **高效能:** 基於 Starlette 和 Pydantic,支援 async/await
-- **自動文件:** 自動生成 OpenAPI 文件
-- **強型別:** 強大的型別驗證
-- **Python 生態:** 適合 AI 相關專案
+### 主要套件
+- **API 文件:** FastAPI 內建 OpenAPI
+- **資料驗證:** Pydantic
+- **密碼加密:** keyring (系統 Keychain)
+- **Token 加密:** cryptography (Fernet)
+- **影片處理:** FFmpeg (透過 ffmpeg-python)
+- **圖片處理:** Pillow
+- **音訊處理:** pydub
+
+### AI/API 客戶端
+- **Google Gemini:** google-generativeai
+- **Stability AI:** requests
+- **D-ID:** requests
+- **YouTube:** google-api-python-client
 
 ---
 
-## 2. 專案目錄結構
+## 2. 專案結構
 
 ```
 backend/
 ├── app/
-│   ├── api/              # API 路由
+│   ├── __init__.py
+│   ├── main.py                    # FastAPI 應用入口
+│   │
+│   ├── api/                       # API 端點
+│   │   ├── __init__.py
 │   │   ├── v1/
-│   │   │   ├── projects.py
-│   │   │   ├── configurations.py
-│   │   │   ├── templates.py
-│   │   │   ├── settings.py
-│   │   │   ├── batch.py
-│   │   │   └── stats.py
-│   │   └── deps.py       # 依賴注入
-│   ├── models/           # SQLAlchemy 模型
+│   │   │   ├── __init__.py
+│   │   │   ├── system.py         # 系統初始化 API
+│   │   │   ├── projects.py       # 專案管理 API
+│   │   │   ├── configurations.py # 配置管理 API
+│   │   │   ├── templates.py      # 模板管理 API
+│   │   │   ├── youtube.py        # YouTube 授權 API
+│   │   │   ├── stats.py          # 統計與配額 API
+│   │   │   └── batch.py          # 批次處理 API
+│   │
+│   ├── models/                    # 資料庫模型
+│   │   ├── __init__.py
 │   │   ├── project.py
 │   │   ├── configuration.py
-│   │   ├── template.py
-│   │   ├── setting.py
-│   │   └── batch.py
-│   ├── schemas/          # Pydantic Schemas
+│   │   ├── prompt_template.py
+│   │   ├── youtube_account.py
+│   │   ├── asset.py
+│   │   ├── batch_task.py
+│   │   └── system_settings.py
+│   │
+│   ├── schemas/                   # Pydantic Schemas
+│   │   ├── __init__.py
 │   │   ├── project.py
 │   │   ├── configuration.py
 │   │   └── ...
-│   ├── services/         # 業務邏輯
-│   │   ├── project_service.py
-│   │   ├── video_generation_service.py
-│   │   ├── gemini_service.py
-│   │   ├── stability_service.py
-│   │   └── youtube_service.py
-│   ├── tasks/            # Celery 任務
-│   │   ├── script_tasks.py
-│   │   ├── asset_tasks.py
-│   │   ├── render_tasks.py
-│   │   └── upload_tasks.py
-│   ├── utils/            # 工具函數
-│   │   ├── file_utils.py
-│   │   ├── validation.py
-│   │   └── keychain.py
-│   ├── security/         # 安全相關
-│   │   └── keychain_manager.py
-│   ├── core/             # 核心配置
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   └── celery_app.py
-│   └── main.py           # 主應用入口
-├── tests/
+│   │
+│   ├── services/                  # 業務邏輯服務
+│   │   ├── __init__.py
+│   │   ├── gemini_service.py     # Gemini 腳本生成
+│   │   ├── tts_service.py        # 語音合成
+│   │   ├── stability_service.py  # 圖片生成
+│   │   ├── did_service.py        # 虛擬主播生成
+│   │   ├── ffmpeg_service.py     # 影片渲染
+│   │   ├── youtube_service.py    # YouTube 上傳
+│   │   └── thumbnail_service.py  # 封面生成
+│   │
+│   ├── tasks/                     # Celery 任務
+│   │   ├── __init__.py
+│   │   ├── video_generation.py   # 影片生成任務
+│   │   ├── batch_processing.py   # 批次處理任務
+│   │   └── quota_sync.py         # 配額同步任務
+│   │
+│   ├── utils/                     # 工具函數
+│   │   ├── __init__.py
+│   │   ├── database.py           # 資料庫連線
+│   │   ├── cache.py              # Redis 快取
+│   │   ├── logger.py             # 日誌工具
+│   │   └── validators.py         # 驗證工具
+│   │
+│   ├── security/                  # 安全相關
+│   │   ├── __init__.py
+│   │   ├── keychain.py           # API Key 管理
+│   │   └── oauth.py              # OAuth Token 管理
+│   │
+│   └── core/                      # 核心配置
+│       ├── __init__.py
+│       ├── config.py             # 應用配置
+│       └── constants.py          # 常數定義
+│
+├── tests/                         # 測試
 │   ├── unit/
 │   ├── integration/
 │   └── conftest.py
-├── logs/
-├── data/                 # SQLite 資料庫檔案
-│   ├── dev.db
-│   └── production.db
-├── requirements.txt
-├── pyproject.toml
-└── README.md
+│
+├── logs/                          # 日誌檔案
+├── data/                          # 資料檔案
+│   ├── projects/                 # 專案檔案
+│   ├── database.db              # SQLite 資料庫
+│   └── redis-data/              # Redis 持久化
+│
+├── alembic/                       # 資料庫遷移
+├── requirements.txt              # Python 依賴
+└── pyproject.toml               # 專案配置
 ```
 
 ---
 
-## 3. 主要依賴套件
+## 3. 應用啟動流程
 
-### 核心套件
-```txt
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-pydantic>=2.5.0
-sqlalchemy>=2.0.0
-alembic>=1.12.0
+**啟動命令:**
+```bash
+# 開發環境
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 生產環境
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-### 任務佇列
-```txt
-celery>=5.3.0
-redis>=5.0.0
-flower>=2.0.0
-```
-
-### AI/API 客戶端
-```txt
-google-generativeai>=0.3.0
-requests>=2.31.0
-google-api-python-client>=2.100.0
-google-auth-httplib2>=0.1.1
-google-auth-oauthlib>=1.1.0
-```
-
-### 影音處理
-```txt
-ffmpeg-python>=0.2.0
-Pillow>=10.0.0
-pydub>=0.25.0
-```
-
-### 開發工具
-```txt
-pytest>=7.4.0
-httpx>=0.25.0
-ruff>=0.1.0
-mypy>=1.6.0
-```
+**啟動步驟:**
+1. 載入環境變數
+2. 初始化資料庫連線
+3. 初始化 Redis 連線
+4. 啟動 Celery Worker (背景)
+5. 啟動 FastAPI 應用
+6. 檢查系統初始化狀態
 
 ---
 
-## 4. 應用程式啟動流程
+## 4. API 路由註冊
 
-### 開發環境啟動
-
-**1. 啟動 Redis (Docker)**
-```bash
-docker run -d -p 6379:6379 redis:alpine
-```
-
-**2. 啟動 Celery Worker**
-```bash
-celery -A app.core.celery_app worker --loglevel=info
-```
-
-**3. 啟動 FastAPI 伺服器**
-```bash
-uvicorn app.main:app --reload --host localhost --port 8000
-```
-
-**4. (可選) 啟動 Flower (Celery 監控)**
-```bash
-celery -A app.core.celery_app flower --port=5555
-```
-
-### 生產環境啟動
-
-**使用 Supervisor 或 systemd 管理服務:**
-
-```bash
-# systemd 服務定義範例
-# /etc/systemd/system/ytmaker-api.service
-
-[Unit]
-Description=YTMaker API Service
-After=network.target
-
-[Service]
-Type=simple
-User=ytmaker
-WorkingDirectory=/opt/ytmaker/backend
-ExecStart=/opt/ytmaker/venv/bin/uvicorn app.main:app --host localhost --port 8000
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
----
-
-## 5. 配置管理
-
-### 環境變數
-
-**開發環境 (.env.dev)**
-```env
-# 應用配置
-APP_ENV=development
-API_HOST=localhost
-API_PORT=8000
-
-# 資料庫
-DATABASE_URL=sqlite:///./data/dev.db
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
-
-# 日誌
-LOG_LEVEL=DEBUG
-LOG_FILE=logs/dev.log
-
-# API Keys (從 Keychain 讀取,這裡僅作為參考)
-# GEMINI_API_KEY=
-# STABILITY_API_KEY=
-# DID_API_KEY=
-```
-
-**生產環境 (.env.prod)**
-```env
-APP_ENV=production
-API_HOST=localhost
-API_PORT=8000
-DATABASE_URL=sqlite:///{user_data_dir}/ytmaker/production.db
-REDIS_URL=redis://localhost:6379/0
-LOG_LEVEL=INFO
-LOG_FILE=logs/production.log
-```
-
-### 配置檔案載入
-
+**主應用 (main.py):**
 ```python
-# app/core/config.py
-from pydantic_settings import BaseSettings
+from fastapi import FastAPI
+from app.api.v1 import (
+    system,
+    projects,
+    configurations,
+    templates,
+    youtube,
+    stats,
+    batch,
+)
 
-class Settings(BaseSettings):
-    app_env: str = "development"
-    api_host: str = "localhost"
-    api_port: int = 8000
-    database_url: str
-    redis_url: str
-    log_level: str = "INFO"
-    log_file: str = "logs/app.log"
+app = FastAPI(
+    title="YTMaker API",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+)
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
-settings = Settings()
+# 註冊路由
+app.include_router(system.router, prefix="/api/v1/system", tags=["System"])
+app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
+app.include_router(configurations.router, prefix="/api/v1/configurations", tags=["Configurations"])
+app.include_router(templates.router, prefix="/api/v1/prompt-templates", tags=["Templates"])
+app.include_router(youtube.router, prefix="/api/v1/youtube", tags=["YouTube"])
+app.include_router(stats.router, prefix="/api/v1/stats", tags=["Stats"])
+app.include_router(batch.router, prefix="/api/v1/batch", tags=["Batch"])
 ```
 
 ---
 
-## 6. 本地端應用特性
+## 5. 資料流架構
 
-### 單用戶模式
-- **無需用戶認證:** API 僅監聽 `localhost`
-- **無需權限管理:** 單用戶擁有所有權限
-- **簡化架構:** 無需 Session、JWT、OAuth
-
-### 安全性考量
-- **API Keys 儲存:** 使用作業系統 Keychain
-- **本地運行:** 不暴露於公網
-- **輸入驗證:** 使用 Pydantic 驗證所有輸入
-
----
-
-## 7. API 文件與測試
-
-### OpenAPI 文件
-FastAPI 自動生成,訪問:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-- OpenAPI JSON: `http://localhost:8000/openapi.json`
-
-### API 測試工具
-- **開發階段:** Swagger UI (內建測試界面)
-- **自動化測試:** pytest + httpx
-- **手動測試:** Postman / Insomnia
-
----
-
-## 8. 日誌與監控
-
-### 日誌策略
-- **日誌庫:** Python logging + structlog
-- **日誌格式:** JSON 格式 (便於解析)
-- **日誌等級:** DEBUG, INFO, WARNING, ERROR, CRITICAL
-- **日誌檔案:** 按日期分割 (logs/app-2024-01-15.log)
-
-### 監控
-- **Celery 任務監控:** Flower (`http://localhost:5555`)
-- **應用效能監控:** 本地日誌分析 (可選: Sentry)
-
----
-
-## 9. 資料庫遷移
-
-### 使用 Alembic 管理資料庫 Schema 變更
-
-**初始化 Alembic:**
-```bash
-alembic init migrations
+```
+[前端請求] → [FastAPI API 層] → [Service 層] → [資料庫/Redis/外部 API]
+                                           ↓
+                                    [Celery 任務佇列]
 ```
 
-**建立遷移腳本:**
-```bash
-alembic revision --autogenerate -m "Create initial tables"
+**同步流程 (CRUD):**
+```
+前端 → API 端點 → Service 層 → 資料庫 → 回應
 ```
 
-**執行遷移:**
-```bash
-alembic upgrade head
+**非同步流程 (影片生成):**
 ```
-
-**回退遷移:**
-```bash
-alembic downgrade -1
+前端 → API 端點 → Celery 任務 → 背景執行 → WebSocket 推送進度
 ```
 
 ---
 
-## 10. 錯誤處理與重試機制
+## 6. 錯誤處理架構
 
-### 全局錯誤處理器
-
+**全局錯誤處理器:**
 ```python
-# app/main.py
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-
-app = FastAPI()
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
+            "success": False,
             "error": {
-                "code": "E-0.0",
-                "message": "內部伺服器錯誤",
-                "details": str(exc),
-                "timestamp": datetime.utcnow().isoformat()
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "伺服器錯誤，請稍後重試",
+                "details": str(exc) if DEBUG else None
             }
         }
     )
 ```
 
-### Celery 任務重試
+---
 
-```python
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
-def generate_image(self, prompt: str):
-    try:
-        # 調用 Stability AI API
-        ...
-    except Exception as exc:
-        # 重試
-        raise self.retry(exc=exc)
+## 7. 日誌架構
+
+**日誌配置:**
+- **位置:** `logs/app.log`
+- **等級:** INFO (生產), DEBUG (開發)
+- **輪替:** 每日輪替，保留 30 天
+- **格式:** `[時間] [等級] [模組] - 訊息`
+
+---
+
+## 8. 配置管理
+
+**環境變數 (.env):**
+```env
+# 應用配置
+ENV=development
+DEBUG=True
+PORT=8000
+
+# 資料庫
+DATABASE_URL=sqlite:///./data/database.db
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# 外部 API (不儲存，使用 Keychain)
+# GEMINI_API_KEY=...
+# STABILITY_AI_API_KEY=...
+# DID_API_KEY=...
 ```
 
 ---
 
 ## 總結
 
-### 核心特性
-- ✅ 本地端應用,保護用戶隱私
-- ✅ 前後端分離,清晰的職責劃分
-- ✅ 非同步任務處理,支援長時間影片生成
-- ✅ 完整的錯誤處理與日誌系統
-- ✅ 自動化測試與 CI/CD 支援
+**核心特色:**
+- ✅ RESTful API 設計
+- ✅ 非同步任務處理 (Celery)
+- ✅ WebSocket 即時更新
+- ✅ 自動 API 文件 (OpenAPI)
+- ✅ 型別安全 (Pydantic)
+- ✅ 資料庫 ORM (SQLAlchemy)
+- ✅ 快取機制 (Redis)
+- ✅ 錯誤處理與日誌
+- ✅ 安全的 API Key 管理
 
-### 技術亮點
-- FastAPI 高效能 API
-- Celery 強大的任務佇列
-- SQLAlchemy ORM 簡化資料庫操作
-- Pydantic 強型別驗證
-- 完整的 OpenAPI 文件
-
----
-
-**下一步:** 詳見 [database.md](./database.md)、[api-design.md](./api-design.md)、[auth.md](./auth.md)
+**設計原則:**
+- 單一職責：每個 Service 只負責一個功能
+- 依賴注入：透過 FastAPI Depends 管理依賴
+- 錯誤優先：明確的錯誤處理和回應
+- 可測試性：所有業務邏輯可獨立測試

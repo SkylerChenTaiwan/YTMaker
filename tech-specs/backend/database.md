@@ -1,512 +1,205 @@
-# 資料庫設計
+# 資料模型 (Data Models)
 
-> **關聯文件:** [overview.md](./overview.md), [framework.md](../framework.md)
-
----
-
-## 1. 資料庫選擇
-
-### SQLite
-
-**理由:**
-- ✅ 本地端應用,無需獨立資料庫伺服器
-- ✅ 零配置,易於部署
-- ✅ 單檔案儲存,易於備份和遷移
-- ✅ 支援 ACID 事務
-- ✅ 輕量、快速
-
-**檔案位置:**
-- 開發環境: `backend/data/dev.db`
-- 生產環境: `{user_data_dir}/ytmaker/production.db`
-
-**ORM:** SQLAlchemy 2.x
+## 關聯文件
+- [後端總覽](./overview.md)
+- [API 設計 - 專案管理](./api-projects.md)
+- [API 設計 - 配置管理](./api-configurations.md)
+- [API 設計 - YouTube 授權](./api-youtube.md)
+- [業務邏輯](./business-logic.md)
 
 ---
 
-## 2. 資料模型總覽
+## 2.1 資料庫 Schema 設計
 
-**總計:** 10 個主要資料實體
+### 2.1.1 Project（專案）
 
-1. **Project** (專案)
-2. **Configuration** (視覺配置)
-3. **PromptTemplate** (Prompt 範本)
-4. **VisualTemplate** (視覺配置模板)
-5. **Script** (生成的腳本)
-6. **Asset** (素材檔案)
-7. **BatchTask** (批次任務)
-8. **Setting** (系統設定)
-9. **APIKey** (API 金鑰)
-10. **YouTubeAuth** (YouTube 授權)
+**資料表名稱：** `projects`
 
----
-
-## 3. 詳細資料模型
-
-### 3.1 Project (專案)
-
-**描述:** 核心資料模型,代表一個影片生成專案
-
-**欄位定義:**
-
-| 欄位名稱 | 類型 | 必填 | 說明 | 預設值 |
-|---------|------|------|------|-------|
-| id | string (UUID) | 是 | 專案唯一識別碼 | 自動生成 |
-| name | string(100) | 是 | 專案名稱 | - |
-| status | enum | 是 | 專案狀態 | initialized |
-| content | text | 是 | 原始文字內容 | - |
-| word_count | integer | 是 | 字數統計 | 自動計算 |
-| configuration_id | string (FK) | 否 | 視覺配置 ID | null |
-| prompt_template_id | string (FK) | 是 | Prompt 範本 ID | - |
-| gemini_model | string | 是 | Gemini 模型 | gemini-1.5-flash |
-| script_id | string (FK) | 否 | 生成的腳本 ID | null |
-| youtube_settings | JSON | 是 | YouTube 設定 | - |
-| youtube_video_id | string | 否 | YouTube 影片 ID | null |
-| progress | integer | 是 | 生成進度 (0-100) | 0 |
-| created_at | datetime | 是 | 建立時間 | 自動生成 |
-| updated_at | datetime | 是 | 更新時間 | 自動更新 |
-
-**狀態列舉 (status):**
-- `initialized`: 已初始化
-- `script_generating`: 腳本生成中
-- `assets_generating`: 素材生成中
-- `rendering`: 影片渲染中
-- `uploading`: 上傳中
-- `completed`: 已完成
-- `failed`: 失敗
-
-**SQLAlchemy 模型:**
-
-```python
-from sqlalchemy import Column, String, Integer, Text, JSON, DateTime, Enum, ForeignKey
-from sqlalchemy.orm import relationship
-import enum
-
-class ProjectStatus(str, enum.Enum):
-    INITIALIZED = "initialized"
-    SCRIPT_GENERATING = "script_generating"
-    ASSETS_GENERATING = "assets_generating"
-    RENDERING = "rendering"
-    UPLOADING = "uploading"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-class Project(Base):
-    __tablename__ = "projects"
-
-    id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False)
-    status = Column(Enum(ProjectStatus), nullable=False, default=ProjectStatus.INITIALIZED)
-    content = Column(Text, nullable=False)
-    word_count = Column(Integer, nullable=False)
-    configuration_id = Column(String(36), ForeignKey("configurations.id"), nullable=True)
-    prompt_template_id = Column(String(36), ForeignKey("prompt_templates.id"), nullable=False)
-    gemini_model = Column(String(50), nullable=False, default="gemini-1.5-flash")
-    script_id = Column(String(36), ForeignKey("scripts.id"), nullable=True)
-    youtube_settings = Column(JSON, nullable=False)
-    youtube_video_id = Column(String(50), nullable=True)
-    progress = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, nullable=False)
-    updated_at = Column(DateTime, nullable=False)
-
-    # 關聯
-    configuration = relationship("Configuration", back_populates="projects")
-    prompt_template = relationship("PromptTemplate")
-    script = relationship("Script", back_populates="project")
-    assets = relationship("Asset", back_populates="project", cascade="all, delete-orphan")
-```
-
----
-
-### 3.2 Configuration (視覺配置)
-
-**欄位定義:**
-
-| 欄位名稱 | 類型 | 必填 | 說明 |
+| 欄位名稱 | 類型 | 約束 | 說明 |
 |---------|------|------|------|
-| id | string (UUID) | 是 | 配置唯一識別碼 |
-| name | string(100) | 是 | 配置名稱 |
-| config_data | JSON | 是 | 配置內容 |
-| created_at | datetime | 是 | 建立時間 |
-| usage_count | integer | 是 | 使用次數 |
+| id | UUID | PRIMARY KEY | 專案 ID |
+| name | VARCHAR(200) | NOT NULL | 專案名稱 |
+| content | TEXT | NOT NULL | 原始文字內容 |
+| status | ENUM | NOT NULL | 專案狀態（見下方） |
+| configuration | JSON | NULLABLE | 視覺化配置 |
+| prompt_template_id | UUID | FOREIGN KEY | Prompt 範本 ID |
+| gemini_model | VARCHAR(50) | NOT NULL | Gemini 模型名稱 |
+| youtube_settings | JSON | NULLABLE | YouTube 設定 |
+| youtube_video_id | VARCHAR(50) | NULLABLE | YouTube 影片 ID |
+| script | JSON | NULLABLE | 生成的腳本 |
+| created_at | TIMESTAMP | NOT NULL | 建立時間 |
+| updated_at | TIMESTAMP | NOT NULL | 最後更新時間 |
 
-**config_data JSON 結構:**
+**Status 枚舉值：**
+- `INITIALIZED` - 已初始化
+- `SCRIPT_GENERATING` - 腳本生成中
+- `SCRIPT_GENERATED` - 腳本已生成
+- `ASSETS_GENERATING` - 素材生成中
+- `ASSETS_GENERATED` - 素材已生成
+- `RENDERING` - 影片渲染中
+- `RENDERED` - 影片已渲染
+- `THUMBNAIL_GENERATING` - 封面生成中
+- `THUMBNAIL_GENERATED` - 封面已生成
+- `UPLOADING` - 上傳中
+- `COMPLETED` - 已完成
+- `FAILED` - 失敗
+- `PAUSED` - 暫停
 
-```json
-{
-  "subtitle": {
-    "font_family": "Noto Sans TC",
-    "font_size": 48,
-    "font_color": "#FFFFFF",
-    "position": { "x": 960, "y": 900 },
-    "border_enabled": true,
-    "shadow_enabled": true
-  },
-  "logo": {
-    "file_path": "/path/to/logo.png",
-    "position": { "x": 50, "y": 50 },
-    "size": 100
-  }
-}
-```
-
-**SQLAlchemy 模型:**
-
-```python
-class Configuration(Base):
-    __tablename__ = "configurations"
-
-    id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False)
-    config_data = Column(JSON, nullable=False)
-    created_at = Column(DateTime, nullable=False)
-    usage_count = Column(Integer, nullable=False, default=0)
-
-    # 關聯
-    projects = relationship("Project", back_populates="configuration")
-```
+**索引：**
+- `idx_status` ON `status`
+- `idx_created_at` ON `created_at`
+- `idx_updated_at` ON `updated_at`
 
 ---
 
-### 3.3 PromptTemplate (Prompt 範本)
+### 2.1.2 Configuration（配置模板）
 
-**欄位定義:**
+**資料表名稱：** `configurations`
 
-| 欄位名稱 | 類型 | 必填 | 說明 |
+| 欄位名稱 | 類型 | 約束 | 說明 |
 |---------|------|------|------|
-| id | string (UUID) | 是 | 範本唯一識別碼 |
-| name | string(100) | 是 | 範本名稱 |
-| template_content | text | 是 | Prompt 範本內容 |
-| variables | JSON | 是 | 範本變數定義 |
-| created_at | datetime | 是 | 建立時間 |
-| is_default | boolean | 是 | 是否為預設範本 |
+| id | UUID | PRIMARY KEY | 配置 ID |
+| name | VARCHAR(200) | NOT NULL | 配置名稱 |
+| configuration | JSON | NOT NULL | 配置內容 |
+| created_at | TIMESTAMP | NOT NULL | 建立時間 |
+| last_used_at | TIMESTAMP | NULLABLE | 最後使用時間 |
+| usage_count | INTEGER | DEFAULT 0 | 使用次數 |
 
-**template_content 範例:**
-
-```
-請將以下文字內容轉換為 YouTube 影片腳本:
-
-{content}
-
-要求:
-- 腳本長度: {target_duration} 分鐘
-- 風格: {tone}
-- 目標觀眾: {target_audience}
-```
-
-**SQLAlchemy 模型:**
-
-```python
-class PromptTemplate(Base):
-    __tablename__ = "prompt_templates"
-
-    id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False)
-    template_content = Column(Text, nullable=False)
-    variables = Column(JSON, nullable=False)  # ["content", "target_duration", "tone"]
-    created_at = Column(DateTime, nullable=False)
-    is_default = Column(Boolean, nullable=False, default=False)
-```
+**索引：**
+- `idx_last_used_at` ON `last_used_at`
 
 ---
 
-### 3.4 Script (生成的腳本)
+### 2.1.3 PromptTemplate（Prompt 範本）
 
-**欄位定義:**
+**資料表名稱：** `prompt_templates`
 
-| 欄位名稱 | 類型 | 必填 | 說明 |
+| 欄位名稱 | 類型 | 約束 | 說明 |
 |---------|------|------|------|
-| id | string (UUID) | 是 | 腳本唯一識別碼 |
-| project_id | string (FK) | 是 | 所屬專案 ID |
-| script_data | JSON | 是 | 腳本內容 |
-| created_at | datetime | 是 | 建立時間 |
+| id | UUID | PRIMARY KEY | 範本 ID |
+| name | VARCHAR(200) | NOT NULL | 範本名稱 |
+| content | TEXT | NOT NULL | Prompt 內容 |
+| is_default | BOOLEAN | DEFAULT FALSE | 是否為預設範本 |
+| created_at | TIMESTAMP | NOT NULL | 建立時間 |
+| usage_count | INTEGER | DEFAULT 0 | 使用次數 |
 
-**script_data JSON 結構:**
-
-```json
-{
-  "title": "2025 科技趨勢分析",
-  "intro": {
-    "narration": "大家好,今天我們來聊聊...",
-    "duration": 10,
-    "avatar_type": "intro"
-  },
-  "segments": [
-    {
-      "narration": "第一個趨勢是 AI...",
-      "duration": 30,
-      "image_prompts": [
-        { "prompt": "futuristic AI technology", "duration": 5 },
-        { "prompt": "neural network visualization", "duration": 5 }
-      ]
-    }
-  ],
-  "outro": {
-    "narration": "感謝收看,我們下次見!",
-    "duration": 8,
-    "avatar_type": "outro"
-  }
-}
-```
-
-**SQLAlchemy 模型:**
-
-```python
-class Script(Base):
-    __tablename__ = "scripts"
-
-    id = Column(String(36), primary_key=True)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
-    script_data = Column(JSON, nullable=False)
-    created_at = Column(DateTime, nullable=False)
-
-    # 關聯
-    project = relationship("Project", back_populates="script")
-```
+**索引：**
+- `idx_is_default` ON `is_default`
 
 ---
 
-### 3.5 Asset (素材檔案)
+### 2.1.4 YouTubeAccount（YouTube 帳號）
 
-**欄位定義:**
+**資料表名稱：** `youtube_accounts`
 
-| 欄位名稱 | 類型 | 必填 | 說明 |
+| 欄位名稱 | 類型 | 約束 | 說明 |
 |---------|------|------|------|
-| id | string (UUID) | 是 | 素材唯一識別碼 |
-| project_id | string (FK) | 是 | 所屬專案 ID |
-| asset_type | enum | 是 | 素材類型 |
-| file_path | string | 是 | 檔案路徑 |
-| metadata | JSON | 否 | 素材元資料 |
-| created_at | datetime | 是 | 建立時間 |
+| id | UUID | PRIMARY KEY | 帳號 ID |
+| channel_name | VARCHAR(200) | NOT NULL | 頻道名稱 |
+| channel_id | VARCHAR(100) | NOT NULL UNIQUE | YouTube 頻道 ID |
+| access_token | TEXT | NOT NULL | OAuth Access Token（加密） |
+| refresh_token | TEXT | NOT NULL | OAuth Refresh Token（加密） |
+| token_expires_at | TIMESTAMP | NOT NULL | Token 過期時間 |
+| subscriber_count | INTEGER | DEFAULT 0 | 訂閱數 |
+| is_authorized | BOOLEAN | DEFAULT TRUE | 是否已授權 |
+| authorized_at | TIMESTAMP | NOT NULL | 授權時間 |
 
-**asset_type 列舉:**
-- `audio`: 語音檔案
-- `image`: 圖片
-- `avatar_intro`: 虛擬主播開場
-- `avatar_outro`: 虛擬主播結尾
-- `video`: 最終影片
-- `thumbnail`: 縮圖
-
-**SQLAlchemy 模型:**
-
-```python
-class AssetType(str, enum.Enum):
-    AUDIO = "audio"
-    IMAGE = "image"
-    AVATAR_INTRO = "avatar_intro"
-    AVATAR_OUTRO = "avatar_outro"
-    VIDEO = "video"
-    THUMBNAIL = "thumbnail"
-
-class Asset(Base):
-    __tablename__ = "assets"
-
-    id = Column(String(36), primary_key=True)
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
-    asset_type = Column(Enum(AssetType), nullable=False)
-    file_path = Column(String(500), nullable=False)
-    metadata = Column(JSON, nullable=True)
-    created_at = Column(DateTime, nullable=False)
-
-    # 關聯
-    project = relationship("Project", back_populates="assets")
-```
+**索引：**
+- `idx_channel_id` ON `channel_id`
 
 ---
 
-### 3.6 BatchTask (批次任務)
+### 2.1.5 Asset（素材）
 
-**欄位定義:**
+**資料表名稱：** `assets`
 
-| 欄位名稱 | 類型 | 必填 | 說明 |
+| 欄位名稱 | 類型 | 約束 | 說明 |
 |---------|------|------|------|
-| id | string (UUID) | 是 | 批次任務唯一識別碼 |
-| name | string(100) | 是 | 批次任務名稱 |
-| project_ids | JSON | 是 | 專案 ID 列表 |
-| status | enum | 是 | 批次任務狀態 |
-| created_at | datetime | 是 | 建立時間 |
-| completed_count | integer | 是 | 已完成專案數 |
-| total_count | integer | 是 | 總專案數 |
+| id | UUID | PRIMARY KEY | 素材 ID |
+| project_id | UUID | FOREIGN KEY | 專案 ID |
+| type | ENUM | NOT NULL | 素材類型（見下方） |
+| file_path | VARCHAR(500) | NOT NULL | 檔案路徑 |
+| status | ENUM | NOT NULL | 素材狀態 |
+| segment_index | INTEGER | NULLABLE | 段落索引（若為圖片） |
+| created_at | TIMESTAMP | NOT NULL | 建立時間 |
 
-**SQLAlchemy 模型:**
+**Type 枚舉值：**
+- `AUDIO` - 語音
+- `IMAGE` - 圖片
+- `AVATAR_INTRO` - 開場虛擬主播
+- `AVATAR_OUTRO` - 結尾虛擬主播
+- `THUMBNAIL` - 封面
+- `FINAL_VIDEO` - 最終影片
 
-```python
-class BatchTaskStatus(str, enum.Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
+**Status 枚舉值：**
+- `PENDING` - 等待生成
+- `GENERATING` - 生成中
+- `COMPLETED` - 已完成
+- `FAILED` - 失敗
 
-class BatchTask(Base):
-    __tablename__ = "batch_tasks"
-
-    id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False)
-    project_ids = Column(JSON, nullable=False)  # ["proj_id_1", "proj_id_2"]
-    status = Column(Enum(BatchTaskStatus), nullable=False, default=BatchTaskStatus.PENDING)
-    created_at = Column(DateTime, nullable=False)
-    completed_count = Column(Integer, nullable=False, default=0)
-    total_count = Column(Integer, nullable=False)
-```
+**索引：**
+- `idx_project_id` ON `project_id`
+- `idx_type` ON `type`
 
 ---
 
-### 3.7 Setting (系統設定)
+### 2.1.6 BatchTask（批次任務）
 
-**欄位定義:**
+**資料表名稱：** `batch_tasks`
 
-| 欄位名稱 | 類型 | 必填 | 說明 |
+| 欄位名稱 | 類型 | 約束 | 說明 |
 |---------|------|------|------|
-| key | string(100) | 是 | 設定鍵 (主鍵) |
-| value | JSON | 是 | 設定值 |
-| updated_at | datetime | 是 | 更新時間 |
+| id | UUID | PRIMARY KEY | 批次任務 ID |
+| name | VARCHAR(200) | NOT NULL | 任務名稱 |
+| total_projects | INTEGER | NOT NULL | 總專案數 |
+| completed_projects | INTEGER | DEFAULT 0 | 已完成數 |
+| failed_projects | INTEGER | DEFAULT 0 | 失敗數 |
+| status | ENUM | NOT NULL | 任務狀態 |
+| created_at | TIMESTAMP | NOT NULL | 建立時間 |
 
-**SQLAlchemy 模型:**
+**Status 枚舉值：**
+- `QUEUED` - 排隊中
+- `RUNNING` - 執行中
+- `COMPLETED` - 已完成
+- `FAILED` - 失敗
 
-```python
-class Setting(Base):
-    __tablename__ = "settings"
-
-    key = Column(String(100), primary_key=True)
-    value = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, nullable=False)
-```
-
----
-
-## 4. 索引設計
-
-### projects 表
-
-```sql
-CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
-CREATE INDEX idx_projects_updated_at ON projects(updated_at DESC);
-```
-
-**理由:**
-- `status` - 頻繁篩選專案狀態
-- `created_at`, `updated_at` - 排序和分頁查詢
-
-### assets 表
-
-```sql
-CREATE INDEX idx_assets_project_id ON assets(project_id);
-CREATE INDEX idx_assets_type ON assets(asset_type);
-```
-
-**理由:**
-- `project_id` - 查詢專案的所有素材
-- `asset_type` - 查詢特定類型的素材
+**索引：**
+- `idx_status` ON `status`
+- `idx_created_at` ON `created_at`
 
 ---
 
-## 5. 外鍵約束
+### 2.1.7 SystemSettings（系統設定）
 
-```python
-# Project → Configuration (多對一)
-configuration_id = Column(String(36), ForeignKey("configurations.id", ondelete="SET NULL"))
+**資料表名稱：** `system_settings`
 
-# Project → PromptTemplate (多對一)
-prompt_template_id = Column(String(36), ForeignKey("prompt_templates.id", ondelete="RESTRICT"))
+| 欄位名稱 | 類型 | 約束 | 說明 |
+|---------|------|------|------|
+| key | VARCHAR(100) | PRIMARY KEY | 設定鍵 |
+| value | TEXT | NOT NULL | 設定值（JSON） |
+| updated_at | TIMESTAMP | NOT NULL | 最後更新時間 |
 
-# Project → Script (一對一)
-script_id = Column(String(36), ForeignKey("scripts.id", ondelete="CASCADE"))
-
-# Asset → Project (多對一)
-project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"))
-```
-
-**CASCADE 策略:**
-- 刪除 Project → 自動刪除相關 Assets, Script
-- 刪除 Configuration → 不影響 Project (設為 NULL)
-- 刪除 PromptTemplate → 限制刪除 (RESTRICT)
+**常用設定鍵：**
+- `default_voice_gender` - 預設語音性別
+- `default_voice_speed` - 預設語速
+- `default_privacy` - 預設隱私設定
+- `project_retention_days` - 專案保留天數
+- `keep_intermediate_assets` - 是否保留中間素材
+- `notification_enabled` - 是否啟用通知
 
 ---
 
-## 6. 資料庫遷移
+## 2.2 資料關聯設計
 
-### 使用 Alembic
-
-**初始化:**
-```bash
-alembic init migrations
+```
+projects (1) ─── (N) assets
+projects (N) ─── (1) prompt_templates
+projects (N) ─── (1) configurations
+batch_tasks (1) ─── (N) projects
 ```
 
-**建立遷移腳本:**
-```bash
-alembic revision --autogenerate -m "Create initial tables"
-```
-
-**執行遷移:**
-```bash
-alembic upgrade head
-```
-
----
-
-## 7. 查詢優化
-
-### Eager Loading (避免 N+1 查詢)
-
-```python
-# ❌ 壞的做法 (N+1 查詢)
-projects = db.query(Project).all()
-for project in projects:
-    print(project.configuration.name)  # 每次都查詢一次資料庫
-
-# ✅ 好的做法 (Eager Loading)
-from sqlalchemy.orm import joinedload
-
-projects = db.query(Project).options(
-    joinedload(Project.configuration),
-    joinedload(Project.script),
-    joinedload(Project.assets)
-).all()
-
-for project in projects:
-    print(project.configuration.name)  # 不會額外查詢
-```
-
----
-
-## 8. 資料備份與還原
-
-### 備份 SQLite 資料庫
-
-```bash
-# 簡單備份
-cp data/production.db data/backup/production_$(date +%Y%m%d).db
-
-# 使用 SQLite dump
-sqlite3 data/production.db .dump > backup/production_$(date +%Y%m%d).sql
-```
-
-### 還原
-
-```bash
-# 從備份還原
-cp data/backup/production_20240115.db data/production.db
-
-# 從 SQL dump 還原
-sqlite3 data/production.db < backup/production_20240115.sql
-```
-
----
-
-## 總結
-
-### 資料模型統計
-- **總實體數:** 10 個
-- **關聯關係:** 6 個 (外鍵)
-- **索引數量:** 5 個
-
-### 設計原則
-- ✅ 規範化設計,減少資料冗餘
-- ✅ 適當的索引,提升查詢效能
-- ✅ CASCADE 策略,確保資料一致性
-- ✅ JSON 欄位,靈活儲存複雜結構
-- ✅ Enum 類型,確保狀態值有效性
-
----
-
-**下一步:** 詳見 [api-design.md](./api-design.md)、[api-projects.md](./api-projects.md)
+**關聯說明：**
+- 一個專案可以有多個素材（語音、圖片、虛擬主播、封面、最終影片）
+- 多個專案可以使用同一個 Prompt 範本
+- 多個專案可以使用同一個配置模板
+- 一個批次任務包含多個專案
