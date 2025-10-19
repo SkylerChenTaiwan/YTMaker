@@ -159,8 +159,43 @@
 
 #### `develop` 分支
 - **用途：** 開發主線，整合所有完成的功能
+- **保護：** 禁止直接推送，只接受從工作分支的 merge
 - **部署：** 自動部署到 staging 環境
 - **要求：** 合併到 main 前所有測試必須通過
+
+---
+
+### 短命分支策略 (Short-lived Branches)
+
+#### 核心原則
+
+**每個新的 Claude Code 對話都應該開一個新的工作分支**
+
+**原因：**
+- 不同對話可能同時進行，需要獨立的工作空間避免衝突
+- 保持 develop 分支乾淨，只包含已完成且整合的工作
+- 清晰的工作歷史，每個分支代表一個獨立的工作單元
+
+**工作流程：**
+1. 開始新對話時，從 develop 創建新分支
+2. 在分支上進行所有工作（規劃、設計、實作、測試等）
+3. 工作完成後，合併回 develop
+4. 刪除已合併的分支
+
+#### 何時開新分支
+
+**強制要求：每個新的 Claude Code 對話必須開新分支**
+
+- ✅ 開始新的 task 開發
+- ✅ 修復一個 issue
+- ✅ 撰寫或大幅修改 spec 文件
+- ✅ 任何可能與其他對話衝突的工作
+- ✅ 預期會有多個 commits 的工作
+
+**唯一例外：緊急修正**
+- 修正明顯的錯字、格式問題
+- 極小的配置調整
+- 這類情況極少，謹慎使用
 
 ---
 
@@ -244,6 +279,89 @@ git push origin develop
 git branch -d feature/task-XXX-description  # 或 fix/issue-XXX-description
 git push origin --delete feature/task-XXX-description  # 或 fix/issue-XXX-description
 ```
+
+---
+
+### 自動合併策略
+
+#### 何時自動執行 merge
+
+Claude Code 應該自動檢測以下情況並執行合併：
+
+**觸發條件（滿足任一即可）：**
+
+1. **Task 完成標記**
+   - 檢測到 `development/phase-X/task-XXX.md` 標題被標記為 `[v]`
+   - 且所有相關測試已執行並通過
+
+2. **Issue 解決標記**
+   - 檢測到 `issues/issue-XXX.md` 標題被標記為 `[已解決]`
+   - 且修復已驗證
+
+3. **用戶明確指示**
+   - 用戶說「完成了」、「可以合併了」、「這個工作做完了」
+   - 用戶明確表示要結束當前工作
+
+4. **Spec 撰寫完成**
+   - 撰寫或大幅修改 spec 文件後
+   - 用戶確認內容完整
+
+#### 自動合併流程
+
+當檢測到觸發條件時，自動執行以下步驟：
+
+```bash
+# 1. 確認當前分支有 commits
+git log develop..HEAD --oneline
+
+# 2. 同步最新的 develop
+git checkout develop
+git pull origin develop
+
+# 3. 切回工作分支並嘗試合併 develop
+git checkout <當前工作分支>
+git merge develop
+
+# 4. 檢查衝突
+if [無衝突]; then
+    # 5a. 合併到 develop
+    git checkout develop
+    git merge <當前工作分支> --no-ff
+    git push origin develop
+
+    # 6a. 刪除已合併的分支
+    git branch -d <當前工作分支>
+    git push origin --delete <當前工作分支>
+
+    # 7a. 通知用戶
+    echo "✅ 工作已合併到 develop 並刪除分支"
+else
+    # 5b. 有衝突時提醒用戶
+    echo "⚠️ 發現合併衝突，需要手動處理："
+    git status
+    # 提供解決步驟指引
+fi
+```
+
+#### 合併前檢查清單
+
+在執行自動合併前，確認：
+
+- [ ] 當前分支至少有 1 個 commit
+- [ ] 所有變更已推送到遠端
+- [ ] 如果是 task，測試已通過
+- [ ] 如果是 issue，修復已驗證
+- [ ] 工作確實已完成
+
+#### 何時不自動合併
+
+以下情況**不應該**自動合併：
+
+- ❌ 工作明顯未完成
+- ❌ 測試失敗或未執行
+- ❌ 用戶表示還要繼續修改
+- ❌ 存在未解決的衝突
+- ❌ 分支沒有任何 commits
 
 ---
 
