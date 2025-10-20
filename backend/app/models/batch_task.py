@@ -15,6 +15,7 @@ class BatchTaskStatus(str, enum.Enum):
 
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 

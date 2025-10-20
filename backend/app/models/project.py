@@ -74,7 +74,7 @@ class Project(Base, TimestampMixin):
     error_info: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
-    # Batch Task
+    # Batch Task Relationship
     batch_task_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("batch_tasks.id", ondelete="SET NULL"),
