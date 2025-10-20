@@ -20,6 +20,7 @@ from app.api.v1 import (
 from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
+from app.process_manager import process_manager
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +28,46 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """應用生命週期管理"""
-    # 啟動時初始化資料庫
+    # 啟動時初始化
+    logger.info("=" * 60)
+    logger.info("🚀 YTMaker 正在啟動...")
+    logger.info("=" * 60)
+
+    # 1. 啟動背景服務 (Redis + Celery)
+    try:
+        process_manager.start_all()
+    except Exception as e:
+        logger.error(f"背景服務啟動失敗: {e}")
+        logger.warning("應用將繼續啟動，但背景任務功能將無法使用")
+
+    # 2. 初始化資料庫
     logger.info("初始化資料庫連線...")
     init_db()
-    logger.info("應用啟動完成")
+
+    logger.info("=" * 60)
+    logger.info("✅ YTMaker 啟動完成")
+    logger.info("=" * 60)
 
     yield
 
     # 關閉時清理資源
+    logger.info("=" * 60)
+    logger.info("🛑 YTMaker 正在關閉...")
+    logger.info("=" * 60)
+
+    # 1. 停止背景服務
+    try:
+        process_manager.stop_all()
+    except Exception as e:
+        logger.warning(f"停止背景服務時發生錯誤: {e}")
+
+    # 2. 關閉資料庫
     logger.info("關閉資料庫連線...")
     close_db()
-    logger.info("應用關閉完成")
+
+    logger.info("=" * 60)
+    logger.info("✅ YTMaker 已安全關閉")
+    logger.info("=" * 60)
 
 
 app = FastAPI(
@@ -158,4 +188,27 @@ async def root():
     return {
         "success": True,
         "data": {"message": "YTMaker API", "version": "1.0.0", "docs": "/docs"},
+    }
+
+
+# 背景服務狀態
+@app.get("/status")
+async def get_status():
+    """獲取背景服務狀態"""
+    status = process_manager.get_status()
+    all_running = all(
+        [
+            status["redis"]["running"],
+            status["worker"]["alive"],
+            status["beat"]["alive"],
+        ]
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "status": "healthy" if all_running else "degraded",
+            "services": status,
+            "message": "所有服務正常運行" if all_running else "部分服務未運行",
+        },
     }

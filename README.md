@@ -50,36 +50,70 @@ sudo apt install ffmpeg
 
 ---
 
-## 快速開始
+## 🚀 快速開始
 
-### 1. Clone 專案
+### 一鍵啟動（推薦）
+
+**macOS / Linux:**
+```bash
+./start.sh
+```
+
+**Windows:**
+```batch
+start.bat
+```
+
+或雙擊 `start.sh` (macOS/Linux) 或 `start.bat` (Windows) 檔案。
+
+**就這樣！** 腳本會自動：
+- ✅ 檢查並安裝所有依賴
+- ✅ 啟動 Redis 和 Celery 背景服務
+- ✅ 啟動後端 API (http://localhost:8000)
+- ✅ 啟動前端介面 (http://localhost:3000)
+- ✅ 按 Ctrl+C 自動關閉所有服務
+
+### 手動啟動（進階用戶）
+
+如果你想手動控制每個服務：
+
+#### 1. Clone 專案
 ```bash
 git clone <repository-url>
 cd YTMaker
 ```
 
-### 2. 啟動 Redis
+#### 2. 安裝 Redis (只需一次)
 ```bash
-docker-compose up -d redis
+# macOS
+brew install redis
+
+# Linux
+sudo apt-get install redis-server
+
+# Windows - 使用 Docker
+docker run -d --name ytmaker-redis -p 6379:6379 redis:alpine
 ```
 
-### 3. 啟動後端
+#### 3. 啟動後端（會自動啟動 Redis 和 Celery）
 ```bash
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4. 啟動前端
+#### 4. 啟動前端
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 5. 開啟瀏覽器
-- 前端: http://localhost:3000
-- 後端 API 文件: http://localhost:8000/api/docs
+#### 5. 開啟瀏覽器
+- 📱 前端介面: http://localhost:3000
+- 🔧 後端 API: http://localhost:8000
+- 📚 API 文件: http://localhost:8000/docs
+- 📊 服務狀態: http://localhost:8000/status
 
 ---
 
