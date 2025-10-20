@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
+    # Celery 配置
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+
     # 日誌配置
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
