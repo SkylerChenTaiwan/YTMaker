@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,13 +21,13 @@ app.add_middleware(
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """健康檢查端點"""
     return {"status": "ok"}
 
 
 @app.get("/api/v1/health")
-async def api_health_check():
+async def api_health_check() -> dict[str, Any]:
     """API 健康檢查端點"""
     return {
         "status": "ok",
