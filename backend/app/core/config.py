@@ -35,6 +35,17 @@ class Settings(BaseSettings):
     # Token 加密金鑰 (Fernet key)
     ENCRYPTION_KEY: str = ""
 
+    # Stability AI 配置
+    STABILITY_API_KEY: str = ""
+    STABILITY_MAX_CONCURRENT: int = 4
+    STABILITY_RATE_LIMIT: int = 150
+
+    # 圖片生成配置
+    IMAGE_WIDTH: int = 1920
+    IMAGE_HEIGHT: int = 1080
+    IMAGE_CFG_SCALE: float = 8.0
+    IMAGE_STEPS: int = 40
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
