@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.core.database import get_db
+from app.main import app
 from app.models.base import Base
 
 # Setup test database
@@ -41,9 +41,8 @@ def setup_database():
 # Helper function to create valid content
 def valid_content():
     """Generate valid content (>500 chars)"""
-    return "這是測試內容。" * 70  # 7 chars * 70 = 490, need more
-    # Actually: 7 chars (這是測試內容) + 1 char (。) = 8 chars
-    # 8 * 70 = 560 chars (>500) ✓
+    # "這是測試內容。" = 7 chars, * 75 = 525 chars (>500) ✓
+    return "這是測試內容。" * 75
 
 
 # ===== Test 1-2: Create Project =====
@@ -251,6 +250,94 @@ def test_update_youtube_settings():
     assert project_data["youtube_settings"]["title"] == "我的測試影片"
 
 
+def test_update_prompt_model_success():
+    """測試 7: 更新 Prompt 與模型 - 成功案例"""
+    from uuid import uuid4
+    from app.models.prompt_template import PromptTemplate
+
+    # Create a prompt template first
+    db = TestingSessionLocal()
+    template = PromptTemplate(
+        id=str(uuid4()),
+        name="測試範本",
+        content="測試 Prompt 內容",
+        is_default=True
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    template_id = str(template.id)
+    db.close()
+
+    # Create a project
+    create_response = client.post("/api/v1/projects", json={
+        "name": "測試專案",
+        "content": valid_content(),
+        "gemini_model": "gemini-1.5-flash"
+    })
+    project_id = create_response.json()["id"]
+
+    # Update prompt model
+    prompt_payload = {
+        "prompt_template_id": template_id,
+        "gemini_model": "gemini-1.5-pro"
+    }
+
+    response = client.put(f"/api/v1/projects/{project_id}/prompt-model", json=prompt_payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    # Verify settings were saved
+    get_response = client.get(f"/api/v1/projects/{project_id}")
+    project_data = get_response.json()
+    assert project_data["gemini_model"] == "gemini-1.5-pro"
+
+
+def test_update_prompt_model_project_not_found():
+    """測試 7b: 更新 Prompt 與模型 - 專案不存在 (404)"""
+    from uuid import uuid4
+
+    prompt_payload = {
+        "prompt_template_id": str(uuid4()),  # Use valid UUID
+        "gemini_model": "gemini-1.5-pro"
+    }
+
+    response = client.put("/api/v1/projects/non-existent-id/prompt-model", json=prompt_payload)
+
+    assert response.status_code == 404
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_update_prompt_model_template_not_found():
+    """測試 7c: 更新 Prompt 與模型 - Prompt Template 不存在 (400)"""
+    from uuid import uuid4
+
+    # Create a project
+    create_response = client.post("/api/v1/projects", json={
+        "name": "測試專案",
+        "content": valid_content(),
+        "gemini_model": "gemini-1.5-flash"
+    })
+    project_id = create_response.json()["id"]
+
+    # Update with non-existent template (valid UUID but doesn't exist in DB)
+    prompt_payload = {
+        "prompt_template_id": str(uuid4()),
+        "gemini_model": "gemini-1.5-pro"
+    }
+
+    response = client.put(f"/api/v1/projects/{project_id}/prompt-model", json=prompt_payload)
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+
+
 # ===== Test 9-13: Generation Control =====
 
 def test_start_generation():
@@ -387,6 +474,41 @@ def test_get_result_not_completed():
     assert data["error"]["code"] == "INVALID_PROJECT_STATUS"
 
 
+def test_get_result_success():
+    """測試 14b: 成功取得已完成專案的結果"""
+    from app.models.project import Project, ProjectStatus
+
+    # Create a COMPLETED project directly in database
+    db = TestingSessionLocal()
+    project = Project(
+        name="已完成專案",
+        content=valid_content(),
+        status=ProjectStatus.COMPLETED,
+        gemini_model="gemini-1.5-flash",
+        youtube_video_id="test-video-123",
+        youtube_settings={
+            "title": "測試影片標題",
+            "description": "測試描述",
+            "tags": ["測試", "影片"]
+        }
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    project_id = str(project.id)
+    db.close()
+
+    # Get result
+    response = client.get(f"/api/v1/projects/{project_id}/result")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert "youtube_url" in data["data"]
+    assert data["data"]["youtube_video_id"] == "test-video-123"
+    assert data["data"]["status"] == "published"
+
+
 def test_delete_project():
     """測試 15: 刪除專案"""
     # Create a project
@@ -417,3 +539,87 @@ def test_delete_project_not_found():
     data = response.json()
     assert data["success"] is False
     assert data["error"]["code"] == "NOT_FOUND"
+
+
+# ===== Additional Error Handling Tests =====
+
+def test_update_configuration_project_not_found():
+    """測試: 更新配置 - 專案不存在 (404)"""
+    config_payload = {
+        "subtitle": {"font": "Arial", "size": 24}
+    }
+
+    response = client.put("/api/v1/projects/non-existent-id/configuration", json=config_payload)
+
+    assert response.status_code == 404
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_update_youtube_settings_project_not_found():
+    """測試: 更新 YouTube 設定 - 專案不存在 (404)"""
+    youtube_payload = {
+        "title": "測試",
+        "description": "測試",
+        "tags": [],
+        "privacy": "public",
+        "publish_type": "immediate",
+        "ai_content_flag": True
+    }
+
+    response = client.put("/api/v1/projects/non-existent-id/youtube-settings", json=youtube_payload)
+
+    assert response.status_code == 404
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_cancel_generation_project_not_found():
+    """測試: 取消生成 - 專案不存在 (404)"""
+    response = client.post("/api/v1/projects/non-existent-id/cancel")
+
+    assert response.status_code == 404
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_pause_generation_project_not_found():
+    """測試: 暫停生成 - 專案不存在 (404)"""
+    response = client.post("/api/v1/projects/non-existent-id/pause")
+
+    assert response.status_code == 404
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_resume_generation_project_not_found():
+    """測試: 繼續生成 - 專案不存在 (404)"""
+    response = client.post("/api/v1/projects/non-existent-id/resume")
+
+    assert response.status_code == 404
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_resume_generation_invalid_status():
+    """測試: 繼續生成 - 非 PAUSED 狀態無法繼續"""
+    # Create a project (INITIALIZED status)
+    create_response = client.post("/api/v1/projects", json={
+        "name": "測試專案",
+        "content": valid_content(),
+        "gemini_model": "gemini-1.5-flash"
+    })
+    project_id = create_response.json()["id"]
+
+    # Try to resume (should fail as status is INITIALIZED, not PAUSED)
+    response = client.post(f"/api/v1/projects/{project_id}/resume")
+
+    assert response.status_code == 409
+    data = response.json()
+    assert data["success"] is False
+    assert data["error"]["code"] == "INVALID_PROJECT_STATUS"

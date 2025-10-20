@@ -5,7 +5,7 @@ import enum
 
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
 
@@ -38,6 +38,9 @@ class BatchTask(Base, TimestampMixin):
         default=BatchTaskStatus.QUEUED,
         index=True,
     )
+
+    # Relationships
+    projects = relationship("Project", back_populates="batch_task")
 
     # Indexes (defined in Alembic migration)
     # - idx_status on status
