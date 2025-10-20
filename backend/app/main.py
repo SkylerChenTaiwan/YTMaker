@@ -15,6 +15,7 @@ from app.api.v1 import (
     prompt_templates,
     stats,
     system,
+    websocket,
     youtube,
 )
 from app.core.config import settings
@@ -180,6 +181,7 @@ app.include_router(batch.router, prefix="/api/v1", tags=["batch"])
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(configurations.router, prefix="/api/v1")
 app.include_router(prompt_templates.router, prefix="/api/v1")
+app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
 
 
 # 根路徑

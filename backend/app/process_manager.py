@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import redis
 
@@ -112,7 +113,7 @@ class ProcessManager:
             logger.info("提示：請確保已安裝 Redis 或使用 Docker")
             raise
 
-    def _find_redis_server(self) -> str | None:
+    def _find_redis_server(self) -> Optional[str]:
         """尋找 redis-server 執行檔"""
         # 常見的 Redis 安裝路徑
         possible_paths = [
