@@ -1,13 +1,20 @@
 """
 Unit tests for Project model.
 """
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.asset import Asset, AssetStatus, AssetType
 from app.models.base import Base
+from app.models.batch_task import BatchTask, BatchTaskStatus
+from app.models.configuration import Configuration
 from app.models.project import Project, ProjectStatus
+from app.models.prompt_template import PromptTemplate
+from app.models.system_settings import SystemSettings
+from app.models.youtube_account import YouTubeAccount
 
 # Test database
 TEST_DATABASE_URL = "sqlite:///./test.db"
@@ -124,3 +131,133 @@ def test_project_status_transition(db):
     assert project.status == ProjectStatus.COMPLETED
     assert project.youtube_video_id == "dQw4w9WgXcQ"
     assert project.script is not None
+
+
+def test_model_repr_methods(db):
+    """測試所有模型的 __repr__ 方法"""
+    # Test Project __repr__
+    project = Project(
+        name="測試專案",
+        content="測試內容",
+        status=ProjectStatus.INITIALIZED,
+        gemini_model="gemini-1.5-pro",
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    repr_str = repr(project)
+    assert "Project" in repr_str
+    assert project.name in repr_str
+    assert str(project.status.value) in repr_str
+
+    # Test Asset __repr__
+    asset = Asset(
+        project_id=project.id,
+        type=AssetType.AUDIO,
+        status=AssetStatus.PENDING,
+        file_path="/test.mp3",
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+    repr_str = repr(asset)
+    assert "Asset" in repr_str
+    assert str(asset.type.value) in repr_str
+
+    # Test Configuration __repr__
+    config = Configuration(
+        name="測試配置", configuration={"test": "value"}, usage_count=0
+    )
+    db.add(config)
+    db.commit()
+    db.refresh(config)
+    repr_str = repr(config)
+    assert "Configuration" in repr_str
+    assert config.name in repr_str
+
+    # Test PromptTemplate __repr__
+    template = PromptTemplate(
+        name="測試範本", content="測試內容", is_default=True, usage_count=0
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    repr_str = repr(template)
+    assert "PromptTemplate" in repr_str
+    assert template.name in repr_str
+
+    # Test YouTubeAccount __repr__
+    account = YouTubeAccount(
+        channel_name="測試頻道",
+        channel_id="UC123456",
+        access_token="test_token",
+        refresh_token="refresh_token",
+        token_expires_at=datetime.utcnow() + timedelta(hours=1),
+        subscriber_count=0,
+        is_authorized=True,
+    )
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    repr_str = repr(account)
+    assert "YouTubeAccount" in repr_str
+    assert account.channel_name in repr_str
+
+    # Test BatchTask __repr__
+    batch = BatchTask(
+        name="測試批次任務",
+        total_projects=10,
+        completed_projects=0,
+        failed_projects=0,
+        status=BatchTaskStatus.QUEUED,
+    )
+    db.add(batch)
+    db.commit()
+    db.refresh(batch)
+    repr_str = repr(batch)
+    assert "BatchTask" in repr_str
+    assert batch.name in repr_str
+
+    # Test SystemSettings __repr__
+    setting = SystemSettings(key="test_key", value="test_value")
+    db.add(setting)
+    db.commit()
+    db.refresh(setting)
+    repr_str = repr(setting)
+    assert "SystemSettings" in repr_str
+    assert setting.key in repr_str
+
+
+def test_youtube_account_token_expiry(db):
+    """測試 YouTubeAccount 的 token 過期檢查"""
+    # Test expired token
+    expired_account = YouTubeAccount(
+        channel_name="過期帳號",
+        channel_id="UC_EXPIRED",
+        access_token="expired_token",
+        refresh_token="refresh_token",
+        token_expires_at=datetime.utcnow() - timedelta(hours=1),  # 1 小時前過期
+        subscriber_count=0,
+        is_authorized=True,
+    )
+    db.add(expired_account)
+    db.commit()
+    db.refresh(expired_account)
+
+    assert expired_account.is_token_expired() is True
+
+    # Test valid token
+    valid_account = YouTubeAccount(
+        channel_name="有效帳號",
+        channel_id="UC_VALID",
+        access_token="valid_token",
+        refresh_token="refresh_token",
+        token_expires_at=datetime.utcnow() + timedelta(hours=1),  # 1 小時後過期
+        subscriber_count=0,
+        is_authorized=True,
+    )
+    db.add(valid_account)
+    db.commit()
+    db.refresh(valid_account)
+
+    assert valid_account.is_token_expired() is False
