@@ -16,19 +16,35 @@ development/phase-X/task-XXX.md
 
 ---
 
-## 2. 檢查並創建工作分支
+## 2. 檢查並設置 Worktree
 
-**強制要求：絕對不要在 develop 分支上開發**
+**強制要求：使用 Worktree 來避免分支衝突**
 
 ```bash
-# 檢查當前分支
-git branch --show-current
+# 檢查當前工作目錄
+pwd
+# 應該在 worktree 目錄中，例如：/Users/skyler/coding/YTMaker-task-XXX
 
-# 如果在 develop，立即創建新分支
-git checkout -b feature/task-XXX-description
+# 如果在主目錄 (YTMaker)，需要創建 worktree
+git worktree list
+
+# 如果分支已存在（繼續之前的工作）
+git worktree add ../YTMaker-task-XXX feature/task-XXX-description
+
+# 如果分支不存在（開始新的 task）
+git worktree add -b feature/task-XXX-description ../YTMaker-task-XXX
+
+# 然後切換到 worktree 目錄
+cd ../YTMaker-task-XXX
 ```
 
-分支命名：`feature/task-XXX-[簡短描述]`
+**Worktree 命名：**
+- Task: `../YTMaker-task-XXX`
+- Issue: `../YTMaker-issue-XXX`
+
+**分支命名：**
+- Task: `feature/task-XXX-[簡短描述]`
+- Issue: `fix/issue-XXX-[簡短描述]`
 
 ---
 
@@ -58,8 +74,10 @@ git checkout -b feature/task-XXX-description
 ## 必須遵守的規則
 
 - ❌ 不要跳過閱讀 spec 就開始寫程式
+- ❌ 不要在主目錄 (YTMaker) 直接開發
 - ❌ 不要在 develop 分支上直接開發
 - ❌ 不要先寫實作再補測試
+- ✅ 使用 worktree 創建獨立工作空間
 - ✅ 先讀 spec → 寫測試 → 寫實作 → 測試通過 → commit
 - ✅ 保持 spec 與程式碼同步
 - ✅ 定期 push 到 GitHub

@@ -23,25 +23,35 @@
 
 **在做任何事情之前，必須先完成以下檢查：**
 
-### 1. 檢查並創建工作分支
+### 1. 檢查並創建 Worktree
+
+**使用 Git Worktree 來實現真正的並行開發**
 
 ```bash
-# 檢查當前分支
-git branch --show-current
+# 檢查現有的 worktrees
+git worktree list
 
-# 如果在 develop 分支，立即創建新分支
+# 為新的 task 創建獨立的 worktree
 # 功能開發：
-git checkout -b feature/task-XXX-description
+git worktree add ../YTMaker-task-XXX feature/task-XXX-description
 # 或問題修復：
-git checkout -b fix/issue-XXX-description
-# 或更新 spec：
-git checkout -b feature/update-specs-description
+git worktree add ../YTMaker-issue-XXX fix/issue-XXX-description
+
+# 如果分支不存在，使用 -b 創建新分支
+git worktree add -b feature/task-XXX-description ../YTMaker-task-XXX
 ```
 
+**Worktree 原理：**
+- 每個 worktree = 一個獨立的工作目錄 + 一個分支
+- 不同的 worktree 可以同時在不同的分支上工作
+- 所有 worktree 共享同一個 `.git` 資料庫
+- 完全隔離，互不干擾
+
 **規則：**
-- ✅ **每個新對話都必須開一個新的工作分支**
-- ❌ **絕對不要直接在 develop 分支上工作**
-- ❌ **唯一例外：極小的緊急修正（錯字、格式）**
+- ✅ **每個新對話都應該有自己的 worktree**
+- ✅ **一個 worktree = 一個 task = 一個 Claude Code terminal**
+- ✅ **主目錄保持在 develop 分支作為管理中心**
+- ❌ **不要在多個 terminal 中切換同一目錄的分支**
 
 ### 2. 確認工作內容
 
@@ -291,22 +301,23 @@ tech-specs/
 
 ---
 
-### 短命分支策略 (Short-lived Branches)
+### 短命分支策略 (Short-lived Branches) + Worktree
 
 #### 核心原則
 
-**每個新的 Claude Code 對話都應該開一個新的工作分支**
+**每個新的 Claude Code 對話都應該有自己的 Worktree**
 
-**原因：**
-- 不同對話可能同時進行，需要獨立的工作空間避免衝突
-- 保持 develop 分支乾淨，只包含已完成且整合的工作
-- 清晰的工作歷史，每個分支代表一個獨立的工作單元
+**為什麼使用 Worktree？**
+- **真正的並行開發**：不同 Claude Code terminals 可以同時工作在不同的 tasks
+- **完全隔離**：每個 worktree 有自己的工作目錄和文件，互不干擾
+- **避免分支衝突**：不會因為切換分支而影響其他 terminal 的工作
+- **清晰的工作空間**：每個 task 有自己的目錄，一目了然
 
 **工作流程：**
-1. 開始新對話時，從 develop 創建新分支
-2. 在分支上進行所有工作（規劃、設計、實作、測試等）
-3. 工作完成後，合併回 develop
-4. 刪除已合併的分支
+1. 開始新對話時，創建新的 worktree（自動創建分支）
+2. 在 worktree 目錄中進行所有工作（規劃、設計、實作、測試等）
+3. 工作完成後，在主目錄合併到 develop
+4. 刪除 worktree 和已合併的分支
 
 #### 何時開新分支
 
@@ -357,53 +368,73 @@ fix/issue-012-ui-rendering-bug
 - 用連字號 `-` 分隔
 - 描述要簡短但清楚
 
-#### 建立分支
+#### 使用 Worktree 建立工作空間
+
 ```bash
-# 從最新的 develop 分支建立
+# 在主目錄 (YTMaker) 執行
+cd /Users/skyler/coding/YTMaker
+
+# 確保 develop 是最新的
 git checkout develop
 git pull origin develop
 
-# 功能開發
-git checkout -b feature/task-XXX-description
+# 為新 task 創建 worktree（如果分支已存在）
+git worktree add ../YTMaker-task-XXX feature/task-XXX-description
 
-# 問題修復
-git checkout -b fix/issue-XXX-description
+# 為新 task 創建 worktree（如果分支不存在）
+git worktree add -b feature/task-XXX-description ../YTMaker-task-XXX
+
+# 查看所有 worktrees
+git worktree list
 ```
 
-#### 工作流程
-```bash
-# 1. 開發功能
-# [進行開發...]
+#### Worktree 工作流程
 
-# 2. 測試通過後 commit
+```bash
+# 1. 切換到 worktree 目錄
+cd /Users/skyler/coding/YTMaker-task-XXX
+
+# 2. 在 VSCode 打開這個目錄
+code .
+
+# 3. 在這個目錄中開發
+# [進行開發... 這個目錄獨立於其他 worktrees]
+
+# 4. 測試通過後 commit
 git add .
 git commit -m "feat: 完成任務描述 [task-XXX]"
-# 或：git commit -m "fix: 修正問題描述 [issue-XXX]"
 
-# 3. 推送到 remote (必須！)
+# 5. 推送到 remote (必須！)
 git push origin feature/task-XXX-description
-# 或：git push origin fix/issue-XXX-description
+# 首次推送可能需要：git push -u origin feature/task-XXX-description
 
-# 4. 合併前先同步 develop
+# 6. 完成後，回到主目錄合併
+cd /Users/skyler/coding/YTMaker
 git checkout develop
 git pull origin develop
-git checkout feature/task-XXX-description  # 或 fix/issue-XXX-description
-git merge develop
-
-# 5. 解決衝突（如果有）
-# [解決衝突...]
-git add .
-git commit -m "merge: 解決合併衝突"
-git push origin feature/task-XXX-description  # 或 fix/issue-XXX-description
-
-# 6. 合併到 develop
-git checkout develop
-git merge feature/task-XXX-description  # 或 fix/issue-XXX-description
-
-# 7. 推送並刪除分支 (必須推送！)
+git merge feature/task-XXX-description --no-ff
 git push origin develop
-git branch -d feature/task-XXX-description  # 或 fix/issue-XXX-description
-git push origin --delete feature/task-XXX-description  # 或 fix/issue-XXX-description
+
+# 7. 刪除 worktree 和分支
+git worktree remove ../YTMaker-task-XXX
+git branch -d feature/task-XXX-description
+git push origin --delete feature/task-XXX-description
+```
+
+#### Worktree 管理命令
+
+```bash
+# 列出所有 worktrees
+git worktree list
+
+# 移除 worktree（工作完成後）
+git worktree remove ../YTMaker-task-XXX
+
+# 強制移除（有未提交變更時）
+git worktree remove -f ../YTMaker-task-XXX
+
+# 清理無效的 worktree 記錄
+git worktree prune
 ```
 
 ---
@@ -491,7 +522,7 @@ fi
 
 ---
 
-## 並行開發規則
+## 並行開發規則（使用 Worktree）
 
 ### 可以並行的任務
 
@@ -502,15 +533,29 @@ fi
 - ✅ 不修改相同的檔案
 - ✅ 可以獨立測試
 
+**使用 Worktree 實現真正的並行：**
+
+```bash
+# 為每個可並行的 task 創建 worktree
+git worktree add ../YTMaker-task-001 feature/task-001-project-setup
+git worktree add ../YTMaker-task-002 feature/task-002-database-schema
+git worktree add ../YTMaker-task-003 feature/task-003-frontend-arch
+
+# 在不同的 VSCode 窗口/Terminals 同時工作
+Terminal 1: cd ../YTMaker-task-001 && code .
+Terminal 2: cd ../YTMaker-task-002 && code .
+Terminal 3: cd ../YTMaker-task-003 && code .
+```
+
 **範例：**
 ```
 可並行執行 (Parallel Group 1):
-├─ Task-001: 專案初始化 (修改根目錄配置)
-├─ Task-002: 資料庫設計 (修改 prisma/)
-└─ Task-003: 前端架構 (修改 frontend/src/)
+├─ Task-001: 專案初始化 (YTMaker-task-001 目錄)
+├─ Task-002: 資料庫設計 (YTMaker-task-002 目錄)
+└─ Task-003: 前端架構 (YTMaker-task-003 目錄)
 ```
 
-這三個任務互不影響，可以同時開發。
+這三個任務各自在獨立的 worktree 中開發，完全互不影響。
 
 ---
 
