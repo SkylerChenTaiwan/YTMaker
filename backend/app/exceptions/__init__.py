@@ -1,5 +1,10 @@
 """Exception classes"""
 
+from .video_render_exceptions import (
+    FFmpegNotFoundError,
+    InsufficientDiskSpaceError,
+    VideoRenderError,
+)
 from .youtube_exceptions import (
     YouTubeAPIError,
     YouTubeAuthError,
@@ -12,4 +17,7 @@ __all__ = [
     "YouTubeAuthError",
     "YouTubeQuotaExceededError",
     "YouTubeUploadError",
+    "VideoRenderError",
+    "FFmpegNotFoundError",
+    "InsufficientDiskSpaceError",
 ]
