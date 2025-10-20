@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
 
+    # Google OAuth 配置
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:3000/oauth/callback"
+
+    # Token 加密金鑰 (Fernet key)
+    ENCRYPTION_KEY: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
