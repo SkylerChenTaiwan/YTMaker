@@ -7,6 +7,7 @@ from app.models.batch_task import BatchTask, BatchTaskStatus
 from app.models.configuration import Configuration
 from app.models.project import Project, ProjectStatus
 from app.models.prompt_template import PromptTemplate
+from app.models.quota_usage import QuotaUsage
 from app.models.system_settings import SystemSettings
 from app.models.youtube_account import YouTubeAccount
 
@@ -27,4 +28,5 @@ __all__ = [
     "BatchTask",
     "BatchTaskStatus",
     "SystemSettings",
+    "QuotaUsage",
 ]
