@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import configurations, health, projects, prompt_templates, stats
+from app.api.v1 import configurations, health, projects, prompt_templates, stats, system
 from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
@@ -133,6 +133,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 # 註冊路由
 app.include_router(health.router, tags=["health"])
 app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
+app.include_router(system.router, prefix="/api/v1", tags=["system"])
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(configurations.router, prefix="/api/v1")
 app.include_router(prompt_templates.router, prefix="/api/v1")

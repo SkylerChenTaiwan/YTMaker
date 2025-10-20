@@ -189,11 +189,11 @@ def main():
         seed_assets(projects)
 
         print("\n✅ All test data seeded successfully!")
-        print(f"📊 Total records:")
+        print("📊 Total records:")
         print(f"   - Projects: {len(projects)}")
         print(f"   - Templates: {len(templates)}")
-        print(f"   - Configurations: 1")
-        print(f"   - System Settings: 5")
+        print("   - Configurations: 1")
+        print("   - System Settings: 5")
 
     except Exception as e:
         print(f"\n❌ Error seeding data: {e}")

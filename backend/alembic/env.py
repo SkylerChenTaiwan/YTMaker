@@ -1,18 +1,12 @@
 """Alembic environment configuration."""
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
+
 # Import all models
-from app.models.asset import Asset
 from app.models.base import Base
-from app.models.batch_task import BatchTask
-from app.models.configuration import Configuration
-from app.models.project import Project
-from app.models.prompt_template import PromptTemplate
-from app.models.system_settings import SystemSettings
-from app.models.youtube_account import YouTubeAccount
 
 # Alembic Config object
 config = context.config
