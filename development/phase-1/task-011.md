@@ -481,7 +481,58 @@ async def test_partial_failure_tolerance(mock_stability_api):
 
 ### 整合測試
 
-#### 測試 8：完整圖片生成流程（需要真實 API Key）
+#### 測試 8：Stability AI 失敗時應回退到快取圖片
+
+**目的:** 驗證 Stability AI 失敗時,系統能正確使用快取圖片作為降級策略
+
+**測試設置:**
+```python
+# 1. 先成功生成一張圖片並快取
+with responses.RequestsMock() as rsps:
+    rsps.add(
+        responses.POST,
+        'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image',
+        status=200,
+        body=b'fake-image-data-1'
+    )
+
+    image1 = await stability_service.generate_image('a beautiful sunset')
+    assert image1 is not None
+
+# 2. 第二次請求失敗
+with responses.RequestsMock() as rsps:
+    rsps.add(
+        responses.POST,
+        'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image',
+        status=500,
+        json={'error': 'Internal server error'}
+    )
+
+    # 應使用快取的圖片而不是拋出錯誤
+    image2 = await stability_service.generate_image(
+        'a beautiful sunset',
+        allow_cached=True
+    )
+
+    assert image2 == image1  # 應返回相同的快取圖片
+```
+
+**預期行為:**
+1. 第一次成功生成圖片並儲存到快取
+2. 第二次 API 調用失敗 (500 錯誤)
+3. 系統檢測到失敗並嘗試從快取讀取
+4. 返回先前快取的圖片
+
+**驗證點:**
+- [ ] 第一次 API 調用成功,圖片被快取
+- [ ] 第二次 API 調用失敗 (500 錯誤)
+- [ ] 系統從快取中讀取圖片而不是拋出異常
+- [ ] 返回的圖片與快取圖片相同
+- [ ] 日誌記錄降級策略的使用 (WARNING level)
+
+---
+
+#### 測試 9：完整圖片生成流程（需要真實 API Key）
 
 **目的：** 端到端測試整個圖片生成流程
 

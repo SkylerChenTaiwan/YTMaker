@@ -598,6 +598,111 @@ except VideoRenderError as e:
 
 ---
 
+### 檔案系統錯誤處理測試
+
+#### 測試 13：磁碟空間不足時的錯誤處理
+
+**目的：** 驗證磁碟空間不足時應優雅處理，不損壞已有資料
+
+**測試場景：**
+- 模擬磁碟只剩少量空間
+- 嘗試渲染影片
+- 驗證錯誤被正確捕獲且不損壞資料
+
+**測試代碼：**
+```python
+@pytest.mark.integration
+def test_disk_full_during_video_rendering():
+    """磁碟空間不足時應優雅處理,不損壞已有資料"""
+
+    # Mock 磁碟空間檢查
+    with patch('shutil.disk_usage') as mock_disk:
+        # 模擬只剩 100MB 空間 (不足以渲染影片)
+        mock_disk.return_value = (1000_000_000, 900_000_000, 100_000_000)
+
+        with pytest.raises(InsufficientDiskSpaceError) as exc_info:
+            render_service.render_video('test-project')
+
+        # 應提供清楚的錯誤訊息
+        assert 'disk space' in str(exc_info.value).lower()
+        assert '100' in str(exc_info.value)  # 應顯示剩餘空間
+
+        # 專案資料應完整 (沒有部分寫入的檔案)
+        project_dir = Path(f'./uploads/test-project')
+
+        # 不應有 .tmp 或 .partial 檔案
+        assert len(list(project_dir.glob('*.tmp'))) == 0
+        assert len(list(project_dir.glob('*.partial'))) == 0
+```
+
+**預期行為：**
+- 拋出 `InsufficientDiskSpaceError`
+- 錯誤訊息包含剩餘空間資訊
+- 不留下部分寫入的檔案
+- 專案資料保持完整
+
+**驗證點：**
+- [ ] 拋出正確的異常類型
+- [ ] 錯誤訊息包含剩餘磁碟空間
+- [ ] 無部分寫入的臨時檔案殘留
+- [ ] 專案目錄狀態一致
+- [ ] 完整錯誤記錄到日誌
+
+---
+
+#### 測試 14：並發檔案存取處理（影片渲染）
+
+**目的：** 驗證多個渲染任務同時存取同一資源時的處理
+
+**測試場景：**
+- 多個 Celery worker 同時渲染不同影片
+- 驗證檔案鎖定機制正確運作
+- 確保無檔案衝突
+
+**測試代碼：**
+```python
+@pytest.mark.integration
+async def test_concurrent_video_rendering():
+    """多個渲染任務同時執行應正確處理檔案鎖定"""
+
+    project_ids = ['project-001', 'project-002', 'project-003']
+
+    async def render_project(project_id):
+        service = VideoRenderService(project_id=project_id)
+        return await service.render_segment(
+            segment_index=1,
+            image_path=f'./assets/{project_id}/image_01.png',
+            audio_path=f'./assets/{project_id}/audio_01.mp3',
+            segment_config={'duration': 10.0},
+            global_config={}
+        )
+
+    # 並發渲染
+    results = await asyncio.gather(
+        render_project(project_ids[0]),
+        render_project(project_ids[1]),
+        render_project(project_ids[2])
+    )
+
+    # 所有渲染都應成功
+    assert len(results) == 3
+    for result in results:
+        assert Path(result).exists()
+        assert Path(result).stat().st_size > 0
+
+    # 檔案應位於不同目錄，無衝突
+    assert len(set(Path(r).parent for r in results)) == 3
+```
+
+**驗證點：**
+- [ ] 所有並發渲染都成功完成
+- [ ] 無檔案覆蓋或衝突
+- [ ] 每個專案的輸出檔案正確隔離
+- [ ] 無死鎖情況發生
+- [ ] 資源使用合理（記憶體、CPU）
+
+---
+
 ## 實作規格
 
 ### 需要建立/修改的檔案

@@ -424,6 +424,121 @@ Status: 503 Service Unavailable
 
 ---
 
+### 檔案系統錯誤處理測試
+
+#### 測試 11: 檔案權限不足時的錯誤處理
+
+**目的:** 驗證檔案權限不足時返回明確錯誤
+
+**測試場景:**
+- 模擬上傳目錄無寫入權限
+- 嘗試保存上傳檔案
+- 驗證返回明確的權限錯誤
+
+**測試代碼:**
+```python
+@pytest.mark.integration
+def test_file_permission_denied():
+    """檔案權限不足時應返回明確錯誤"""
+
+    upload_dir = Path('./uploads/test-readonly')
+    upload_dir.mkdir(exist_ok=True)
+
+    # 移除寫入權限
+    os.chmod(upload_dir, 0o444)
+
+    try:
+        with pytest.raises(FilePermissionError) as exc_info:
+            file_service.save_uploaded_file(
+                b'test content',
+                str(upload_dir / 'test.txt')
+            )
+
+        # 錯誤訊息應包含路徑
+        assert str(upload_dir) in str(exc_info.value)
+    finally:
+        # 恢復權限以便清理
+        os.chmod(upload_dir, 0o755)
+        upload_dir.rmdir()
+```
+
+**預期輸出:**
+```json
+Status: 500 Internal Server Error
+{
+  "success": false,
+  "error": {
+    "code": "FILE_PERMISSION_ERROR",
+    "message": "檔案權限不足,無法寫入",
+    "details": {
+      "path": "./uploads/test-readonly/test.txt"
+    }
+  },
+  "timestamp": "2025-10-19T10:30:00Z",
+  "path": "/api/v1/upload"
+}
+```
+
+**驗證點:**
+- [ ] 回傳正確的錯誤狀態碼（500）
+- [ ] 錯誤訊息包含檔案路徑
+- [ ] 錯誤訊息清楚指出權限問題
+- [ ] 不洩漏系統內部路徑結構
+- [ ] 完整錯誤記錄到日誌
+
+---
+
+#### 測試 12: 並發檔案存取處理
+
+**目的:** 驗證多個請求同時存取同一檔案時的檔案鎖定機制
+
+**測試場景:**
+- 多個請求同時上傳並寫入檔案
+- 驗證檔案鎖定機制正確運作
+- 確保所有寫入都被正確保存
+
+**測試代碼:**
+```python
+@pytest.mark.integration
+async def test_concurrent_file_access():
+    """多個請求同時存取同一檔案應正確處理檔案鎖定"""
+
+    test_file = Path('./uploads/shared-file.txt')
+    test_file.write_text('initial content')
+
+    async def write_to_file(content):
+        # 使用檔案鎖定
+        async with file_service.lock_file(test_file):
+            current = test_file.read_text()
+            await asyncio.sleep(0.1)  # 模擬處理時間
+            test_file.write_text(current + content)
+
+    # 並發寫入
+    await asyncio.gather(
+        write_to_file(' A'),
+        write_to_file(' B'),
+        write_to_file(' C')
+    )
+
+    # 最終內容應包含所有寫入 (順序可能不同)
+    final_content = test_file.read_text()
+    assert 'A' in final_content
+    assert 'B' in final_content
+    assert 'C' in final_content
+
+    # 不應有內容遺失
+    assert len(final_content) == len('initial content ABC')
+```
+
+**驗證點:**
+- [ ] 所有並發寫入都成功完成
+- [ ] 無內容遺失或覆蓋
+- [ ] 檔案鎖定機制正確運作
+- [ ] 無死鎖情況發生
+- [ ] 檔案最終狀態一致
+
+---
+
 ## 實作規格
 
 ### 需要建立/修改的檔案

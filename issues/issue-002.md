@@ -993,27 +993,27 @@ async def test_concurrent_file_access():
 
 逐一修改以下 task 文件,加入建議的新測試:
 
-- [ ] `development/phase-1/task-001.md` - 新增測試 6, 7
+- [x] `development/phase-1/task-001.md` - 新增測試 6, 7
 - [x] `development/phase-1/task-004.md` - 新增測試 8, 9
 - [x] `development/phase-1/task-009.md` - 新增測試 8, 9
 - [x] `development/phase-1/task-015.md` - 新增測試 11, 12, 13
-- [ ] `development/phase-1/task-022.md` - 新增測試 14, 15
-- [ ] `development/phase-1/task-024.md` - 新增測試 16, 17
-- [ ] `development/phase-1/task-029.md` - 新增測試 11, 12
+- [x] `development/phase-1/task-022.md` - 新增測試 14, 15
+- [x] `development/phase-1/task-024.md` - 新增測試 16, 17
+- [x] `development/phase-1/task-029.md` - 新增測試 11, 12
 
 ### 第 2 步: 建立整合測試文件 (預估 1 小時)
 
 在適當的 task 中加入整合測試規劃:
 
-- [ ] Celery-WebSocket 整合測試 → 加入 Task-024 或建立獨立文件
-- [ ] 第三方 API 失敗恢復測試 → 加入 Task-006, 007, 008, 010
-- [ ] 檔案系統錯誤處理測試 → 加入 Task-003, 015
+- [x] Celery-WebSocket 整合測試 → 加入 Task-024
+- [x] 第三方 API 失敗恢復測試 → 加入 Task-006, 007, 008, 010
+- [x] 檔案系統錯誤處理測試 → 加入 Task-003, 015
 
 ### 第 3 步: 驗證測試覆蓋率 (預估 30 分鐘)
 
-- [ ] 確認所有高優先級測試已加入
-- [ ] 確認測試覆蓋正常、異常、邊界三種情況
-- [ ] 確認整合測試涵蓋跨系統場景
+- [x] 確認所有高優先級測試已加入
+- [x] 確認測試覆蓋正常、異常、邊界三種情況
+- [x] 確認整合測試涵蓋跨系統場景
 
 ---
 

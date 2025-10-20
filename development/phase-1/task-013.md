@@ -449,7 +449,119 @@ assert quota_usage["can_upload"] == False
 
 ### 整合測試
 
-#### 測試 10: 完整上傳流程（端到端）
+#### 測試 10: YouTube 配額超限應正確處理
+
+**目的:** 驗證當 YouTube API 配額用盡時,系統能正確處理錯誤而不是重試
+
+**測試設置:**
+```python
+import responses
+from googleapiclient.errors import HttpError
+
+# Mock YouTube API 返回 403 Quota Exceeded
+mock_response = MagicMock()
+mock_response.status = 403
+mock_response.reason = 'quotaExceeded'
+
+mock_error = HttpError(resp=mock_response, content=b'{"error": {"errors": [{"domain": "youtube.quota", "reason": "quotaExceeded"}], "code": 403, "message": "The request cannot be completed because you have exceeded your quota."}}')
+```
+
+**測試執行:**
+```python
+@pytest.mark.asyncio
+async def test_youtube_upload_quota_exceeded():
+    # Arrange
+    service = VideoUploadService(db_session)
+
+    # Mock QuotaService 顯示配額充足(但實際 API 會失敗)
+    mock_quota_service = AsyncMock()
+    mock_quota_service.check_quota.return_value = True
+    service.quota_service = mock_quota_service
+
+    # Mock YouTube 帳號
+    mock_youtube_account = MagicMock()
+    mock_youtube_account.id = 1
+    mock_youtube_account.access_token = "valid_token"
+    mock_youtube_account.refresh_token = "refresh_token"
+    db_session.query().filter().first.return_value = mock_youtube_account
+
+    # Mock YouTubeClient.upload_video() 拋出 HttpError 403 quotaExceeded
+    with patch('app.services.upload_service.YouTubeClient') as MockYouTubeClient:
+        mock_client = MockYouTubeClient.return_value
+        mock_client.upload_video.side_effect = mock_error
+
+        # Act & Assert - 應拋出 YouTubeQuotaExceededError
+        with pytest.raises(YouTubeQuotaExceededError) as exc_info:
+            await service.upload_to_youtube(
+                project_id=1,
+                video_path="/path/to/video.mp4",
+                youtube_account_id=1,
+                metadata={
+                    "title": "Test Video",
+                    "description": "Test Description",
+                    "tags": ["test"],
+                    "privacy_status": "public"
+                }
+            )
+
+        # Assert - 驗證錯誤訊息
+        assert "quota exceeded" in str(exc_info.value).lower()
+        assert "10,000 units" in str(exc_info.value)
+
+        # Assert - 驗證沒有重試(upload_video 只被調用一次)
+        assert mock_client.upload_video.call_count == 1
+```
+
+**預期結果:**
+- ✅ 檢測到 403 Quota Exceeded 錯誤
+- ✅ 拋出 `YouTubeQuotaExceededError` 自訂例外
+- ✅ 錯誤訊息包含配額資訊("10,000 units")
+- ✅ **不進行重試**(因為重試無法解決配額問題)
+- ✅ 記錄錯誤日誌
+
+**實作要求:**
+```python
+# 在 VideoUploadService.upload_to_youtube() 中處理配額錯誤
+try:
+    video_id = await youtube_client.upload_video(...)
+except HttpError as e:
+    # 檢查是否為配額超限錯誤
+    if e.resp.status == 403:
+        error_content = json.loads(e.content.decode('utf-8'))
+        error_reason = error_content.get('error', {}).get('errors', [{}])[0].get('reason', '')
+
+        if error_reason == 'quotaExceeded':
+            logger.error(f"YouTube API quota exceeded for project {project_id}")
+            raise YouTubeQuotaExceededError(
+                "YouTube API quota exceeded. Daily limit: 10,000 units. "
+                "Please try again tomorrow after quota resets (Pacific Time midnight)."
+            )
+
+    # 其他錯誤
+    logger.error(f"YouTube upload failed: {str(e)}")
+    raise YouTubeUploadError(f"Failed to upload video: {str(e)}")
+```
+
+**錯誤處理策略:**
+1. **配額超限 (403 quotaExceeded):**
+   - ❌ 不重試(無法通過重試解決)
+   - 拋出 `YouTubeQuotaExceededError`
+   - 記錄錯誤並通知用戶等待配額恢復
+   - 可選:將上傳任務標記為「待配額恢復」狀態
+
+2. **Token 過期 (401 Unauthorized):**
+   - ✅ 自動刷新 token 並重試一次
+
+3. **伺服器錯誤 (500/503):**
+   - ✅ 指數退避重試(最多 3 次)
+
+4. **其他錯誤 (400, 404等):**
+   - ❌ 不重試
+   - 拋出 `YouTubeUploadError`
+
+---
+
+#### 測試 11: 完整上傳流程（端到端）
 
 **目的:** 驗證從檔案到 YouTube 發布的完整流程
 

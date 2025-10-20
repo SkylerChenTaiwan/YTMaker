@@ -743,6 +743,149 @@
 
 ---
 
+### E2E 測試 9: 跨流程整合測試
+
+**目的:** 驗證批次處理與單一專案編輯可同時進行且互不影響
+
+**前置條件:**
+- 系統正常運作
+- 批次處理功能已實作
+
+**測試步驟:**
+
+```typescript
+// 測試 11: 跨流程整合測試
+test('批次處理 + 單一專案編輯應互不影響', async ({ page }) => {
+  // 1. 建立批次任務 (處理 10 個專案)
+  await page.goto('/batch-generation')
+  await page.fill('[name="project_count"]', '10')
+  await page.click('button:has-text("開始批次生成")')
+
+  const batchId = await page.locator('[data-testid="batch-id"]').textContent()
+
+  // 2. 在批次處理進行中,同時編輯單一專案
+  await page.goto('/projects')
+  await page.click('text=新增專案')
+  await page.fill('[name="title"]', '測試專案')
+  await page.fill('[name="script"]', '測試內容')
+  await page.click('button:has-text("儲存")')
+
+  const projectId = await page.locator('[data-testid="project-id"]').textContent()
+
+  // 3. 進入視覺化配置
+  await page.click(`[data-project-id="${projectId}"]`)
+  await page.fill('[name="font_size"]', '48')
+  await page.click('button:has-text("儲存配置")')
+
+  // 4. 檢查批次任務沒有被影響
+  await page.goto(`/progress/${batchId}`)
+  const status = await page.locator('[data-testid="batch-status"]')
+  expect(await status.textContent()).toMatch(/進行中|已完成/)
+
+  // 5. 檢查單一專案配置已儲存
+  const response = await page.request.get(`/api/v1/projects/${projectId}`)
+  const data = await response.json()
+  expect(data.configuration.subtitle.font_size).toBe(48)
+})
+```
+
+**預期結果:**
+```javascript
+{
+  batchTaskNotAffected: true,
+  batchStatus: 'processing' | 'completed',
+  singleProjectSaved: true,
+  configurationPersisted: true
+}
+```
+
+**驗證點:**
+- [ ] 批次任務和單一專案可同時處理
+- [ ] 兩者不會相互干擾
+- [ ] 資料正確儲存到各自的 context
+- [ ] 狀態隔離正確
+
+---
+
+### E2E 測試 10: 前後端資料一致性測試
+
+**目的:** 驗證前端顯示與後端資料庫完全一致
+
+**前置條件:**
+- API 正常運作
+- 資料庫可存取
+
+**測試步驟:**
+
+```typescript
+// 測試 12: 前後端資料一致性測試
+test('前端顯示應與後端資料庫完全一致', async ({ page }) => {
+  // 1. 透過 API 建立專案
+  const apiResponse = await page.request.post('/api/v1/projects', {
+    data: {
+      title: '一致性測試專案',
+      script_content: '測試內容',
+      configuration: {
+        subtitle: {
+          font_family: 'Noto Sans TC',
+          font_size: 36,
+          font_color: '#FFFFFF',
+          position: { x: 50, y: 80 }
+        }
+      }
+    }
+  })
+
+  const apiData = await apiResponse.json()
+  const projectId = apiData.project_id
+
+  // 2. 前端載入專案
+  await page.goto(`/projects/${projectId}`)
+
+  // 3. 比對每個欄位
+  expect(await page.inputValue('[name="title"]')).toBe('一致性測試專案')
+  expect(await page.inputValue('[name="script"]')).toBe('測試內容')
+  expect(await page.inputValue('[name="font_family"]')).toBe('Noto Sans TC')
+  expect(await page.inputValue('[name="font_size"]')).toBe('36')
+  expect(await page.inputValue('[name="font_color"]')).toBe('#FFFFFF')
+
+  // 4. 修改配置
+  await page.fill('[name="font_size"]', '48')
+  await page.click('button:has-text("儲存")')
+
+  await page.waitForSelector('[data-testid="save-success"]')
+
+  // 5. 直接查詢資料庫驗證
+  const updatedResponse = await page.request.get(`/api/v1/projects/${projectId}`)
+  const updatedData = await updatedResponse.json()
+
+  expect(updatedData.configuration.subtitle.font_size).toBe(48)
+
+  // 6. 重新載入頁面驗證持久化
+  await page.reload()
+  expect(await page.inputValue('[name="font_size"]')).toBe('48')
+})
+```
+
+**預期結果:**
+```javascript
+{
+  apiDataMatches: true,
+  frontendDisplayCorrect: true,
+  updatePersisted: true,
+  reloadConsistent: true
+}
+```
+
+**驗證點:**
+- [ ] API 建立的資料前端正確顯示
+- [ ] 前端每個欄位與 API 回應一致
+- [ ] 修改後資料正確儲存到資料庫
+- [ ] 頁面重新載入後資料保持一致
+- [ ] 無資料遺失或格式轉換錯誤
+
+---
+
 ## 第三方 API Mock 策略
 
 ### Mock 架構設計

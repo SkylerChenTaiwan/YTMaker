@@ -464,6 +464,228 @@ await waitFor(() => {
 
 ---
 
+#### 測試 14: 即時預覽效能
+
+**目的:** 驗證配置修改後預覽應在 100ms 內更新
+
+**測試步驟:**
+```typescript
+// tests/integration/visual-config-performance.test.tsx
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import VisualConfigPage from '@/app/project/[id]/configure/visual/page'
+
+test('配置修改後預覽應在 100ms 內更新', async () => {
+  const user = userEvent.setup()
+  render(<VisualConfigPage params={{ id: 'test-project-id' }} />)
+
+  // 等待頁面載入
+  await waitFor(() => {
+    expect(screen.getByText('字幕設定')).toBeInTheDocument()
+  })
+
+  const fontSizeInput = screen.getByLabelText('字體大小')
+  const preview = screen.getByTestId('preview-container')
+
+  // 記錄開始時間
+  const startTime = performance.now()
+
+  // 修改配置
+  await user.clear(fontSizeInput)
+  await user.type(fontSizeInput, '48')
+
+  // 等待預覽更新
+  await waitFor(() => {
+    const subtitleElement = preview.querySelector('.subtitle')
+    const previewFontSize = window.getComputedStyle(subtitleElement!).fontSize
+    expect(previewFontSize).toBe('48px')
+  })
+
+  const elapsed = performance.now() - startTime
+
+  // 更新時間應 < 100ms
+  expect(elapsed).toBeLessThan(100)
+})
+
+test('顏色修改應在 100ms 內反映到預覽', async () => {
+  const user = userEvent.setup()
+  render(<VisualConfigPage params={{ id: 'test-project-id' }} />)
+
+  await waitFor(() => {
+    expect(screen.getByText('字幕設定')).toBeInTheDocument()
+  })
+
+  const colorPicker = screen.getByTestId('subtitle-color-picker')
+  const preview = screen.getByTestId('preview-container')
+
+  const startTime = performance.now()
+
+  // 修改顏色
+  await user.click(colorPicker)
+  await user.click(screen.getByLabelText('紅色'))
+
+  // 等待預覽更新
+  await waitFor(() => {
+    const subtitleElement = preview.querySelector('.subtitle')
+    const color = window.getComputedStyle(subtitleElement!).color
+    expect(color).toBe('rgb(255, 0, 0)') // #FF0000
+  })
+
+  const elapsed = performance.now() - startTime
+  expect(elapsed).toBeLessThan(100)
+})
+```
+
+**預期結果:**
+- 字體大小修改後 < 100ms 反映到預覽
+- 顏色修改後 < 100ms 反映到預覽
+- 其他配置項目修改都在 100ms 內更新
+- 無明顯延遲或卡頓
+
+**驗證點:**
+- [ ] 字體大小變更延遲 < 100ms
+- [ ] 顏色變更延遲 < 100ms
+- [ ] Logo 位置拖拽延遲 < 100ms
+- [ ] Konva 渲染效能優化
+- [ ] 使用 React.memo 避免不必要的重新渲染
+
+**優先級:** 中 (影響使用者體驗)
+
+---
+
+#### 測試 15: 拖曳邊界測試
+
+**目的:** 驗證字幕位置拖曳到畫面邊界應正確限制
+
+**測試步驟:**
+```typescript
+// tests/integration/dragging-boundaries.test.tsx
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import VisualConfigPage from '@/app/project/[id]/configure/visual/page'
+
+test('字幕位置拖曳到畫面邊界應正確限制', async () => {
+  const user = userEvent.setup()
+  render(<VisualConfigPage params={{ id: 'test-project-id' }} />)
+
+  const subtitle = screen.getByTestId('draggable-subtitle')
+  const container = screen.getByTestId('video-preview')
+  const containerRect = container.getBoundingClientRect()
+
+  // 嘗試拖曳到畫面外（右下角超出）
+  await user.pointer([
+    { keys: '[MouseLeft>]', target: subtitle },
+    {
+      coords: {
+        x: containerRect.right + 100, // 超出右邊界
+        y: containerRect.bottom + 100, // 超出下邊界
+      },
+    },
+    { keys: '[/MouseLeft]' },
+  ])
+
+  // 位置應被限制在畫面內
+  const finalRect = subtitle.getBoundingClientRect()
+  expect(finalRect.right).toBeLessThanOrEqual(containerRect.right)
+  expect(finalRect.bottom).toBeLessThanOrEqual(containerRect.bottom)
+
+  // 左上角也應在畫面內
+  expect(finalRect.left).toBeGreaterThanOrEqual(containerRect.left)
+  expect(finalRect.top).toBeGreaterThanOrEqual(containerRect.top)
+})
+
+test('Logo 拖曳到畫面外應自動吸附到邊界', async () => {
+  const user = userEvent.setup()
+  render(<VisualConfigPage params={{ id: 'test-project-id' }} />)
+
+  // 先上傳 Logo
+  const fileInput = screen.getByLabelText('上傳 Logo')
+  const file = new File(['logo'], 'logo.png', { type: 'image/png' })
+  await user.upload(fileInput, file)
+
+  await waitFor(() => {
+    expect(screen.getByTestId('draggable-logo')).toBeInTheDocument()
+  })
+
+  const logo = screen.getByTestId('draggable-logo')
+  const container = screen.getByTestId('video-preview')
+  const containerRect = container.getBoundingClientRect()
+
+  // 嘗試拖曳到左上角超出
+  await user.pointer([
+    { keys: '[MouseLeft>]', target: logo },
+    {
+      coords: {
+        x: containerRect.left - 50, // 超出左邊界
+        y: containerRect.top - 50, // 超出上邊界
+      },
+    },
+    { keys: '[/MouseLeft]' },
+  ])
+
+  const finalRect = logo.getBoundingClientRect()
+
+  // 應吸附到邊界（最小值為 0）
+  expect(finalRect.left).toBeGreaterThanOrEqual(containerRect.left)
+  expect(finalRect.top).toBeGreaterThanOrEqual(containerRect.top)
+})
+
+test('拖曳元件應顯示對齊輔助線', async () => {
+  const user = userEvent.setup()
+  render(<VisualConfigPage params={{ id: 'test-project-id' }} />)
+
+  const subtitle = screen.getByTestId('draggable-subtitle')
+  const container = screen.getByTestId('video-preview')
+  const containerRect = container.getBoundingClientRect()
+
+  // 開始拖曳
+  await user.pointer([{ keys: '[MouseLeft>]', target: subtitle }])
+
+  // 拖曳到畫面中心附近
+  await user.pointer([
+    {
+      coords: {
+        x: containerRect.left + containerRect.width / 2 + 5, // 接近中心
+        y: containerRect.top + containerRect.height / 2,
+      },
+    },
+  ])
+
+  // 應顯示中央對齊線
+  const centerGuideVertical = screen.queryByTestId('guide-center-vertical')
+  const centerGuideHorizontal = screen.queryByTestId('guide-center-horizontal')
+
+  expect(centerGuideVertical).toBeInTheDocument()
+  expect(centerGuideHorizontal).toBeInTheDocument()
+
+  // 結束拖曳
+  await user.pointer([{ keys: '[/MouseLeft]' }])
+
+  // 輔助線應消失
+  await waitFor(() => {
+    expect(screen.queryByTestId('guide-center-vertical')).not.toBeInTheDocument()
+  })
+})
+```
+
+**預期結果:**
+- 字幕拖曳不會超出畫面邊界
+- Logo 拖曳到邊界外會自動吸附
+- 拖曳時顯示對齊輔助線（中心線、邊界線）
+- 拖曳結束後輔助線消失
+
+**驗證點:**
+- [ ] 字幕位置被限制在畫面內
+- [ ] Logo 位置被限制在畫面內
+- [ ] 拖曳超出邊界時自動吸附
+- [ ] 拖曳時顯示對齊輔助線
+- [ ] 輔助線在拖曳結束後消失
+- [ ] 吸附功能有明顯回饋（視覺提示）
+
+**優先級:** 中 (影響使用者體驗)
+
+---
+
 ### 整合測試
 
 #### 測試 7：完整新增專案流程（步驟 1-2）

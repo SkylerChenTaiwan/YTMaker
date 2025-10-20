@@ -182,9 +182,170 @@ git status
 
 ---
 
+#### 測試 6: 配置檔案正確性驗證
+
+**目的:** 驗證所有配置檔案符合 spec 規範
+
+**測試步驟:**
+```typescript
+// tests/unit/config.test.ts
+import { Settings } from '@/core/config'
+
+test('配置檔案應符合 spec 規範', () => {
+  const config = new Settings()
+
+  // 驗證結構 - 使用 Zod schema 驗證
+  const configSchema = z.object({
+    CORS_ORIGINS: z.array(z.string()),
+    DATABASE_URL: z.string(),
+    REDIS_URL: z.string(),
+    API_V1_PREFIX: z.string(),
+    PORT: z.number(),
+  })
+
+  expect(() => configSchema.parse(config)).not.toThrow()
+
+  // 驗證關鍵設定值
+  expect(config.CORS_ORIGINS).toContain('http://localhost:3000')
+  expect(config.DATABASE_URL).toMatch(/^sqlite:\/\//)
+  expect(config.REDIS_URL).toMatch(/^redis:\/\//)
+  expect(config.API_V1_PREFIX).toBe('/api/v1')
+  expect(config.PORT).toBe(8000)
+})
+```
+
+**Python 端測試:**
+```python
+# tests/unit/test_config.py
+from app.core.config import Settings
+
+def test_config_schema_compliance():
+    """驗證配置符合 spec 規範"""
+    config = Settings()
+
+    # 驗證必要欄位存在
+    assert hasattr(config, 'CORS_ORIGINS')
+    assert hasattr(config, 'DATABASE_URL')
+    assert hasattr(config, 'REDIS_URL')
+
+    # 驗證值的格式
+    assert 'http://localhost:3000' in config.CORS_ORIGINS
+    assert config.DATABASE_URL.startswith('sqlite:///')
+    assert config.REDIS_URL.startswith('redis://')
+```
+
+**預期結果:**
+- 所有配置欄位都符合 spec 定義
+- CORS origins 包含前端開發伺服器
+- 資料庫和 Redis URL 格式正確
+
+**驗證點:**
+- [ ] 配置結構符合 schema
+- [ ] CORS_ORIGINS 包含 http://localhost:3000
+- [ ] DATABASE_URL 格式正確 (sqlite://)
+- [ ] REDIS_URL 格式正確 (redis://)
+- [ ] API_V1_PREFIX 為 /api/v1
+- [ ] PORT 為 8000
+
+---
+
+#### 測試 7: 跨平台路徑處理
+
+**目的:** 驗證在不同作業系統上路徑處理正確
+
+**測試步驟:**
+```python
+# tests/unit/test_cross_platform.py
+import platform
+from pathlib import Path
+from app.core.config import Settings
+
+def test_cross_platform_paths():
+    """驗證不同作業系統的路徑處理正確"""
+    config = Settings()
+
+    # 使用 pathlib.Path 確保跨平台相容
+    data_dir = Path(config.DATA_DIR)
+    upload_dir = Path(config.UPLOAD_DIR)
+    logs_dir = Path(config.LOGS_DIR)
+
+    # 驗證路徑存在或可建立
+    assert data_dir.parent.exists() or data_dir.parent == Path('.')
+    assert upload_dir.parent.exists() or upload_dir.parent == Path('.')
+    assert logs_dir.parent.exists() or logs_dir.parent == Path('.')
+
+    # 驗證路徑分隔符正確 (pathlib 會自動處理)
+    if platform.system() == 'Windows':
+        # Windows 應能處理兩種分隔符
+        assert str(data_dir).replace('/', '\\')
+    else:
+        # Unix-like 使用正斜線
+        assert '/' in str(data_dir) or str(data_dir) == '.'
+
+def test_path_joining_cross_platform():
+    """驗證路徑拼接在不同平台正確"""
+    from app.utils.paths import join_path
+
+    # 使用 pathlib 或自訂函數確保跨平台
+    result = join_path('data', 'projects', 'test.mp4')
+
+    # 應使用當前平台的正確分隔符
+    expected = str(Path('data') / 'projects' / 'test.mp4')
+    assert result == expected
+```
+
+**TypeScript 測試:**
+```typescript
+// tests/unit/paths.test.ts
+import path from 'path'
+import os from 'os'
+
+test('路徑拼接應跨平台相容', () => {
+  // 使用 path.join 確保跨平台
+  const projectPath = path.join('data', 'projects', 'test-id')
+
+  if (os.platform() === 'win32') {
+    // Windows 使用反斜線
+    expect(projectPath).toContain('\\')
+  } else {
+    // Unix-like 使用正斜線
+    expect(projectPath).toContain('/')
+  }
+
+  // 驗證路徑正確
+  expect(projectPath).toMatch(/data.projects.test-id/)
+})
+
+test('環境變數路徑應正確解析', () => {
+  // 測試環境變數中的路徑
+  const uploadDir = process.env.UPLOAD_DIR || './uploads'
+  const resolved = path.resolve(uploadDir)
+
+  // 應為絕對路徑
+  expect(path.isAbsolute(resolved)).toBe(true)
+})
+```
+
+**預期結果:**
+- 路徑處理在 Windows/macOS/Linux 都正確
+- 使用 pathlib (Python) 或 path (Node.js) 模組處理路徑
+- 避免硬編碼路徑分隔符
+
+**驗證點:**
+- [ ] Python 使用 pathlib.Path 處理所有路徑
+- [ ] TypeScript 使用 path 模組處理路徑
+- [ ] Windows 路徑正確處理反斜線
+- [ ] Unix-like 路徑正確處理正斜線
+- [ ] 路徑拼接不會產生錯誤格式
+- [ ] 環境變數路徑正確解析
+
+**優先級:** 低 (如果只部署單一平台可延後)
+
+---
+
 ### 整合測試
 
-#### 測試 6: 前後端完整啟動流程
+#### 測試 8: 前後端完整啟動流程
 
 **目的:** 驗證前端可成功呼叫後端 API
 

@@ -526,7 +526,126 @@ async def test_full_avatar_generation_flow(
 
 ### 整合測試(可選 - 需真實 API Key)
 
-#### 測試 10: 真實 D-ID API 整合測試
+#### 測試 10: D-ID API 失敗應自動重試
+
+**目的:** 驗證 D-ID API 暫時失敗時,系統會自動重試並最終成功
+
+**測試設置:**
+```python
+import responses
+
+# Mock D-ID API 返回 503 (服務暫時不可用)
+with responses.RequestsMock() as rsps:
+    # 前兩次調用失敗
+    rsps.add(responses.POST, 'https://api.d-id.com/talks',
+        status=503, json={'error': 'Service temporarily unavailable'})
+    rsps.add(responses.POST, 'https://api.d-id.com/talks',
+        status=503, json={'error': 'Service temporarily unavailable'})
+    # 第三次調用成功
+    rsps.add(responses.POST, 'https://api.d-id.com/talks',
+        status=200, json={
+            'id': 'talk_abc123',
+            'status': 'created'
+        })
+
+    # 第一次狀態查詢返回 done
+    rsps.add(responses.GET, 'https://api.d-id.com/talks/talk_abc123',
+        status=200, json={
+            'id': 'talk_abc123',
+            'status': 'done',
+            'result_url': 'https://example.com/video.mp4',
+            'duration': 15.2
+        })
+```
+
+**測試執行:**
+```python
+@pytest.mark.asyncio
+async def test_did_api_failure_with_retry():
+    # Arrange
+    client = DIDClient(api_key="test_key")
+    audio_url = "https://example.com/test_audio.mp3"
+
+    # Mock 設置如上
+
+    # Act - 第一次失敗,自動重試
+    start_time = time.time()
+    talk_id = await client.create_talk_with_retry(
+        audio_url=audio_url,
+        max_retries=3,
+        retry_delay=2
+    )
+    end_time = time.time()
+
+    # Assert
+    assert talk_id == "talk_abc123"
+
+    # 驗證重試時間(至少等待 2 + 4 = 6 秒,因為前兩次失敗)
+    elapsed_time = end_time - start_time
+    assert elapsed_time >= 6, f"Expected retry delay, but only took {elapsed_time}s"
+
+    # 驗證 API 調用次數(3 次 POST + 1 次 GET)
+    assert len(rsps.calls) == 4
+    assert rsps.calls[0].request.url == 'https://api.d-id.com/talks'
+    assert rsps.calls[1].request.url == 'https://api.d-id.com/talks'
+    assert rsps.calls[2].request.url == 'https://api.d-id.com/talks'
+    assert rsps.calls[3].request.url == 'https://api.d-id.com/talks/talk_abc123'
+```
+
+**預期結果:**
+- ✅ 前兩次 API 調用返回 503 錯誤
+- ✅ 系統等待 2 秒後重試第二次
+- ✅ 第二次失敗後等待 4 秒(指數退避)
+- ✅ 第三次調用成功並返回 talk_id
+- ✅ 總共耗時約 6 秒(2s + 4s)
+- ✅ 成功取得虛擬主播生成任務 ID
+
+**實作要求:**
+```python
+# 在 DIDClient 中新增 create_talk_with_retry 方法
+async def create_talk_with_retry(
+    self,
+    audio_url: str,
+    max_retries: int = 3,
+    retry_delay: int = 2,
+    presenter_id: str = "amy-jcwCkr1grs",
+    driver_id: str = "uM00QMwJ9x"
+) -> str:
+    """
+    建立 D-ID Talk 並支援自動重試
+
+    Args:
+        audio_url: 音訊檔案 URL
+        max_retries: 最大重試次數
+        retry_delay: 初始重試延遲(秒),使用指數退避
+        presenter_id: Presenter ID
+        driver_id: Driver ID
+
+    Returns:
+        talk_id
+
+    Raises:
+        DIDAPIError: 重試耗盡後仍失敗
+    """
+    for attempt in range(max_retries):
+        try:
+            return await self.create_talk(audio_url, presenter_id, driver_id)
+        except DIDAPIError as e:
+            if attempt < max_retries - 1:
+                wait_time = retry_delay * (2 ** attempt)  # 指數退避: 2s, 4s, 8s...
+                logger.warning(
+                    f"D-ID API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}. "
+                    f"Retrying in {wait_time}s..."
+                )
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error(f"D-ID API call failed after {max_retries} attempts")
+                raise
+```
+
+---
+
+#### 測試 11: 真實 D-ID API 整合測試
 
 **目的:** 使用真實的 D-ID API Key 測試完整流程
 
