@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
 from typing import List
-from fastapi import HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
+from app.core.exceptions import AppException, ConflictException
 from app.models.project import Project
 from app.models.prompt_template import PromptTemplate
 from app.schemas.prompt_template import PromptTemplateCreate, PromptTemplateUpdate
@@ -19,11 +19,20 @@ class PromptTemplateService:
     def create_template(self, data: PromptTemplateCreate) -> PromptTemplate:
         existing = self.db.query(PromptTemplate).filter(PromptTemplate.name == data.name).first()
         if existing:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"success": False, "error": {"code": "PROMPT_TEMPLATE_NAME_EXISTS", "message": "Prompt 範本名稱已存在"}})
-        
+            raise AppException(
+                message="Prompt 範本名稱已存在",
+                error_code="PROMPT_TEMPLATE_NAME_EXISTS",
+                status_code=409
+            )
+
         if not self._validate_prompt_content(data.content):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Prompt 內容必須包含 {{content}} 佔位符", "details": {"field": "content"}}})
-        
+            raise AppException(
+                message="Prompt 內容必須包含 {{content}} 佔位符",
+                error_code="VALIDATION_ERROR",
+                status_code=422,
+                details={"field": "content"}
+            )
+
         template = PromptTemplate(id=str(uuid.uuid4()), name=data.name, content=data.content, is_default=False, usage_count=0)
         self.db.add(template)
         self.db.commit()
@@ -33,8 +42,12 @@ class PromptTemplateService:
     def get_template(self, template_id: str) -> PromptTemplate:
         template = self.db.query(PromptTemplate).filter(PromptTemplate.id == template_id).first()
         if not template:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"success": False, "error": {"code": "PROMPT_TEMPLATE_NOT_FOUND", "message": "Prompt 範本不存在"}})
-        
+            raise AppException(
+                message="Prompt 範本不存在",
+                error_code="PROMPT_TEMPLATE_NOT_FOUND",
+                status_code=404
+            )
+
         template.usage_count += 1
         self.db.commit()
         self.db.refresh(template)
@@ -43,16 +56,28 @@ class PromptTemplateService:
     def update_template(self, template_id: str, data: PromptTemplateUpdate) -> PromptTemplate:
         template = self.db.query(PromptTemplate).filter(PromptTemplate.id == template_id).first()
         if not template:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"success": False, "error": {"code": "PROMPT_TEMPLATE_NOT_FOUND", "message": "Prompt 範本不存在"}})
-        
+            raise AppException(
+                message="Prompt 範本不存在",
+                error_code="PROMPT_TEMPLATE_NOT_FOUND",
+                status_code=404
+            )
+
         if data.name and data.name != template.name:
             existing = self.db.query(PromptTemplate).filter(PromptTemplate.name == data.name).first()
             if existing:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"success": False, "error": {"code": "PROMPT_TEMPLATE_NAME_EXISTS", "message": "Prompt 範本名稱已存在"}})
-        
+                raise AppException(
+                    message="Prompt 範本名稱已存在",
+                    error_code="PROMPT_TEMPLATE_NAME_EXISTS",
+                    status_code=409
+                )
+
         if data.content and not self._validate_prompt_content(data.content):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"success": False, "error": {"code": "VALIDATION_ERROR", "message": "Prompt 內容必須包含 {{content}} 佔位符"}})
-        
+            raise AppException(
+                message="Prompt 內容必須包含 {{content}} 佔位符",
+                error_code="VALIDATION_ERROR",
+                status_code=422
+            )
+
         if data.name:
             template.name = data.name
         if data.content:
@@ -65,15 +90,28 @@ class PromptTemplateService:
     def delete_template(self, template_id: str) -> None:
         template = self.db.query(PromptTemplate).filter(PromptTemplate.id == template_id).first()
         if not template:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"success": False, "error": {"code": "PROMPT_TEMPLATE_NOT_FOUND", "message": "Prompt 範本不存在"}})
-        
+            raise AppException(
+                message="Prompt 範本不存在",
+                error_code="PROMPT_TEMPLATE_NOT_FOUND",
+                status_code=404
+            )
+
         if template.is_default:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"success": False, "error": {"code": "DEFAULT_TEMPLATE_PROTECTED", "message": "預設範本無法刪除"}})
-        
+            raise AppException(
+                message="預設範本無法刪除",
+                error_code="DEFAULT_TEMPLATE_PROTECTED",
+                status_code=403
+            )
+
         projects_count = self.db.query(Project).filter(Project.prompt_template_id == template_id).count()
         if projects_count > 0:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"success": False, "error": {"code": "PROMPT_TEMPLATE_IN_USE", "message": "Prompt 範本正在使用中,無法刪除", "details": {"projects_count": projects_count}}})
-        
+            raise AppException(
+                message="Prompt 範本正在使用中，無法刪除",
+                error_code="PROMPT_TEMPLATE_IN_USE",
+                status_code=409,
+                details={"projects_count": projects_count}
+            )
+
         self.db.delete(template)
         self.db.commit()
 
