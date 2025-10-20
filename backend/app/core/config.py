@@ -46,6 +46,14 @@ class Settings(BaseSettings):
     IMAGE_CFG_SCALE: float = 8.0
     IMAGE_STEPS: int = 40
 
+    # D-ID API 配置
+    DID_API_KEY: str = ""
+    DID_QUOTA_WARNING_THRESHOLD: float = 0.1  # 10% 剩餘時警告
+
+    # Storage 配置
+    STORAGE_PATH: str = "./storage"
+    TEMP_FILE_EXPIRY: int = 3600  # 1 小時
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
