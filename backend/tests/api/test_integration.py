@@ -3,6 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.core.database import get_db
@@ -10,11 +11,20 @@ from app.models.base import Base
 from app.models.configuration import Configuration
 from app.models.prompt_template import PromptTemplate
 from app.models.project import Project, ProjectStatus
+# 確保導入所有模型類以便 Base.metadata 包含所有表定義
+from app.models.asset import Asset
+from app.models.batch_task import BatchTask
+from app.models.system_settings import SystemSettings
+from app.models.youtube_account import YouTubeAccount
 
-# 測試資料庫設定
-TEST_DATABASE_URL = "sqlite:///./test.db"
-test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+# 測試資料庫設定 - 使用記憶體資料庫避免檔案衝突
+# 使用 StaticPool 確保所有連接共享同一個 database connection
+TEST_DATABASE_URL = "sqlite:///:memory:"
+test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+# 在模組載入時就創建所有表格
+Base.metadata.create_all(bind=test_engine)
 
 
 def override_get_db():
@@ -26,16 +36,31 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_app():
+    """在模組層級設置 dependency override"""
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.clear()
+
+
 client = TestClient(app)
 
 
 @pytest.fixture(scope="function", autouse=True)
 def setup_database():
-    """每個測試前設置資料庫"""
-    Base.metadata.create_all(bind=test_engine)
+    """每個測試前清理並重建資料庫"""
+    # 清理所有資料
+    with test_engine.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.commit()
     yield
-    Base.metadata.drop_all(bind=test_engine)
+    # 測試後清理
+    with test_engine.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.commit()
 
 
 @pytest.fixture

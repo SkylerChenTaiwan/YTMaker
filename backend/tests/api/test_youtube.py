@@ -7,19 +7,64 @@ from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.database import get_db
 from app.main import app
 from app.models.base import Base
 from app.models.youtube_account import YouTubeAccount
+# 確保導入所有模型類以便 Base.metadata 包含所有表定義
+from app.models.asset import Asset
+from app.models.batch_task import BatchTask
+from app.models.configuration import Configuration
+from app.models.project import Project
+from app.models.prompt_template import PromptTemplate
+from app.models.system_settings import SystemSettings
 
-# 測試資料庫設定
+# 測試資料庫設定 - 使用記憶體資料庫避免檔案衝突
+# 使用 StaticPool 確保所有連接共享同一個 database connection
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # 生成一個測試用的 Fernet key
 TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
+
+# 在模組載入時就創建所有表格
+Base.metadata.create_all(bind=engine)
+
+
+def override_get_db():
+    """Override database dependency for testing"""
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_test_app():
+    """在模組層級設置 dependency override"""
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def setup_database():
+    """每個測試前清理並重建資料庫"""
+    # 清理所有資料
+    with engine.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.commit()
+    yield
+    # 測試後清理
+    with engine.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.commit()
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -33,54 +78,20 @@ def mock_settings():
         yield mock_settings
 
 
-def override_get_db():
-    """Override database dependency for testing"""
-    # 強制導入所有模型，確保 Base.metadata 包含所有表定義
-    import app.models.asset
-    import app.models.batch_task
-    import app.models.configuration
-    import app.models.project
-    import app.models.prompt_template
-    import app.models.system_settings
-    import app.models.youtube_account
-
-    Base.metadata.create_all(bind=engine)
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-
-
 @pytest.fixture(scope="function")
 def db_session():
     """建立測試資料庫 session"""
-    Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture(scope="function")
-def client(db_session):
+@pytest.fixture(scope="module")
+def client():
     """建立測試客戶端"""
-
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
+    return TestClient(app)
 
 
 # ===== 單元測試 =====

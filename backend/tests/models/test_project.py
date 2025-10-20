@@ -17,8 +17,8 @@ from app.models.system_settings import SystemSettings
 from app.models.youtube_account import YouTubeAccount
 
 # Test database
-TEST_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(TEST_DATABASE_URL, echo=False)
+TEST_DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(TEST_DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
