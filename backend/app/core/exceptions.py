@@ -83,6 +83,21 @@ class ProjectNotCompletedException(AppException):
         )
 
 
+class InvalidProjectStatusException(AppException):
+    """專案狀態不正確"""
+
+    def __init__(self, current_status: str, allowed_statuses: list[str], message: str):
+        super().__init__(
+            message=message,
+            error_code="INVALID_PROJECT_STATUS",
+            status_code=409,
+            details={
+                "current_status": current_status,
+                "allowed_statuses": allowed_statuses,
+            },
+        )
+
+
 class APIKeyInvalidException(UnauthorizedException):
     """API Key 無效"""
 
