@@ -58,6 +58,20 @@ class Settings(BaseSettings):
     STORAGE_PATH: str = "./storage"
     TEMP_FILE_EXPIRY: int = 3600  # 1 小時
 
+    # FFmpeg 配置
+    FFMPEG_PATH: str = "ffmpeg"  # FFmpeg 執行檔路徑（預設使用 PATH）
+    FONT_DIR: str = "/usr/share/fonts"  # 字型目錄（依平台不同）
+
+    # 影片渲染配置
+    VIDEO_RESOLUTION: str = "1920x1080"
+    VIDEO_FPS: int = 30
+    VIDEO_CODEC: str = "libx264"
+    AUDIO_CODEC: str = "aac"
+    AUDIO_BITRATE: str = "192k"
+
+    # 專案目錄
+    PROJECTS_DIR: str = "./projects"
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
