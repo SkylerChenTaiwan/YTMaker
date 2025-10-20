@@ -1241,6 +1241,21 @@ async def test_receive_progress_update(test_client, test_project):
 - [ ] 測試覆蓋率 > 85%
 - [ ] 無 flaky tests (測試穩定性)
 
+#### 錯誤處理（參考 `error-codes.md` 和 `frontend/api-integration.md`）
+- [ ] WebSocket 推送的錯誤訊息格式與後端 `error-codes.md` 一致：
+  - `type: 'error'`
+  - `project_id`：專案 ID
+  - `error.code`：錯誤碼（如 `GEMINI_QUOTA_EXCEEDED`）
+  - `error.message`：人類可讀的錯誤訊息
+  - `error.stage`：失敗的階段
+  - `error.is_retryable`：是否可重試
+  - `error.details`：額外錯誤詳情
+  - `error.solutions`：解決方案列表（參考 `error-codes.md`）
+  - `error.trace_id`：追蹤 ID
+  - `error.timestamp`：錯誤發生時間
+- [ ] 所有錯誤訊息都記錄結構化日誌
+- [ ] 前端收到錯誤訊息後可正確顯示（與 `frontend/api-integration.md` 一致）
+
 #### 程式碼品質
 - [ ] Ruff check 無錯誤
 - [ ] 程式碼已格式化: `ruff format .`

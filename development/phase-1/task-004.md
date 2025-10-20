@@ -1906,12 +1906,20 @@ async def test_full_project_flow():
 - [ ] 專案狀態驗證 (狀態機)
 - [ ] UUID 格式驗證
 
-### 錯誤處理
+### 錯誤處理（參考 `error-codes.md`）
 - [ ] 404 Not Found (專案不存在)
 - [ ] 400 Bad Request (驗證失敗)
 - [ ] 409 Conflict (狀態衝突)
 - [ ] 500 Internal Server Error (伺服器錯誤)
-- [ ] 所有錯誤訊息清楚明確
+- [ ] 所有錯誤回應包含完整錯誤資訊：
+  - `error.code`：錯誤碼（如 `VALIDATION_ERROR`）
+  - `error.message`：人類可讀的錯誤訊息
+  - `error.is_retryable`：是否可重試
+  - `error.details`：額外錯誤詳情
+  - `error.trace_id`：追蹤 ID（從 context variable 取得）
+  - `error.timestamp`：錯誤發生時間（ISO 8601 格式）
+- [ ] 所有錯誤都記錄結構化日誌（使用 `StructuredLogger`）
+- [ ] Project 失敗時更新 `error_info` 欄位
 
 ### 程式碼品質
 - [ ] Ruff check 無錯誤: `ruff check backend/`

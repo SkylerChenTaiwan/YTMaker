@@ -1130,6 +1130,22 @@ def test_get_api_key_not_found():
 - [ ] 測試覆蓋率 > 80%
 - [ ] 測試可獨立執行
 
+#### 錯誤處理（參考 `error-codes.md`）
+- [ ] API Key 測試失敗時的錯誤處理：
+  - `GEMINI_INVALID_API_KEY`
+  - `STABILITY_INVALID_API_KEY`
+  - `DID_INVALID_API_KEY`
+  - `YOUTUBE_INVALID_TOKEN`
+- [ ] 所有錯誤回應包含完整錯誤資訊：
+  - `error.code`：錯誤碼
+  - `error.message`：人類可讀的錯誤訊息
+  - `error.is_retryable`：是否可重試
+  - `error.details`：額外錯誤詳情（如 API 回應）
+  - `error.trace_id`：追蹤 ID
+  - `error.timestamp`：錯誤發生時間
+- [ ] 所有錯誤都記錄結構化日誌（使用 `StructuredLogger`）
+- [ ] API Key 測試失敗時返回 200，但 `is_valid: false` 及錯誤原因
+
 #### 程式碼品質
 - [ ] Ruff check 無錯誤：`ruff check .`
 - [ ] 程式碼已格式化：`ruff format .`

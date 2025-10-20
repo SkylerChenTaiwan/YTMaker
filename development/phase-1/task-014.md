@@ -2015,11 +2015,17 @@ def test_generate_assets_task_success(mock_db, sample_project):
 - [ ] 測試覆蓋率 > 85%
 - [ ] 端到端測試（完整流程）通過
 
-### 錯誤處理
-- [ ] 可重試錯誤自動重試
-- [ ] 不可重試錯誤立即失敗
-- [ ] 錯誤訊息清楚且可操作
-- [ ] 部分失敗可優雅降級
+### 錯誤處理（參考 `error-codes.md` 和 `logging.md`）
+- [ ] 所有外部 API 錯誤都使用對應的錯誤碼：
+  - Gemini: `GEMINI_*` 系列錯誤碼
+  - Stability AI: `STABILITY_*` 系列錯誤碼
+  - D-ID: `DID_*` 系列錯誤碼
+  - YouTube: `YOUTUBE_*` 系列錯誤碼
+- [ ] 可重試錯誤自動重試（依照 `error-codes.md` 的重試策略）
+- [ ] 不可重試錯誤立即失敗並更新 `Project.error_info`
+- [ ] 所有錯誤都記錄結構化日誌（包含 trace_id, error_code, details）
+- [ ] 任務失敗時透過 WebSocket 推送詳細錯誤資訊（參考 `monitoring.md`）
+- [ ] 部分素材生成失敗的處理（< 20% 失敗率可接受）
 
 ### 效能
 - [ ] 素材生成並行處理（< 5 分鐘）

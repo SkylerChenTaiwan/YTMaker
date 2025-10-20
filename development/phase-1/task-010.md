@@ -378,7 +378,60 @@ GeminiAPIError: "Gemini API 錯誤：伺服器錯誤（已重試 3 次）"
 
 ### 整合測試
 
-#### 測試 8：完整腳本生成流程（需要真實 API Key）
+#### 測試 8：Gemini API 失敗應自動重試
+
+**目的：** 驗證 Gemini API 暫時失敗時，系統會自動重試並最終成功
+
+**測試設置：**
+```python
+# Mock Gemini API 返回 503 (服務暫時不可用)
+with responses.RequestsMock() as rsps:
+    # 前兩次調用失敗
+    rsps.add(
+        responses.POST,
+        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent',
+        status=503,
+        json={'error': 'Service temporarily unavailable'}
+    )
+    rsps.add(
+        responses.POST,
+        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent',
+        status=503,
+        json={'error': 'Service temporarily unavailable'}
+    )
+    # 第三次調用成功
+    rsps.add(
+        responses.POST,
+        'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent',
+        status=200,
+        json=valid_script_response
+    )
+```
+
+**輸入：**
+```python
+content = "測試內容..."
+prompt_template = "..."
+model = "gemini-1.5-flash"
+```
+
+**預期行為：**
+1. 第一次調用 Gemini API → 503 錯誤
+2. 等待 2 秒後重試
+3. 第二次調用 → 503 錯誤
+4. 等待 4 秒後重試
+5. 第三次調用 → 成功回傳腳本
+
+**驗證點：**
+- [ ] API 被調用 3 次
+- [ ] 重試間隔符合指數退避策略（2秒、4秒）
+- [ ] 最終成功生成腳本
+- [ ] 日誌記錄了重試過程（WARNING level）
+- [ ] 回傳的腳本結構正確
+
+---
+
+#### 測試 9：完整腳本生成流程（需要真實 API Key）
 
 **目的：** 驗證完整的腳本生成流程，從輸入文字到儲存腳本到資料庫
 
@@ -1139,13 +1192,23 @@ def test_validate_segment_duration_warnings(script_service):
 - [ ] 腳本結構驗證完成
 - [ ] 段落時長驗證完成
 
-### 錯誤處理
+### 錯誤處理（參考 `error-codes.md`）
 
-- [ ] 401 Unauthorized 不重試，直接拋出錯誤
-- [ ] 429 Rate Limit 重試（指數退避）
-- [ ] 500/503 Server Error 重試（最多 3 次）
-- [ ] Timeout 重試
-- [ ] JSON 解析錯誤處理
+- [ ] 所有 Gemini API 錯誤都使用對應的錯誤碼：
+  - `GEMINI_INVALID_API_KEY`：401 Unauthorized，不重試
+  - `GEMINI_QUOTA_EXCEEDED`：配額用盡，不重試
+  - `GEMINI_RATE_LIMIT`：429 Rate Limit，指數退避重試（最多 3 次）
+  - `GEMINI_SERVER_ERROR`：500/503，固定延遲重試（最多 3 次）
+  - `GEMINI_TIMEOUT`：請求超時，重試 1 次
+  - `GEMINI_CONTENT_POLICY`：內容違反政策，不重試
+  - `GEMINI_NETWORK_ERROR`：網路錯誤，重試（最多 3 次）
+  - `GEMINI_INVALID_REQUEST`：請求參數錯誤，不重試
+- [ ] 所有錯誤都拋出 `GeminiAPIError`，包含：
+  - `reason`：錯誤碼
+  - `is_retryable`：是否可重試
+  - `details`：詳細錯誤資訊（status_code, response, quota_info）
+- [ ] 所有錯誤都記錄結構化日誌（使用 `StructuredLogger`）
+- [ ] JSON 解析錯誤處理並拋出 `GEMINI_INVALID_REQUEST`
 
 ### 測試
 
