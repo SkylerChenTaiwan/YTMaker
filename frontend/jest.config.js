@@ -10,6 +10,7 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^uuid$': require.resolve('uuid'),
   },
   testPathIgnorePatterns: ['/node_modules/', '/.next/', '/tests/e2e/'],
   testMatch: ['**/tests/unit/**/*.test.[jt]s?(x)'],
