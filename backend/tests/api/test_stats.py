@@ -42,7 +42,6 @@ async def test_get_stats_success_no_cache(db: Session, mock_redis):
     assert result["success"] is True
     assert result["data"]["total_projects"] == 50
     assert result["data"]["projects_this_month"] >= 0  # 取決於當前月份
-    assert result["data"]["scheduled_projects"] == 10  # 10 個 RENDERED 狀態
     assert "api_quotas" in result["data"]
     assert "did" in result["data"]["api_quotas"]
     assert "youtube" in result["data"]["api_quotas"]
@@ -59,7 +58,6 @@ async def test_get_stats_with_cache(db: Session, mock_redis):
     cached_data = {
         "total_projects": 50,
         "projects_this_month": 10,
-        "scheduled_projects": 3,
         "api_quotas": {
             "did": {"used": 30, "total": 90, "unit": "minutes"},
             "youtube": {"used": 2000, "total": 10000, "unit": "units"}
@@ -75,7 +73,6 @@ async def test_get_stats_with_cache(db: Session, mock_redis):
     assert result["success"] is True
     assert result["data"]["total_projects"] == 50
     assert result["data"]["projects_this_month"] == 10
-    assert result["data"]["scheduled_projects"] == 3
 
     # 確認從快取讀取
     mock_redis.get.assert_called_once_with("stats:total")

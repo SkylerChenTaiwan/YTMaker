@@ -63,8 +63,7 @@ class StatsService:
         計算項目：
         1. 總專案數（所有狀態）
         2. 本月生成數（created_at 在本月的專案）
-        3. 已排程影片（status = SCHEDULED）
-        4. API 配額剩餘（調用 SystemService）
+        3. API 配額剩餘（調用 SystemService）
         """
         # 1. 總專案數
         total_projects = self.db.query(func.count(Project.id)).scalar() or 0
@@ -84,22 +83,12 @@ class StatsService:
             or 0
         )
 
-        # 3. 已排程影片（使用 RENDERED 狀態代替 SCHEDULED）
-        # TODO: 確認是否需要新增 SCHEDULED 狀態到 ProjectStatus enum
-        scheduled_projects = (
-            self.db.query(func.count(Project.id))
-            .filter(Project.status == ProjectStatus.RENDERED)
-            .scalar()
-            or 0
-        )
-
-        # 4. API 配額（調用 SystemService 或從配置檔取得）
+        # 3. API 配額（調用 SystemService 或從配置檔取得）
         api_quotas = await self._get_api_quotas()
 
         return {
             "total_projects": total_projects,
             "projects_this_month": projects_this_month,
-            "scheduled_projects": scheduled_projects,
             "api_quotas": api_quotas,
         }
 

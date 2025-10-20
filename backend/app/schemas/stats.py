@@ -15,7 +15,6 @@ class StatsData(BaseModel):
 
     total_projects: int = Field(..., description="總專案數")
     projects_this_month: int = Field(..., description="本月生成數")
-    scheduled_projects: int = Field(..., description="已排程影片數")
     api_quotas: dict[str, APIQuota] = Field(..., description="API 配額資訊")
 
 
@@ -32,7 +31,6 @@ class StatsResponse(BaseModel):
                 "data": {
                     "total_projects": 50,
                     "projects_this_month": 10,
-                    "scheduled_projects": 3,
                     "api_quotas": {
                         "did": {"used": 30, "total": 90, "unit": "minutes"},
                         "youtube": {"used": 2000, "total": 10000, "unit": "units"},

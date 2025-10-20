@@ -21,7 +21,6 @@
   "data": {
     "total_projects": 50,
     "projects_this_month": 10,
-    "scheduled_projects": 3,
     "api_quotas": {
       "did": {
         "used": 30,
