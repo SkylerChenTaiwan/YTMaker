@@ -1,332 +1,438 @@
-# 第三方整合
+# 第三方整合 (Third-party Integrations)
 
-> **關聯文件:** [service-video-generation.md](./service-video-generation.md), [auth.md](./auth.md)
-
----
-
-## 1. 整合總覽
-
-**第三方服務:**
-1. Google Gemini API - 腳本生成
-2. Stability AI API - 圖片生成
-3. D-ID API - 虛擬主播生成
-4. YouTube Data API - 影片上傳
+## 關聯文件
+- [業務邏輯](./business-logic.md)
+- [背景任務](./background-jobs.md)
+- [認證與授權](./auth.md)
+- [效能優化](./performance.md)
 
 ---
 
-## 2. Google Gemini API
+## 7. 第三方整合
 
-### 2.1 SDK 安裝
+### 7.1 Google Gemini API
 
-```bash
-pip install google-generativeai>=0.3.0
-```
+**SDK：** `google-generativeai`
 
-### 2.2 客戶端實作
+**端點：** `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent`
 
+**認證：** API Key
+
+**使用場景：**
+- 腳本生成（將長文轉換為影片腳本）
+- 圖片描述翻譯（中文 → 英文）
+
+**實作範例：**
 ```python
-# app/services/gemini_service.py
 import google.generativeai as genai
-from app.security.keychain_manager import KeychainManager
 
-class GeminiService:
-    """Google Gemini API 客戶端"""
+genai.configure(api_key=api_key)
 
-    def __init__(self):
-        # 從 Keychain 讀取 API Key
-        api_key = KeychainManager.get_api_key("gemini")
-        if not api_key:
-            raise ValueError("Gemini API Key 未設定")
+def generate_script(content, prompt_template):
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-        genai.configure(api_key=api_key)
+    prompt = prompt_template.format(content=content)
 
-    async def generate_script(
-        self,
-        content: str,
-        prompt_template: str,
-        model: str = "gemini-1.5-flash"
-    ) -> dict:
-        """生成影片腳本
-
-        Args:
-            content: 原始文字內容
-            prompt_template: Prompt 範本
-            model: Gemini 模型名稱
-
-        Returns:
-            腳本 JSON
-        """
-        model_instance = genai.GenerativeModel(model)
-
-        # 組合 Prompt
-        prompt = prompt_template.replace("{content}", content)
-
-        # 生成內容
-        response = await model_instance.generate_content_async(prompt)
-
-        # 解析回應
-        script_data = json.loads(response.text)
-
-        return script_data
-```
-
----
-
-## 3. Stability AI API
-
-### 3.1 客戶端實作
-
-```python
-# app/services/stability_service.py
-import httpx
-from app.security.keychain_manager import KeychainManager
-
-class StabilityAIService:
-    """Stability AI API 客戶端"""
-
-    BASE_URL = "https://api.stability.ai/v1"
-
-    def __init__(self):
-        api_key = KeychainManager.get_api_key("stability")
-        if not api_key:
-            raise ValueError("Stability AI API Key 未設定")
-
-        self.api_key = api_key
-        self.client = httpx.AsyncClient(
-            base_url=self.BASE_URL,
-            headers={"Authorization": f"Bearer {api_key}"}
-        )
-
-    async def generate_image(
-        self,
-        prompt: str,
-        width: int = 1920,
-        height: int = 1080
-    ) -> bytes:
-        """生成圖片
-
-        Args:
-            prompt: 圖片描述
-            width: 寬度
-            height: 高度
-
-        Returns:
-            圖片二進位資料
-        """
-        payload = {
-            "text_prompts": [
-                {"text": prompt, "weight": 1.0}
-            ],
-            "cfg_scale": 7,
-            "height": height,
-            "width": width,
-            "samples": 1,
-            "steps": 30
+    response = model.generate_content(
+        prompt,
+        generation_config={
+            'temperature': 0.7,
+            'max_output_tokens': 4000,
         }
+    )
 
-        response = await self.client.post(
-            "/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
-            json=payload
-        )
-
-        response.raise_for_status()
-
-        # 解析回應
-        data = response.json()
-        image_b64 = data["artifacts"][0]["base64"]
-
-        # 解碼 base64
-        import base64
-        image_data = base64.b64decode(image_b64)
-
-        return image_data
+    return json.loads(response.text)
 ```
 
----
+**重試機制：**
+- 429 Rate Limit：等待 10 秒後重試
+- 500/503 Server Error：等待 5 秒後重試，最多 3 次
 
-## 4. D-ID API
-
-### 4.1 客戶端實作
-
+**錯誤處理：**
 ```python
-# app/services/did_service.py
-import httpx
-from app.security.keychain_manager import KeychainManager
+from google.api_core import exceptions
 
-class DIDService:
-    """D-ID API 客戶端 (虛擬主播)"""
-
-    BASE_URL = "https://api.d-id.com"
-
-    def __init__(self):
-        api_key = KeychainManager.get_api_key("did")
-        if not api_key:
-            raise ValueError("D-ID API Key 未設定")
-
-        self.api_key = api_key
-        self.client = httpx.AsyncClient(
-            base_url=self.BASE_URL,
-            headers={"Authorization": f"Basic {api_key}"}
-        )
-
-    async def create_avatar_video(
-        self,
-        audio_url: str,
-        avatar_image: str = "default"
-    ) -> str:
-        """生成虛擬主播影片
-
-        Args:
-            audio_url: 語音檔案 URL
-            avatar_image: 虛擬主播圖片
-
-        Returns:
-            影片 URL
-        """
-        payload = {
-            "source_url": avatar_image,
-            "script": {
-                "type": "audio",
-                "audio_url": audio_url
-            }
-        }
-
-        response = await self.client.post("/talks", json=payload)
-        response.raise_for_status()
-
-        talk_id = response.json()["id"]
-
-        # 輪詢等待完成
-        while True:
-            status_response = await self.client.get(f"/talks/{talk_id}")
-            status = status_response.json()
-
-            if status["status"] == "done":
-                return status["result_url"]
-
-            await asyncio.sleep(5)
-```
-
----
-
-## 5. YouTube Data API
-
-### 5.1 SDK 安裝
-
-```bash
-pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-```
-
-### 5.2 客戶端實作
-
-```python
-# app/services/youtube_service.py
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2.credentials import Credentials
-
-class YouTubeService:
-    """YouTube Data API 客戶端"""
-
-    def __init__(self, channel_id: str):
-        # 從 Keychain 讀取 OAuth 憑證
-        credentials_data = KeychainManager.get_api_key(f"youtube_channel_{channel_id}")
-
-        if not credentials_data:
-            raise ValueError("YouTube 憑證未設定")
-
-        credentials = Credentials(**json.loads(credentials_data))
-
-        self.youtube = build("youtube", "v3", credentials=credentials)
-
-    def upload_video(
-        self,
-        video_path: str,
-        title: str,
-        description: str,
-        tags: list[str],
-        privacy: str = "public"
-    ) -> str:
-        """上傳影片到 YouTube
-
-        Args:
-            video_path: 影片檔案路徑
-            title: 影片標題
-            description: 影片描述
-            tags: 標籤列表
-            privacy: 隱私設定 (public, private, unlisted)
-
-        Returns:
-            YouTube 影片 ID
-        """
-        body = {
-            "snippet": {
-                "title": title,
-                "description": description,
-                "tags": tags,
-                "categoryId": "22"  # People & Blogs
-            },
-            "status": {
-                "privacyStatus": privacy
-            }
-        }
-
-        media = MediaFileUpload(
-            video_path,
-            chunksize=-1,
-            resumable=True,
-            mimetype="video/mp4"
-        )
-
-        request = self.youtube.videos().insert(
-            part="snippet,status",
-            body=body,
-            media_body=media
-        )
-
-        response = request.execute()
-
-        return response["id"]
-```
-
----
-
-## 6. 錯誤處理
-
-### API 錯誤處理
-
-```python
-class APIError(Exception):
-    """API 錯誤"""
-    pass
-
-async def call_api_with_retry(api_func, max_retries=3):
-    """API 調用重試包裝器"""
+def generate_script_with_retry(content, prompt_template):
+    max_retries = 3
     for attempt in range(max_retries):
         try:
-            return await api_func()
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code in [429, 503]:
-                # 速率限制或服務不可用,重試
-                await asyncio.sleep(2 ** attempt)
-                continue
+            return generate_script(content, prompt_template)
+        except exceptions.ResourceExhausted:
+            # 429 Rate Limit
+            if attempt < max_retries - 1:
+                time.sleep(10)
             else:
-                raise APIError(f"API 錯誤: {e.response.status_code}")
-
-    raise APIError("API 調用失敗,已達最大重試次數")
+                raise
+        except exceptions.InternalServerError:
+            # 500 Server Error
+            if attempt < max_retries - 1:
+                time.sleep(5)
+            else:
+                raise
 ```
 
 ---
 
-## 總結
+### 7.2 Stability AI API
 
-### 整合服務
-- ✅ Google Gemini API - 腳本生成
-- ✅ Stability AI API - 圖片生成
-- ✅ D-ID API - 虛擬主播
-- ✅ YouTube Data API - 影片上傳
+**SDK：** 直接使用 `requests` 調用 REST API
 
-### 特性
-- ✅ API Key 安全儲存 (Keychain)
-- ✅ 錯誤處理與重試
-- ✅ 非同步調用
+**端點：** `https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image`
+
+**認證：** Bearer Token
+
+**使用場景：**
+- 圖片生成（根據描述生成 1920x1080 圖片）
+
+**實作範例：**
+```python
+import requests
+
+def generate_image(prompt, negative_prompt):
+    url = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "text_prompts": [
+            {
+                "text": prompt,
+                "weight": 1
+            },
+            {
+                "text": negative_prompt,
+                "weight": -1
+            }
+        ],
+        "cfg_scale": 7,
+        "height": 1080,
+        "width": 1920,
+        "samples": 1,
+        "steps": 30
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+
+    image_data = response.json()["artifacts"][0]["base64"]
+    return base64.b64decode(image_data)
+```
+
+**並行處理：**
+- 同時發送 4 個請求
+- Rate Limiting：每分鐘最多 150 請求
+
+**並行實作：**
+```python
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+def generate_images_parallel(prompts, max_workers=4):
+    results = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for prompt in prompts:
+            future = executor.submit(generate_image_with_retry, prompt)
+            futures.append(future)
+
+            # Rate limiting: 150 req/min = 2.5 req/sec
+            time.sleep(0.4)
+
+        for future in futures:
+            results.append(future.result())
+
+    return results
+```
+
+**重試機制：**
+- 429 Rate Limit：指數退避，最多 3 次
+- 400 Content Policy：記錄 Prompt，嘗試修改後重試
+
+**錯誤處理：**
+```python
+def generate_image_with_retry(prompt, negative_prompt="blurry, low quality"):
+    max_retries = 3
+    delays = [2, 5, 10]
+
+    for attempt in range(max_retries):
+        try:
+            return generate_image(prompt, negative_prompt)
+        except requests.HTTPError as e:
+            if e.response.status_code == 429:
+                # Rate limit
+                if attempt < max_retries - 1:
+                    time.sleep(delays[attempt])
+                else:
+                    raise
+            elif e.response.status_code == 400:
+                # Content policy violation
+                log_error(f"Content policy violation: {prompt}")
+                # 嘗試修改 prompt
+                prompt = sanitize_prompt(prompt)
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                else:
+                    raise
+            else:
+                raise
+```
+
+---
+
+### 7.3 D-ID API
+
+**SDK：** 直接使用 `requests` 調用 REST API
+
+**端點：** `https://api.d-id.com/talks`
+
+**認證：** API Key
+
+**使用場景：**
+- 虛擬主播生成（開場和結尾）
+
+**實作範例：**
+```python
+def generate_avatar_video(audio_url, avatar_image_url):
+    url = "https://api.d-id.com/talks"
+
+    headers = {
+        "Authorization": f"Basic {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "source_url": avatar_image_url,
+        "script": {
+            "type": "audio",
+            "audio_url": audio_url
+        },
+        "config": {
+            "fluent": True,
+            "pad_audio": 0.0
+        }
+    }
+
+    # 建立任務
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+
+    talk_id = response.json()["id"]
+
+    # 輪詢任務狀態
+    while True:
+        status_url = f"https://api.d-id.com/talks/{talk_id}"
+        status_response = requests.get(status_url, headers=headers)
+        status = status_response.json()["status"]
+
+        if status == "done":
+            return status_response.json()["result_url"]
+        elif status == "error":
+            raise Exception("D-ID avatar generation failed")
+
+        time.sleep(5)
+```
+
+**錯誤處理（嚴格模式）：**
+
+> **重要：** 採用「失敗零容忍」策略，不使用自動降級。參考 `error-codes.md` 的完整錯誤碼定義。
+
+```python
+from app.utils.logging import StructuredLogger
+from app.models.errors import DIDAPIError
+
+logger = StructuredLogger(__name__)
+
+async def generate_avatar_strict(audio_url: str, avatar_image_url: str, project_id: str):
+    """
+    嚴格模式：失敗時拋出異常，包含詳細錯誤資訊
+    """
+    try:
+        result = await did_client.create_video(
+            audio_url=audio_url,
+            image_url=avatar_image_url
+        )
+
+        logger.info("Avatar generation succeeded", extra={
+            "api": "d-id",
+            "project_id": project_id,
+            "video_id": result.id
+        })
+
+        return result.video_url
+
+    except DIDQuotaExceededError as e:
+        # 配額用盡：不可重試
+        logger.error("D-ID quota exceeded", extra={
+            "error_code": "DID_QUOTA_EXCEEDED",
+            "project_id": project_id,
+            "details": e.details
+        })
+        raise DIDAPIError(
+            reason="DID_QUOTA_EXCEEDED",
+            is_retryable=False,
+            details={
+                "quota_used": e.quota_used,
+                "quota_total": e.quota_total,
+                "reset_date": e.reset_date
+            }
+        )
+
+    except DIDServerError as e:
+        # 伺服器錯誤：可重試
+        logger.error("D-ID server error", extra={
+            "error_code": "DID_SERVER_ERROR",
+            "project_id": project_id,
+            "status_code": e.status_code
+        })
+        raise DIDAPIError(
+            reason="DID_SERVER_ERROR",
+            is_retryable=True,
+            details={"status_code": e.status_code}
+        )
+
+    except DIDProcessingTimeout as e:
+        # 處理超時：可重試
+        logger.error("D-ID processing timeout", extra={
+            "error_code": "DID_PROCESSING_TIMEOUT",
+            "project_id": project_id
+        })
+        raise DIDAPIError(
+            reason="DID_PROCESSING_TIMEOUT",
+            is_retryable=True,
+            details={}
+        )
+```
+
+**重試策略：**
+參考 `error-codes.md` 第 3.2 節的 D-ID 重試配置。
+
+**禁止自動降級：**
+- ❌ 不再使用 `generate_avatar_with_fallback`
+- ❌ 不再自動返回 `None` 並繼續執行
+- ✅ 所有錯誤都必須拋出異常，由呼叫者處理
+
+---
+
+### 7.4 YouTube Data API v3
+
+**SDK：** `google-api-python-client`
+
+**認證：** OAuth 2.0
+
+**使用場景：**
+- 影片上傳
+- 封面上傳
+- 頻道資訊取得
+
+**實作範例：**
+```python
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+def upload_video(video_path, title, description, tags, privacy):
+    credentials = get_oauth_credentials()
+    youtube = build('youtube', 'v3', credentials=credentials)
+
+    # 影片 metadata
+    body = {
+        'snippet': {
+            'title': title,
+            'description': description,
+            'tags': tags,
+            'categoryId': '22'  # People & Blogs
+        },
+        'status': {
+            'privacyStatus': privacy,
+            'selfDeclaredMadeForKids': False
+        }
+    }
+
+    # 使用 Resumable Upload
+    media = MediaFileUpload(
+        video_path,
+        chunksize=256*1024,  # 256KB chunks
+        resumable=True
+    )
+
+    request = youtube.videos().insert(
+        part='snippet,status',
+        body=body,
+        media_body=media
+    )
+
+    response = None
+    while response is None:
+        status, response = request.next_chunk()
+        if status:
+            print(f"Upload progress: {int(status.progress() * 100)}%")
+
+    return response['id']
+```
+
+**上傳封面：**
+```python
+def upload_thumbnail(video_id, thumbnail_path):
+    credentials = get_oauth_credentials()
+    youtube = build('youtube', 'v3', credentials=credentials)
+
+    youtube.thumbnails().set(
+        videoId=video_id,
+        media_body=MediaFileUpload(thumbnail_path)
+    ).execute()
+```
+
+**重試機制：**
+- 401 Unauthorized：使用 Refresh Token 更新 Access Token
+- 403 Quota Exceeded：停止上傳，提示用戶等待配額恢復
+- Timeout：使用 Resumable Upload 斷點續傳
+
+**錯誤處理：**
+```python
+from googleapiclient.errors import HttpError
+
+def upload_video_with_retry(video_path, metadata):
+    try:
+        return upload_video(video_path, **metadata)
+    except HttpError as e:
+        if e.resp.status == 401:
+            # Token 過期，更新後重試
+            refresh_oauth_token()
+            return upload_video(video_path, **metadata)
+        elif e.resp.status == 403:
+            # 配額用盡
+            raise Exception("YouTube API quota exceeded")
+        else:
+            raise
+```
+
+---
+
+## 7.5 整合最佳實踐
+
+### 7.5.1 API Key 安全管理
+
+- 使用環境變數或 Keychain 儲存
+- 不寫入日誌或錯誤訊息
+- 定期輪換 API Key
+
+### 7.5.2 速率限制處理
+
+- 實作指數退避重試
+- 使用佇列控制請求速率
+- 監控 API 使用量
+
+### 7.5.3 錯誤處理
+
+- 區分可重試錯誤和不可重試錯誤
+- 記錄詳細錯誤日誌
+- 提供友善的用戶錯誤訊息
+
+### 7.5.4 成本優化
+
+- 快取 API 回應
+- 批次處理請求
+- 使用較便宜的 API 選項（如 Gemini Flash vs Pro）

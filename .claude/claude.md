@@ -175,15 +175,27 @@ tech-specs/
     └── ...
 ```
 
-### 階段 3：開發計劃
-1. 使用 `/plan-phase` 批量生成開發計劃，包含：
-   - `development/phase-X/overview.md` - 任務總覽
-   - 各個 task 文件（task-XXX.md）
-   - 任務依賴關係和並行性標記
+### 階段 3：開發計劃（兩步驟流程）
+
+**Step 1: 規劃階段 - 使用 `/plan-phase`**
+生成：
+- `development/phase-X/overview.md` - 完整的任務總覽、依賴關係、執行順序
+- 所有 `task-XXX.md` 的**空骨架**（只有標題、元資訊、簡短目標、關聯 spec）
+
+**Step 2: 填充階段 - 使用 `/detail-task XXX`**
+逐一填充每個 task 的詳細內容：
+- 測試要求（3-10 個詳細測試案例）
+- 實作規格（需要建立/修改的檔案、程式碼骨架）
+- 開發指引（TDD step-by-step 流程）
+
+**重要原則：**
+- `/plan-phase` 一次規劃整個 phase，看全貌
+- `/detail-task` 一次只處理一個 task，專注品質
+- 填充 task 可以在需要時才做，不用一次全部填完
 
 ### 階段 4：開發執行
-1. 選擇一個 task
-2. 閱讀 task 文件（包含測試要求）
+1. 使用 `/detail-task XXX` 填充要執行的 task
+2. 閱讀完整的 task 文件（包含詳細測試要求）
 3. 先寫測試
 4. 實作功能
 5. 執行測試
@@ -653,11 +665,20 @@ git push origin feature/task-XXX  # 或 fix/issue-XXX
 - `/generate-tech-specs-frontend` - 基於產品設計與框架生成 frontend-spec.md
 - `/split-specs` - 拆分並檢查 tech specs（在生成初稿後使用）
 
-### 開發規劃階段
-- `/plan-phase` - 規劃任何開發階段，**批量生成**所有任務
+### 開發規劃階段（兩步驟）
+- `/plan-phase` - 規劃整個開發階段
+  - 生成 `overview.md`（完整規劃、依賴關係、執行順序）
+  - 生成所有 `task-XXX.md` 的**空骨架**（只有基本資訊）
   - 可基於完整 spec（Phase 1）
   - 可基於部分 spec（Phase 2+）
   - 可直接描述功能需求
+
+- `/detail-task XXX` - 填充單一 task 的詳細內容
+  - 一次只處理一個 task
+  - 生成詳細的測試要求（3-10 個測試案例）
+  - 生成完整的實作規格（檔案列表、程式碼骨架）
+  - 生成 TDD step-by-step 開發指引
+  - 產出可直接使用的完整開發指南
 
 ### 問題處理
 - `/log-issue` - 記錄問題並分析解決方案

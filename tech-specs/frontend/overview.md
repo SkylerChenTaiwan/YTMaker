@@ -1,346 +1,602 @@
-# Frontend 整體架構
+# 前端架構總覽
 
-> **關聯文件:** [../framework.md](../framework.md), [routing.md](./routing.md), [state-management.md](./state-management.md)
-
----
-
-## 1. 技術棧概覽
-
-### 核心框架
-- **框架:** Next.js 14 (React 18)
-- **語言:** TypeScript 5.x
-- **UI 函式庫:** Ant Design 5.x
-- **樣式:** Tailwind CSS + CSS Modules
-- **狀態管理:** Zustand
-- **HTTP 客戶端:** Axios
-- **即時通訊:** Socket.IO Client
-
-### 桌面應用
-- **打包工具:** Electron
+> **建立日期:** 2025-10-19
+> **最後更新:** 2025-10-19
+> **關聯文件:** `_index.md`, `../framework.md`, `../../product-design/overview.md`
 
 ---
 
-## 2. 專案目錄結構
+## 📖 目錄
+
+1. [技術棧](#技術棧)
+2. [專案目錄結構](#專案目錄結構)
+3. [應用程式啟動流程](#應用程式啟動流程)
+4. [核心架構原則](#核心架構原則)
+5. [效能優化策略](#效能優化策略)
+6. [無障礙設計原則](#無障礙設計原則)
+7. [國際化支援](#國際化支援)
+8. [安全措施](#安全措施)
+
+---
+
+## 技術棧
+
+### 前端核心框架
+
+| 技術 | 版本 | 用途 |
+|------|------|------|
+| **Next.js** | 14+ | React 全端框架，採用 App Router |
+| **React** | 18+ | UI 框架 |
+| **TypeScript** | 5.x | 類型系統 |
+| **Ant Design** | 5.x | UI 元件庫 |
+| **Tailwind CSS** | 3.x | CSS 框架 |
+
+### 狀態與資料管理
+
+| 技術 | 用途 |
+|------|------|
+| **Zustand** | 全域狀態管理 |
+| **TanStack Query** | 伺服器狀態管理、資料快取 |
+| **Axios** | HTTP 客戶端 |
+| **Socket.IO Client** | WebSocket 即時通訊 |
+| **Zod** | 表單驗證 |
+
+### 視覺化與互動
+
+| 技術 | 用途 |
+|------|------|
+| **react-konva** | Canvas 視覺化編輯 (字幕、Logo 配置) |
+| **react-player** | 影片播放器 |
+| **DOMPurify** | XSS 防護 |
+
+### 開發工具
+
+| 技術 | 用途 |
+|------|------|
+| **Jest** | 單元測試框架 |
+| **React Testing Library** | React 元件測試 |
+| **Playwright** | E2E 測試 |
+| **ESLint** | 程式碼檢查 |
+| **Prettier** | 程式碼格式化 |
+
+### 桌面打包
+
+| 技術 | 用途 |
+|------|------|
+| **Electron** | 跨平台桌面應用打包 |
+
+---
+
+## 專案目錄結構
 
 ```
 frontend/
-├── public/
-│   ├── fonts/
-│   └── images/
 ├── src/
 │   ├── app/                    # Next.js App Router
-│   │   ├── layout.tsx
-│   │   ├── page.tsx           # 主控台
-│   │   ├── setup/             # 首次啟動
-│   │   ├── project/           # 專案相關
-│   │   ├── configurations/    # 配置管理
-│   │   ├── templates/         # 模板管理
-│   │   ├── settings/          # 系統設定
-│   │   └── batch/             # 批次處理
-│   ├── components/            # React 元件
-│   │   ├── layout/           # 佈局元件
-│   │   ├── shared/           # 共用元件
-│   │   ├── project/          # 專案元件
-│   │   ├── configuration/    # 配置元件
-│   │   └── template/         # 模板元件
-│   ├── hooks/                # 自訂 Hooks
-│   │   ├── useApi.ts
-│   │   ├── useProgressSync.ts
-│   │   └── useAutoSave.ts
-│   ├── stores/               # Zustand Stores
-│   │   ├── useProjectStore.ts
-│   │   ├── useConfigStore.ts
-│   │   ├── useProgressStore.ts
-│   │   └── useAuthStore.ts
-│   ├── services/             # API 服務
-│   │   ├── api.ts           # Axios 配置
-│   │   ├── projectApi.ts
-│   │   ├── configApi.ts
-│   │   └── errorHandler.ts
-│   ├── types/                # TypeScript 類型
-│   │   ├── project.ts
-│   │   ├── config.ts
-│   │   └── api.ts
-│   ├── utils/                # 工具函數
-│   │   ├── validation.ts
-│   │   ├── formatting.ts
-│   │   └── cache.ts
-│   └── styles/               # 全域樣式
-│       ├── globals.css
-│       └── theme.ts
+│   │   ├── layout.tsx         # 根佈局
+│   │   ├── page.tsx           # 主控台 (/)
+│   │   ├── setup/             # 設定精靈 (/setup)
+│   │   ├── project/           # 專案相關頁面
+│   │   │   ├── new/           # 新增專案 (/project/new)
+│   │   │   └── [id]/          # 專案詳細頁
+│   │   │       ├── configure/
+│   │   │       │   ├── visual/        # 視覺化配置
+│   │   │       │   ├── prompt-model/  # Prompt & Model
+│   │   │       │   └── youtube/       # YouTube 設定
+│   │   │       ├── progress/  # 進度監控
+│   │   │       └── result/    # 結果頁
+│   │   ├── configurations/    # 配置管理 (/configurations)
+│   │   ├── templates/         # 模板管理 (/templates)
+│   │   ├── settings/          # 系統設定 (/settings)
+│   │   ├── batch/             # 批次處理 (/batch)
+│   │   │   └── [id]/          # 批次任務詳細
+│   │   └── not-found.tsx      # 404 頁面
+│   │
+│   ├── components/
+│   │   ├── ui/                # 基礎 UI 元件
+│   │   │   ├── Button/
+│   │   │   ├── Modal/
+│   │   │   ├── Input/
+│   │   │   ├── Table/
+│   │   │   ├── Spinner/
+│   │   │   ├── Skeleton/
+│   │   │   └── ...
+│   │   ├── layout/            # 佈局元件
+│   │   │   ├── AppLayout/
+│   │   │   ├── NavigationBar/
+│   │   │   └── Breadcrumb/
+│   │   ├── feature/           # 功能元件
+│   │   │   ├── ProjectList/
+│   │   │   ├── VisualEditor/
+│   │   │   ├── ProgressMonitor/
+│   │   │   └── ...
+│   │   └── domain/            # 領域元件
+│   │       ├── SubtitleConfig/
+│   │       ├── LogoConfig/
+│   │       ├── PromptEditor/
+│   │       └── ...
+│   │
+│   ├── hooks/                 # 自訂 Hooks
+│   │   ├── useDebounce.ts
+│   │   ├── useUnsavedWarning.ts
+│   │   └── ...
+│   │
+│   ├── store/                 # Zustand 狀態管理
+│   │   ├── useStore.ts       # 全域 Store
+│   │   └── types.ts          # Store 型別定義
+│   │
+│   ├── services/              # API 服務層
+│   │   ├── api.ts            # Axios 客戶端配置
+│   │   ├── projectService.ts
+│   │   ├── configService.ts
+│   │   ├── websocket.ts      # WebSocket 服務
+│   │   └── toast.ts          # Toast 通知服務
+│   │
+│   ├── types/                 # TypeScript 型別定義
+│   │   ├── models.ts         # 資料模型
+│   │   ├── api.ts            # API 型別
+│   │   └── ...
+│   │
+│   ├── utils/                 # 工具函數
+│   │   ├── validators.ts     # 驗證函數
+│   │   ├── formatters.ts     # 格式化函數
+│   │   └── ...
+│   │
+│   └── styles/                # 全域樣式
+│       ├── globals.css       # 全域 CSS
+│       └── tailwind.css      # Tailwind 配置
+│
+├── public/
+│   ├── locales/               # 國際化翻譯檔 (未來擴展)
+│   └── assets/                # 靜態資源
+│
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
+│   ├── unit/                  # 單元測試
+│   ├── integration/           # 整合測試
+│   └── e2e/                   # E2E 測試
+│
+├── electron/                  # Electron 打包配置
+│   ├── main.js               # Electron 主程序
+│   └── preload.js            # Preload 腳本
+│
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.js
-└── next.config.js
+├── next.config.js
+├── jest.config.js
+└── playwright.config.ts
 ```
 
 ---
 
-## 3. 主要依賴套件
+## 應用程式啟動流程
 
-### 核心套件
-```json
-{
-  "dependencies": {
-    "next": "^14.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "typescript": "^5.0.0"
-  }
+### 1. 應用程式入口
+
+```typescript
+// src/app/layout.tsx
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { Providers } from './providers'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'YTMaker',
+  description: 'AI 驅動的影片生成工具',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="zh-TW">
+      <body className={inter.className}>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
+  )
 }
 ```
 
-### UI 與樣式
-```json
-{
-  "dependencies": {
-    "antd": "^5.11.0",
-    "tailwindcss": "^3.3.0",
-    "@ant-design/icons": "^5.2.0"
-  }
-}
-```
+### 2. Providers 配置
 
-### 狀態與資料
-```json
-{
-  "dependencies": {
-    "zustand": "^4.4.0",
-    "axios": "^1.6.0",
-    "socket.io-client": "^4.6.0"
-  }
-}
-```
+```typescript
+// src/app/providers.tsx
+'use client'
 
-### 表單與驗證
-```json
-{
-  "dependencies": {
-    "react-hook-form": "^7.48.0",
-    "zod": "^3.22.0",
-    "@hookform/resolvers": "^3.3.0"
-  }
-}
-```
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactNode, useState } from 'react'
+import { ConfigProvider } from 'antd'
+import zhTW from 'antd/locale/zh_TW'
 
-### 拖拽與視覺化
-```json
-{
-  "dependencies": {
-    "react-dnd": "^16.0.1",
-    "react-konva": "^18.2.10",
-    "konva": "^9.2.0"
-  }
-}
-```
-
-### 開發工具
-```json
-{
-  "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/node": "^20.10.0",
-    "eslint": "^8.54.0",
-    "prettier": "^3.1.0",
-    "@testing-library/react": "^14.1.0",
-    "@playwright/test": "^1.40.0"
-  }
-}
-```
-
----
-
-## 4. 應用程式啟動流程
-
-### 開發環境
-
-```bash
-# 安裝依賴
-npm install
-
-# 啟動開發伺服器
-npm run dev
-
-# 訪問: http://localhost:3000
-```
-
-### 生產環境
-
-```bash
-# 建構應用
-npm run build
-
-# 啟動
-npm start
-
-# 或使用 Electron 打包
-npm run electron:build
-```
-
----
-
-## 5. 配置管理
-
-### Next.js 配置
-
-```javascript
-// next.config.js
-module.exports = {
-  output: 'export',  // 靜態導出 (用於 Electron)
-  images: {
-    unoptimized: true  // Electron 不支援 Next.js Image 優化
-  },
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### Tailwind 配置
-
-```javascript
-// tailwind.config.js
-module.exports = {
-  content: [
-    './src/**/*.{js,ts,jsx,tsx,mdx}'
-  ],
-  theme: {
-    extend: {
-      colors: {
-        primary: '#1E88E5',
-        'text-primary': '#37352f',
-        'text-secondary': '#787774',
-        border: '#e9e9e7'
+export function Providers({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 5 * 60 * 1000,
+        cacheTime: 10 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        retry: 1,
       },
-      spacing: {
-        xs: '4px',
-        sm: '8px',
-        md: '16px',
-        lg: '24px',
-        xl: '32px'
-      }
-    }
+    },
+  }))
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ConfigProvider locale={zhTW}>
+        {children}
+      </ConfigProvider>
+    </QueryClientProvider>
+  )
+}
+```
+
+### 3. 首次啟動檢查
+
+```typescript
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const setupCompleted = checkSetupCompleted()
+
+  // 首次啟動檢查
+  if (!setupCompleted && !request.nextUrl.pathname.startsWith('/setup')) {
+    return NextResponse.redirect(new URL('/setup', request.url))
   }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+}
+
+function checkSetupCompleted(): boolean {
+  // 檢查 localStorage 或 API
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('setup_completed') === 'true'
+  }
+  return false
 }
 ```
 
 ---
 
-## 6. 環境變數
+## 核心架構原則
 
-### 開發環境 (.env.local)
+### 1. 單一職責原則 (SRP)
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-NEXT_PUBLIC_WS_URL=ws://localhost:8000
+**每個元件、函數、模組只負責一個功能。**
+
+✅ **好的範例:**
+
+```typescript
+// 只負責顯示專案卡片
+const ProjectCard = ({ project }: { project: Project }) => {
+  return (
+    <Card>
+      <h3>{project.project_name}</h3>
+      <p>{project.status}</p>
+    </Card>
+  )
+}
+
+// 只負責專案列表邏輯
+const ProjectList = ({ projects }: { projects: Project[] }) => {
+  return (
+    <div>
+      {projects.map(project => (
+        <ProjectCard key={project.id} project={project} />
+      ))}
+    </div>
+  )
+}
 ```
 
-### 生產環境 (.env.production)
+❌ **不好的範例:**
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-NEXT_PUBLIC_WS_URL=ws://localhost:8000
+```typescript
+// 混合了資料獲取、狀態管理、UI 渲染
+const ProjectList = () => {
+  const [projects, setProjects] = useState([])
+
+  useEffect(() => {
+    fetch('/api/projects').then(res => res.json()).then(setProjects)
+  }, [])
+
+  return (
+    <div>
+      {projects.map(project => (
+        <div>
+          <h3>{project.project_name}</h3>
+          <button onClick={() => deleteProject(project.id)}>刪除</button>
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+### 2. 組合優於繼承
+
+**使用組合模式建立複雜元件，而非繼承。**
+
+✅ **好的範例:**
+
+```typescript
+const Card = ({ children }: { children: ReactNode }) => {
+  return <div className="card">{children}</div>
+}
+
+const ProjectCard = ({ project }: { project: Project }) => {
+  return (
+    <Card>
+      <ProjectHeader project={project} />
+      <ProjectBody project={project} />
+      <ProjectFooter project={project} />
+    </Card>
+  )
+}
+```
+
+### 3. Props 驅動
+
+**元件行為由 Props 控制，避免內部隱藏邏輯。**
+
+✅ **好的範例:**
+
+```typescript
+interface ButtonProps {
+  type?: 'primary' | 'secondary' | 'danger'
+  loading?: boolean
+  disabled?: boolean
+  onClick?: () => void
+  children: ReactNode
+}
+
+const Button: React.FC<ButtonProps> = ({ type, loading, disabled, onClick, children }) => {
+  // Props 完全控制按鈕行為
+}
+```
+
+### 4. 關注點分離
+
+**將邏輯、UI、樣式分離。**
+
+```
+元件 (UI)
+  ↓ 使用
+Hooks (邏輯)
+  ↓ 使用
+Services (API)
+  ↓ 使用
+Store (狀態)
 ```
 
 ---
 
-## 7. 路由架構
+## 效能優化策略
 
-**詳見:** [routing.md](./routing.md)
+### 1. 程式碼分割
 
-**總頁面數:** 12 個
+**路由級分割 (自動):**
 
-**主要路由:**
-- `/setup` - 首次啟動
-- `/` 或 `/dashboard` - 主控台
-- `/project/new` - 新增專案
-- `/project/:id/configure/*` - 配置頁面
-- `/project/:id/progress` - 進度監控
-- `/project/:id/result` - 結果頁面
+Next.js App Router 自動分割每個路由，無需手動配置。
 
----
+**元件級分割:**
 
-## 8. 狀態管理架構
+```typescript
+import dynamic from 'next/dynamic'
 
-**詳見:** [state-management.md](./state-management.md)
+// 動態載入大型元件
+const VisualEditor = dynamic(() => import('@/components/feature/VisualEditor'), {
+  loading: () => <Spinner />,
+  ssr: false, // 禁用 SSR (視需求)
+})
+```
 
-**全域 Stores:**
-- `useProjectStore` - 專案狀態
-- `useConfigStore` - 配置狀態
-- `useProgressStore` - 進度狀態
-- `useAuthStore` - API Keys 與 YouTube 授權
+### 2. 渲染優化
 
----
+**React.memo:**
 
-## 9. 元件組織原則
+```typescript
+const ProjectCard = React.memo(({ project }: { project: Project }) => {
+  return (
+    <Card>
+      <h3>{project.project_name}</h3>
+      <p>{project.status}</p>
+    </Card>
+  )
+})
+```
 
-### 元件分類
+**useMemo:**
 
-1. **Layout Components** - 佈局元件
-   - Navigation, Breadcrumb, Sidebar, Footer
+```typescript
+const sortedProjects = useMemo(() => {
+  return projects.sort((a, b) =>
+    new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  )
+}, [projects])
+```
 
-2. **Shared Components** - 共用元件
-   - Button, Modal, Toast, Loading, Table, Card, Form
+**useCallback:**
 
-3. **Page Components** - 頁面元件
-   - 對應每個路由的主要元件
+```typescript
+const handleDelete = useCallback((id: string) => {
+  deleteProject(id)
+}, [])
+```
 
-4. **Business Components** - 業務元件
-   - ProjectCard, VisualConfigurator, TemplateSelector
+### 3. 圖片優化
 
-### 元件複用原則
+使用 Next.js Image 元件:
 
-- ✅ 最小粒度原則
-- ✅ 組合優於繼承
-- ✅ Props 驅動
-- ✅ TypeScript 類型安全
+```typescript
+import Image from 'next/image'
 
----
+<Image
+  src="/logo.png"
+  alt="Logo"
+  width={200}
+  height={100}
+  priority // 優先載入
+/>
+```
 
-## 10. 設計風格
+### 4. 資料快取
 
-**詳見:** [styling.md](./styling.md)
+使用 TanStack Query 快取策略:
 
-**設計哲學:** Notion-like 簡潔、現代、專注
-
-**核心原則:**
-- 極簡主義
-- 內容為王
-- 優雅的互動
-- 舒適的閱讀體驗
-
----
-
-## 總結
-
-### 技術亮點
-- ✅ Next.js 14 App Router
-- ✅ TypeScript 類型安全
-- ✅ Ant Design 企業級 UI
-- ✅ Zustand 輕量狀態管理
-- ✅ Electron 桌面應用
-
-### 頁面統計
-- **總頁面數:** 12 個
-- **動態路由:** 3 個
-- **WebSocket 連線:** 3 個
-
-### 元件統計
-- **共用元件:** ~15 個
-- **業務元件:** ~20 個
+```typescript
+const { data } = useQuery({
+  queryKey: ['projects'],
+  queryFn: () => api.getProjects(),
+  staleTime: 5 * 60 * 1000, // 5 分鐘
+  cacheTime: 10 * 60 * 1000, // 10 分鐘
+})
+```
 
 ---
 
-**下一步:** 詳見 [routing.md](./routing.md)、[state-management.md](./state-management.md)、[component-architecture.md](./component-architecture.md)
+## 無障礙設計原則
+
+### 1. 語義化 HTML
+
+使用正確的 HTML 標籤:
+
+```tsx
+// ✅ 好的範例
+<nav>
+  <ul>
+    <li><a href="/">主控台</a></li>
+  </ul>
+</nav>
+
+// ❌ 不好的範例
+<div className="nav">
+  <div className="nav-item">主控台</div>
+</div>
+```
+
+### 2. ARIA 標籤
+
+為互動元素添加 ARIA 標籤:
+
+```tsx
+<button aria-label="刪除專案" onClick={handleDelete}>
+  <DeleteIcon />
+</button>
+
+<input
+  aria-required="true"
+  aria-invalid={!!errors.project_name}
+  aria-describedby="project-name-error"
+/>
+```
+
+### 3. 鍵盤導航
+
+確保所有互動元素可透過鍵盤操作:
+
+```tsx
+<div
+  role="button"
+  tabIndex={0}
+  onClick={handleClick}
+  onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+>
+  點擊
+</div>
+```
+
+---
+
+## 國際化支援
+
+### Phase 1: 繁體中文
+
+目前僅支援繁體中文 (zh-TW)。
+
+### 未來擴展
+
+計劃支援:
+- 簡體中文 (zh-CN)
+- 英文 (en-US)
+
+### 日期時間格式化
+
+```typescript
+import { format } from 'date-fns'
+import { zhTW } from 'date-fns/locale'
+
+const formattedDate = format(new Date(), 'yyyy年MM月dd日', { locale: zhTW })
+// 2024年01月15日
+```
+
+---
+
+## 安全措施
+
+### 1. XSS 防護
+
+**React 自動轉義:**
+
+React 預設會轉義所有文字內容，防止 XSS 攻擊。
+
+**危險的 HTML (需避免):**
+
+```tsx
+// ❌ 危險
+<div dangerouslySetInnerHTML={{ __html: userInput }} />
+
+// ✅ 安全
+import DOMPurify from 'dompurify'
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userInput) }} />
+```
+
+### 2. Content Security Policy
+
+```typescript
+// app/layout.tsx
+export const metadata = {
+  metadataBase: new URL('http://localhost:3000'),
+  other: {
+    'Content-Security-Policy': `
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: blob:;
+    `.replace(/\s+/g, ' ').trim(),
+  },
+}
+```
+
+### 3. 輸入驗證
+
+使用 Zod 進行輸入驗證:
+
+```typescript
+import { z } from 'zod'
+
+const projectSchema = z.object({
+  project_name: z.string().min(1).max(100),
+  content_text: z.string().min(500).max(10000),
+})
+```
+
+---
+
+## 更新記錄
+
+| 日期 | 版本 | 修改內容 | 修改人 |
+|------|------|----------|--------|
+| 2025-10-19 | 1.0 | 初始版本，從 frontend-spec.md 拆分 | Claude Code |

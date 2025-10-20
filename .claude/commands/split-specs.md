@@ -90,11 +90,40 @@ mkdir -p tech-specs/backend
 mkdir -p tech-specs/frontend
 ```
 
-**拆分並寫入文件：**
-- 將內容按照規劃的模塊拆分
-- 每個文件有清楚的標題與說明
-- 在文件間使用相對路徑互相引用
+**拆分並寫入文件（重要規則）：**
+
+**✅ 必須做到：**
+- 將**完整內容**複製到新文件（不能只寫引用）
+- 包含所有程式碼範例、實作細節、配置範例
+- 每個文件必須可以獨立閱讀，不需要查看原始 spec
 - 保持內容的邏輯完整性
+- 文件間可以互相引用（使用相對路徑）
+
+**❌ 禁止做的：**
+- ❌ 引用原始的 `backend-spec.md` 或 `frontend-spec.md`（它們即將被刪除）
+- ❌ 使用「參考原始文件第 XXX 行」這種行號引用
+- ❌ 寫「詳細規格請參考原始文件」然後不提供內容
+- ❌ 創建空殼文件（只有標題和引用，沒有實際內容）
+
+**✅ 正確的引用方式：**
+```markdown
+# component-architecture.md
+
+完整的元件實作定義...（完整內容）
+
+相關文檔：
+- API 整合方式請參考 [api-integration.md](./api-integration.md)
+- 狀態管理請參考 [state-management.md](./state-management.md)
+```
+
+**❌ 錯誤的引用方式：**
+```markdown
+# component-architecture.md
+
+> 參考原始文件: frontend-spec.md 第 167-393 行  ← 禁止！
+
+詳細規格請參考原始文件。  ← 禁止！
+```
 
 ### Step 5: 生成索引文件
 
@@ -174,12 +203,51 @@ mkdir -p tech-specs/frontend
 - 提供快速查找指南
 - 使用相對路徑連結
 
-### Step 6: 清理原始文件
+### Step 6: 拆分後品質驗證
 
-在確認拆分完成且內容完整後：
+**在刪除原始文件前，必須驗證每個拆分後的文件：**
+
+**自動檢查（每個文件）：**
 ```bash
-rm tech-specs/backend-spec.md
-rm tech-specs/frontend-spec.md
+# 檢查檔案大小（太小表示可能只是引用）
+ls -lh tech-specs/backend/*.md tech-specs/frontend/*.md
+```
+
+**手動檢查清單（抽樣 3-5 個文件）：**
+- [ ] 檔案大小 > 1500 bytes（小於此值需特別檢查）
+- [ ] 包含至少一個完整的程式碼範例或詳細說明
+- [ ] 沒有「參考原始文件」或「frontend-spec.md 第 XXX 行」
+- [ ] 可以獨立閱讀，理解該模塊的完整規格
+- [ ] 文件間的引用使用相對路徑且指向拆分後的文件
+
+**如果檢查失敗：**
+1. 找出內容不足的文件
+2. 從原始 spec 補充完整內容
+3. 重新驗證
+
+### Step 7: 備份原始文件（不要刪除）
+
+⚠️ **重要：不要立即刪除原始文件，而是重新命名作為備份**
+
+```bash
+mv tech-specs/backend-spec.md tech-specs/backend-spec.BACKUP.md
+mv tech-specs/frontend-spec.md tech-specs/frontend-spec.BACKUP.md
+```
+
+**保留備份的原因：**
+- 如果後續發現拆分有遺漏，可以對比原始文件
+- 等確認所有 tasks 生成無誤後再刪除
+- 可以在 git commit 時比較拆分前後差異
+
+**何時刪除備份：**
+- Phase 1 所有 tasks 重新生成完成
+- 確認新 tasks 質量良好
+- 確認沒有內容遺漏
+
+```bash
+# 屆時執行
+rm tech-specs/backend-spec.BACKUP.md
+rm tech-specs/frontend-spec.BACKUP.md
 ```
 
 ## 輸出報告
@@ -221,12 +289,140 @@ tech-specs/
     └── testing.md
 ```
 
+## 拆分品質範例
+
+### ✅ 優秀範例（完整內容）
+
+```markdown
+# state-management.md
+
+## 全域狀態設計
+
+### useProjectStore
+
+**完整實作：**
+```typescript
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+export interface Project {
+  id: string
+  title: string
+  status: 'draft' | 'generating' | 'completed'
+  // ... 完整類型定義
+}
+
+interface ProjectState {
+  projects: Project[]
+  currentProject: Project | null
+
+  // Actions
+  addProject: (project: Project) => void
+  updateProject: (id: string, updates: Partial<Project>) => void
+  deleteProject: (id: string) => void
+  setCurrentProject: (id: string | null) => void
+}
+
+export const useProjectStore = create<ProjectState>()(
+  persist(
+    (set, get) => ({
+      projects: [],
+      currentProject: null,
+
+      addProject: (project) =>
+        set((state) => ({
+          projects: [...state.projects, project]
+        })),
+
+      updateProject: (id, updates) =>
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === id ? { ...p, ...updates } : p
+          )
+        })),
+
+      // ... 完整實作
+    }),
+    {
+      name: 'project-store',
+      partialize: (state) => ({ projects: state.projects })
+    }
+  )
+)
+```
+
+**使用範例：**
+```typescript
+const { projects, addProject } = useProjectStore()
+
+// 新增專案
+addProject({
+  id: 'proj_001',
+  title: '我的專案',
+  status: 'draft'
+})
+```
+
+**測試要求：**
+- 測試新增專案功能
+- 測試狀態持久化
+- 測試並發更新
+
+**相關文檔：**
+- API 整合請參考 [api-integration.md](./api-integration.md)
+- 元件如何使用 store 請參考 [component-architecture.md](./component-architecture.md)
+```
+
+### ❌ 錯誤範例（只有引用）
+
+```markdown
+# state-management.md
+
+> **參考原始文件:** frontend-spec.md 第 395-565 行
+> **關聯文件:** [overview.md](./overview.md)
+
+本文件定義了全域狀態設計、本地狀態管理。
+
+完整內容請參考原始 `frontend-spec.md` 文件的以下章節：
+- 3.1 全域狀態設計 (第 397-446 行)
+- 3.2 本地狀態管理 (第 450-469 行)
+
+## 全域 Zustand Stores
+
+### useProjectStore
+
+```typescript
+interface ProjectStore {
+  currentProject: Project | null
+  projects: Project[]
+  // ... 只有介面定義，沒有實作
+}
+```
+
+---
+
+詳細規格請參考原始文件。  ← 這是錯的！
+```
+
+**問題所在：**
+- ❌ 引用了即將被刪除的 `frontend-spec.md`
+- ❌ 引用特定行號（拆分後行號會改變）
+- ❌ 沒有完整實作，只有介面定義
+- ❌ 最後說「詳細規格請參考原始文件」但沒有提供內容
+- ❌ 檔案太小（< 1500 bytes），明顯內容不足
+
+---
+
 ## 注意事項
 
+- ✅ **每個文件必須包含完整內容**（程式碼、範例、說明）
+- ✅ **檔案大小通常 > 2000 bytes**（除非該模塊確實很簡單）
 - ✅ 保持內容的完整性，不要遺漏資訊
 - ✅ 在拆分時順便修正發現的問題
-- ✅ 確保文件間的引用正確
+- ✅ 文件間可以互相引用（使用相對路徑）
 - ✅ 索引文件要清晰易懂
 - ✅ 檔案命名要有規律（api-*.md, page-*.md, service-*.md 等）
-- ❌ 不要創建空文件
+- ❌ **禁止引用原始 spec 文件**（backend-spec.md, frontend-spec.md）
+- ❌ **禁止引用行號**（第 XXX 行）
+- ❌ **禁止創建空殼文件**（只有引用沒有內容）
 - ❌ 不要過度拆分導致碎片化

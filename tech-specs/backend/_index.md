@@ -2,99 +2,71 @@
 
 本專案的後端技術規格文件組織。
 
----
-
 ## 核心架構
-
-- [overview.md](./overview.md) - 整體架構、技術棧、專案結構、配置管理
-- [database.md](./database.md) - 資料庫設計、Schema、資料模型、索引、遷移
-- [auth.md](./auth.md) - 認證授權、API Key 管理、YouTube OAuth
-
----
+- [overview.md](./overview.md) - 整體架構、技術棧、資料夾結構
+- [database.md](./database.md) - 資料庫設計、Schema、關聯、索引
+- [auth.md](./auth.md) - 認證授權邏輯、API Key 管理
 
 ## API 規格
-
-- [api-design.md](./api-design.md) - API 設計原則、錯誤碼系統、RESTful 規範
-- [api-projects.md](./api-projects.md) - 專案管理 API (12個端點)
-- [api-configurations.md](./api-configurations.md) - 配置管理 API (6個端點)
-
----
+- [api-design.md](./api-design.md) - API 設計原則與規範
+- [api-system.md](./api-system.md) - 系統初始化 API
+- [api-projects.md](./api-projects.md) - 專案管理 API
+- [api-configurations.md](./api-configurations.md) - 配置與模板管理 API
+- [api-youtube.md](./api-youtube.md) - YouTube 授權 API
+- [api-stats.md](./api-stats.md) - 統計與配額 API
+- [api-batch.md](./api-batch.md) - 批次處理 API
 
 ## 業務邏輯
-
-- [service-video-generation.md](./service-video-generation.md) - 影片生成工作流程、進度管理、錯誤處理
-- [background-jobs.md](./background-jobs.md) - Celery 背景任務定義、任務監控
-
----
+- [business-logic.md](./business-logic.md) - 腳本生成、素材生成、影片渲染邏輯
 
 ## 基礎設施
-
-- [integrations.md](./integrations.md) - 第三方整合 (Gemini, Stability AI, D-ID, YouTube)
-- [caching.md](./caching.md) - Redis 快取策略
-- [performance.md](./performance.md) - 效能優化策略
-- [security.md](./security.md) - 安全措施、輸入驗證、防護機制
-- [testing.md](./testing.md) - 測試策略、單元測試、API 測試
+- [background-jobs.md](./background-jobs.md) - 背景任務與 Celery
+- [integrations.md](./integrations.md) - 第三方 API 整合
+- [caching.md](./caching.md) - 快取策略
+- [security.md](./security.md) - 安全措施
+- [performance.md](./performance.md) - 效能優化
+- [testing.md](./testing.md) - 測試策略
 
 ---
 
 ## 快速查找指南
 
-### 尋找特定 API 端點
-→ 先查看 [api-design.md](./api-design.md) 的端點總覽
-→ 再查看對應的 API 文件 (如 [api-projects.md](./api-projects.md))
-
-### 尋找資料結構
-→ 查看 [database.md](./database.md)
-
-### 尋找認證相關
-→ 查看 [auth.md](./auth.md)
-
-### 尋找業務流程
-→ 查看 [service-video-generation.md](./service-video-generation.md) 和 [background-jobs.md](./background-jobs.md)
-
-### 尋找第三方整合
-→ 查看 [integrations.md](./integrations.md)
-
-### 尋找效能或安全問題
-→ 查看 [performance.md](./performance.md) 或 [security.md](./security.md)
+- **尋找特定 API** → 查看 [api-design.md](./api-design.md) 或對應的 api-*.md 文件
+- **資料結構相關** → 查看 [database.md](./database.md)
+- **認證問題** → 查看 [auth.md](./auth.md)
+- **業務流程** → 查看 [business-logic.md](./business-logic.md)
+- **外部服務整合** → 查看 [integrations.md](./integrations.md)
+- **效能優化** → 查看 [performance.md](./performance.md)
+- **測試規範** → 查看 [testing.md](./testing.md)
 
 ---
 
-## 文件統計
+## API 端點總覽
 
-- **總文件數:** 13 個模塊
-- **API 端點:** 42 個
-- **資料模型:** 10 個
-- **背景任務:** 6 個
-- **第三方整合:** 4 個
-
----
-
-## 開發流程建議
-
-1. **開始開發前**
-   - 先閱讀 [overview.md](./overview.md) 了解整體架構
-   - 閱讀 [database.md](./database.md) 了解資料結構
-   - 閱讀 [api-design.md](./api-design.md) 了解 API 設計規範
-
-2. **開發 API 時**
-   - 參考對應的 API 文件 ([api-projects.md](./api-projects.md) 等)
-   - 遵循 [api-design.md](./api-design.md) 的設計原則
-   - 使用 [database.md](./database.md) 的資料模型
-
-3. **開發業務邏輯時**
-   - 參考 [service-video-generation.md](./service-video-generation.md)
-   - 參考 [background-jobs.md](./background-jobs.md) 定義任務
-   - 參考 [integrations.md](./integrations.md) 調用第三方 API
-
-4. **優化與安全**
-   - 參考 [performance.md](./performance.md) 優化查詢
-   - 參考 [security.md](./security.md) 加強安全
-   - 參考 [caching.md](./caching.md) 加入快取
-
-5. **測試**
-   - 參考 [testing.md](./testing.md) 撰寫測試
+| 分類 | 端點數量 | 文件 |
+|------|---------|------|
+| 系統初始化 | 3 | [api-system.md](./api-system.md) |
+| 專案管理 | 10 | [api-projects.md](./api-projects.md) |
+| 配置管理 | 5 | [api-configurations.md](./api-configurations.md) |
+| YouTube 授權 | 4 | [api-youtube.md](./api-youtube.md) |
+| 統計配額 | 2 | [api-stats.md](./api-stats.md) |
+| 批次處理 | 3 | [api-batch.md](./api-batch.md) |
+| **總計** | **27** | - |
 
 ---
 
-**最後更新:** 2025-01-19
+## 資料模型總覽
+
+| 資料表 | 說明 | 文件 |
+|--------|------|------|
+| projects | 專案 | [database.md](./database.md) |
+| configurations | 配置模板 | [database.md](./database.md) |
+| prompt_templates | Prompt 範本 | [database.md](./database.md) |
+| youtube_accounts | YouTube 帳號 | [database.md](./database.md) |
+| assets | 素材 | [database.md](./database.md) |
+| batch_tasks | 批次任務 | [database.md](./database.md) |
+| system_settings | 系統設定 | [database.md](./database.md) |
+
+---
+
+**最後更新:** 2025-10-19

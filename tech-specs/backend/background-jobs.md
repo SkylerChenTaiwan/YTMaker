@@ -1,297 +1,276 @@
-# 背景任務 (Celery)
+# 背景任務 (Background Jobs)
 
-> **關聯文件:** [service-video-generation.md](./service-video-generation.md), [integrations.md](./integrations.md)
-
----
-
-## 1. 任務佇列架構
-
-### Celery 配置
-
-**訊息代理:** Redis
-
-**結果後端:** Redis
-
-**並發模式:** Prefork (多進程)
+## 關聯文件
+- [業務邏輯](./business-logic.md)
+- [API 設計 - 專案管理](./api-projects.md)
+- [API 設計 - 批次處理](./api-batch.md)
+- [第三方整合](./integrations.md)
 
 ---
 
-## 2. 任務定義
+## 6. 背景任務
 
-### 2.1 腳本生成任務
+### 6.1 任務佇列架構
 
+**任務佇列：** Celery
+**訊息代理：** Redis
+**結果後端：** Redis
+
+**架構圖：**
+```
+FastAPI Application
+    ↓
+Celery Worker Pool
+    ↓
+Redis (Message Broker & Result Backend)
+    ↓
+Task Execution (Video Generation, Batch Processing, etc.)
+```
+
+**Celery 配置：**
 ```python
-# app/tasks/script_tasks.py
-from app.core.celery_app import celery_app
-from app.services.gemini_service import GeminiService
+# celery_config.py
+broker_url = 'redis://localhost:6379/0'
+result_backend = 'redis://localhost:6379/0'
+task_serializer = 'json'
+result_serializer = 'json'
+accept_content = ['json']
+timezone = 'Asia/Taipei'
+enable_utc = True
 
-@celery_app.task(bind=True, max_retries=3)
-def generate_script(self, project_id: str):
-    """生成腳本任務
+# Worker 並行設定
+worker_concurrency = 4  # 4 個並行 worker
+worker_prefetch_multiplier = 1  # 每次只取 1 個任務
+```
 
-    Args:
-        project_id: 專案 ID
+---
 
-    Returns:
-        Script ID
-    """
+### 6.2 任務列表
+
+#### 6.2.1 影片生成任務
+
+**任務名稱：** `tasks.generate_video`
+
+**輸入：** `project_id`
+
+**流程：**
+1. 腳本生成（`tasks.generate_script`）
+2. 素材生成（並行）
+   - 語音合成（`tasks.generate_audio`）
+   - 圖片生成（`tasks.generate_images`）
+   - 虛擬主播生成（`tasks.generate_avatar`）
+3. 影片渲染（`tasks.render_video`）
+4. 封面生成（`tasks.generate_thumbnail`）
+5. YouTube 上傳（`tasks.upload_to_youtube`）
+
+**重試機制：**
+- 最多 3 次重試
+- 指數退避：2秒、5秒、10秒
+
+**失敗處理：**
+- 記錄錯誤日誌
+- 更新專案狀態為 `FAILED`
+- 發送錯誤通知（WebSocket）
+
+**任務實作範例：**
+```python
+from celery import Celery, group
+from celery.exceptions import Retry
+
+app = Celery('ytmaker')
+
+@app.task(bind=True, max_retries=3)
+def generate_video(self, project_id):
     try:
-        # 取得專案
-        project = db.query(Project).filter(Project.id == project_id).first()
+        # 步驟 1: 腳本生成
+        generate_script(project_id)
+
+        # 步驟 2: 並行生成素材
+        asset_tasks = group([
+            generate_audio.s(project_id),
+            generate_images.s(project_id),
+            generate_avatar.s(project_id)
+        ])
+        asset_results = asset_tasks.apply_async()
+        asset_results.get()  # 等待所有素材生成完成
+
+        # 步驟 3: 渲染影片
+        render_video(project_id)
+
+        # 步驟 4: 生成封面
+        generate_thumbnail(project_id)
+
+        # 步驟 5: 上傳到 YouTube
+        upload_to_youtube(project_id)
 
         # 更新狀態
-        project.status = "script_generating"
-        db.commit()
+        update_project_status(project_id, 'COMPLETED')
 
-        # 調用 Gemini API 生成腳本
-        gemini_service = GeminiService()
-        script_data = gemini_service.generate_script(
-            content=project.content,
-            prompt_template_id=project.prompt_template_id
-        )
-
-        # 儲存腳本
-        script = Script(
-            project_id=project_id,
-            script_data=script_data
-        )
-        db.add(script)
-        db.commit()
-
-        # 更新進度
-        ProgressManager.update_progress(project_id, "script_generating", 100)
-
-        return script.id
-
-    except Exception as exc:
-        # 重試
-        raise self.retry(exc=exc, countdown=60)
+    except Exception as e:
+        # 重試邏輯
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=e, countdown=2 ** self.request.retries)
+        else:
+            # 標記失敗
+            update_project_status(project_id, 'FAILED')
+            log_error(project_id, str(e))
+            raise
 ```
 
 ---
 
-### 2.2 素材生成任務
+#### 6.2.2 批次處理任務
 
-#### 語音合成
+**任務名稱：** `tasks.process_batch`
 
+**輸入：** `batch_id`
+
+**流程：**
+1. 取得批次任務的所有專案
+2. 依序執行 `tasks.generate_video`
+3. 更新批次任務進度
+
+**實作範例：**
 ```python
-# app/tasks/asset_tasks.py
-@celery_app.task(bind=True, max_retries=3)
-def generate_audio(self, project_id: str):
-    """生成語音任務"""
-    try:
-        # 取得腳本
-        script = get_script_by_project_id(project_id)
+@app.task
+def process_batch(batch_id):
+    batch = db.query(BatchTask).get(batch_id)
+    projects = batch.projects
 
-        # 使用 Google TTS 生成語音
-        tts_service = TTSService()
-        audio_path = tts_service.generate_audio(script.script_data)
+    for project in projects:
+        try:
+            # 執行影片生成
+            generate_video.delay(project.id)
 
-        # 儲存素材記錄
-        asset = Asset(
-            project_id=project_id,
-            asset_type="audio",
-            file_path=audio_path
-        )
-        db.add(asset)
-        db.commit()
+            # 等待完成
+            while project.status not in ['COMPLETED', 'FAILED']:
+                time.sleep(5)
+                db.refresh(project)
 
-        # 更新進度
-        ProgressManager.update_progress(project_id, "audio_generating", 100)
+            # 更新批次進度
+            if project.status == 'COMPLETED':
+                batch.completed_projects += 1
+            else:
+                batch.failed_projects += 1
 
-    except Exception as exc:
-        raise self.retry(exc=exc, countdown=60)
-```
+            db.commit()
 
-#### 圖片生成 (批次)
+        except Exception as e:
+            batch.failed_projects += 1
+            db.commit()
+            log_error(batch_id, f"Project {project.id} failed: {str(e)}")
 
-```python
-@celery_app.task(bind=True, max_retries=3)
-def generate_images(self, project_id: str):
-    """批次生成圖片任務"""
-    try:
-        script = get_script_by_project_id(project_id)
-
-        # 提取圖片 prompts
-        image_prompts = extract_image_prompts(script.script_data)
-
-        stability_service = StabilityAIService()
-
-        # 批次生成圖片 (並行)
-        for i, prompt in enumerate(image_prompts):
-            # 生成單張圖片
-            image_path = stability_service.generate_image(prompt)
-
-            # 儲存素材
-            asset = Asset(
-                project_id=project_id,
-                asset_type="image",
-                file_path=image_path
-            )
-            db.add(asset)
-
-            # 更新進度
-            progress = int((i + 1) / len(image_prompts) * 100)
-            ProgressManager.update_progress(project_id, "images_generating", progress)
-
-        db.commit()
-
-    except Exception as exc:
-        raise self.retry(exc=exc, countdown=60)
+    # 更新批次狀態
+    batch.status = 'COMPLETED'
+    db.commit()
 ```
 
 ---
 
-### 2.3 影片渲染任務
+#### 6.2.3 配額同步任務
 
+**任務名稱：** `tasks.sync_quotas`
+
+**排程：** 每小時執行一次
+
+**流程：**
+1. 調用外部 API 取得配額使用情況
+2. 更新快取
+3. 若配額 < 10%，發送警告通知
+
+**實作範例：**
 ```python
-# app/tasks/render_tasks.py
-@celery_app.task(bind=True, max_retries=2, time_limit=3600)
-def render_video(self, project_id: str):
-    """渲染影片任務
+from celery.schedules import crontab
 
-    Args:
-        project_id: 專案 ID
+# 定期任務配置
+app.conf.beat_schedule = {
+    'sync-quotas-every-hour': {
+        'task': 'tasks.sync_quotas',
+        'schedule': crontab(minute=0),  # 每小時執行
+    },
+}
 
-    Returns:
-        Video file path
-    """
-    try:
-        # 更新狀態
-        update_project_status(project_id, "rendering")
+@app.task
+def sync_quotas():
+    # 同步 D-ID 配額
+    did_quota = did_api.get_quota()
+    redis.setex('quota:did', 3600, json.dumps(did_quota))
 
-        # 取得所有素材
-        assets = get_project_assets(project_id)
+    # 同步 YouTube 配額
+    youtube_quota = youtube_api.get_quota()
+    redis.setex('quota:youtube', 3600, json.dumps(youtube_quota))
 
-        # 使用 FFmpeg 渲染影片
-        render_service = VideoRenderService()
-        video_path = render_service.render(
-            audio_path=assets['audio'],
-            images=assets['images'],
-            script=get_script_by_project_id(project_id),
-            config=get_visual_config(project_id)
-        )
+    # 檢查配額警告
+    if did_quota['used'] / did_quota['total'] > 0.9:
+        send_notification('D-ID 配額即將用盡，剩餘 {}%'.format(
+            (1 - did_quota['used'] / did_quota['total']) * 100
+        ))
 
-        # 儲存素材
-        asset = Asset(
-            project_id=project_id,
-            asset_type="video",
-            file_path=video_path
-        )
-        db.add(asset)
-        db.commit()
-
-        # 更新進度
-        ProgressManager.update_progress(project_id, "rendering", 100)
-
-        return video_path
-
-    except Exception as exc:
-        raise self.retry(exc=exc, countdown=120)
+    if youtube_quota['used'] / youtube_quota['total'] > 0.9:
+        send_notification('YouTube 配額即將用盡，剩餘 {}%'.format(
+            (1 - youtube_quota['used'] / youtube_quota['total']) * 100
+        ))
 ```
 
 ---
 
-### 2.4 YouTube 上傳任務
+### 6.3 任務監控
 
-```python
-# app/tasks/upload_tasks.py
-@celery_app.task(bind=True, max_retries=3)
-def upload_to_youtube(self, project_id: str):
-    """上傳到 YouTube 任務"""
-    try:
-        # 更新狀態
-        update_project_status(project_id, "uploading")
+**工具：** Flower（Celery 監控工具）
 
-        # 取得影片檔案
-        video = get_video_asset(project_id)
-
-        # 取得 YouTube 設定
-        project = get_project(project_id)
-        youtube_settings = project.youtube_settings
-
-        # 上傳到 YouTube
-        youtube_service = YouTubeService()
-        video_id = youtube_service.upload_video(
-            video_path=video.file_path,
-            title=youtube_settings['title'],
-            description=youtube_settings['description'],
-            tags=youtube_settings['tags'],
-            privacy=youtube_settings['privacy']
-        )
-
-        # 更新專案
-        project.youtube_video_id = video_id
-        project.status = "completed"
-        project.progress = 100
-        db.commit()
-
-        # 更新進度
-        ProgressManager.update_progress(project_id, "uploading", 100)
-
-        return video_id
-
-    except Exception as exc:
-        raise self.retry(exc=exc, countdown=120)
-```
-
----
-
-## 3. 任務監控
-
-### 使用 Flower
-
-**啟動 Flower:**
-```bash
-celery -A app.core.celery_app flower --port=5555
-```
-
-**訪問:** `http://localhost:5555`
-
-**功能:**
+**功能：**
 - 查看任務狀態
-- 查看 Worker 狀態
+- 查看任務執行時間
+- 查看任務失敗原因
 - 重試失敗任務
-- 終止任務
 
----
-
-## 4. 錯誤處理與重試
-
-### 重試策略
-
-```python
-@celery_app.task(
-    bind=True,
-    max_retries=3,
-    default_retry_delay=60,  # 60 秒後重試
-    autoretry_for=(Exception,),
-    retry_backoff=True,  # 指數退避
-    retry_backoff_max=600,  # 最大 10 分鐘
-    retry_jitter=True  # 加入隨機延遲
-)
-def generate_image_with_retry(self, prompt: str):
-    ...
+**啟動 Flower：**
+```bash
+celery -A app.celery_app flower --port=5555
 ```
 
----
+**訪問：** `http://localhost:5555`
 
-## 總結
-
-### 任務列表
-- `generate_script` - 腳本生成
-- `generate_audio` - 語音合成
-- `generate_images` - 圖片生成 (批次)
-- `generate_avatars` - 虛擬主播生成
-- `render_video` - 影片渲染
-- `upload_to_youtube` - YouTube 上傳
-
-### 特性
-- ✅ 非同步任務處理
-- ✅ 自動重試機制
-- ✅ 並行處理加速
-- ✅ Flower 監控界面
+**監控指標：**
+- 任務成功率
+- 平均執行時間
+- 佇列長度
+- Worker 狀態
 
 ---
 
-**下一步:** 詳見 [integrations.md](./integrations.md)
+### 6.4 任務優先級
+
+**優先級設定：**
+```python
+# 高優先級（立即執行）
+generate_video.apply_async(args=[project_id], priority=9)
+
+# 中優先級（正常執行）
+process_batch.apply_async(args=[batch_id], priority=5)
+
+# 低優先級（背景執行）
+sync_quotas.apply_async(priority=1)
+```
+
+**佇列分離：**
+```python
+# 使用不同佇列處理不同類型任務
+app.conf.task_routes = {
+    'tasks.generate_video': {'queue': 'video_generation'},
+    'tasks.process_batch': {'queue': 'batch_processing'},
+    'tasks.sync_quotas': {'queue': 'maintenance'},
+}
+```
+
+**啟動專用 Worker：**
+```bash
+# 處理影片生成
+celery -A app.celery_app worker -Q video_generation -c 2
+
+# 處理批次任務
+celery -A app.celery_app worker -Q batch_processing -c 1
+
+# 處理維護任務
+celery -A app.celery_app worker -Q maintenance -c 1
+```

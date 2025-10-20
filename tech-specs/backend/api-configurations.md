@@ -1,163 +1,126 @@
-# 配置管理 API
+# 配置與模板管理 API
 
-> **關聯文件:** [api-design.md](./api-design.md), [database.md](./database.md)
-
----
-
-## 1. API 端點總覽
-
-**基礎路徑:** `/api/v1/configurations`
-
-**端點列表:**
-- `GET /configurations` - 列出所有配置
-- `POST /configurations` - 建立新配置
-- `GET /configurations/:id` - 取得單一配置
-- `PUT /configurations/:id` - 更新配置
-- `DELETE /configurations/:id` - 刪除配置
-- `POST /configurations/:id/duplicate` - 複製配置
-
-**總計:** 6 個端點
+## 關聯文件
+- [API 總覽與規範](./overview.md)
+- [資料模型](./database.md)
+- [API 設計 - 專案管理](./api-projects.md)
 
 ---
 
-## 2. API 詳細規格
+## 1.5 配置與模板管理 API
 
-### 2.1 列出所有配置
+### 1.5.1 列出配置模板
 
-**端點:** `GET /api/v1/configurations`
+**端點：** `GET /api/v1/configurations`
+**說明：** 取得所有視覺配置模板
 
-**回應範例:**
-```json
-{
-  "data": [
-    {
-      "id": "config_123",
-      "name": "科技頻道標準配置",
-      "usage_count": 15,
-      "created_at": "2025-01-15T10:00:00Z"
-    }
-  ]
-}
-```
-
----
-
-### 2.2 建立新配置
-
-**端點:** `POST /api/v1/configurations`
-
-**請求 Body:**
-```json
-{
-  "name": "科技頻道標準配置",
-  "config": {
-    "subtitle": {
-      "font_family": "Noto Sans TC",
-      "font_size": 48,
-      "font_color": "#FFFFFF",
-      "position": { "x": 960, "y": 900 },
-      "border_enabled": true,
-      "shadow_enabled": true
-    },
-    "logo": {
-      "file_path": "/logos/tech_logo.png",
-      "position": { "x": 50, "y": 50 },
-      "size": 100
-    }
-  }
-}
-```
-
-**回應:**
-```json
-{
-  "id": "config_123",
-  "name": "科技頻道標準配置",
-  "created_at": "2025-01-15T10:00:00Z"
-}
-```
-
----
-
-### 2.3 取得單一配置
-
-**端點:** `GET /api/v1/configurations/{id}`
-
-**回應範例:**
-```json
-{
-  "id": "config_123",
-  "name": "科技頻道標準配置",
-  "config": {
-    "subtitle": { ... },
-    "logo": { ... }
-  },
-  "usage_count": 15,
-  "created_at": "2025-01-15T10:00:00Z"
-}
-```
-
----
-
-### 2.4 更新配置
-
-**端點:** `PUT /api/v1/configurations/{id}`
-
-**請求 Body:**
-```json
-{
-  "name": "更新後的配置名稱",
-  "config": {
-    "subtitle": {
-      "font_size": 52
-    }
-  }
-}
-```
-
----
-
-### 2.5 刪除配置
-
-**端點:** `DELETE /api/v1/configurations/{id}`
-
-**回應:**
+**回應：**
 ```json
 {
   "success": true,
-  "message": "配置已刪除"
+  "data": {
+    "configurations": [
+      {
+        "id": "uuid",
+        "name": "預設配置",
+        "created_at": "2025-01-15T10:30:00Z",
+        "last_used_at": "2025-01-15T11:45:00Z",
+        "usage_count": 10
+      }
+    ]
+  }
 }
 ```
 
 ---
 
-### 2.6 複製配置
+### 1.5.2 建立配置模板
 
-**端點:** `POST /api/v1/configurations/{id}/duplicate`
+**端點：** `POST /api/v1/configurations`
+**說明：** 建立新的視覺配置模板
 
-**請求 Body:**
+**請求：**
 ```json
 {
-  "new_name": "科技頻道配置 - 副本"
+  "name": "配置名稱",
+  "configuration": { ... }
 }
 ```
 
-**回應:**
+**回應：**
 ```json
 {
-  "id": "config_456",
-  "name": "科技頻道配置 - 副本",
-  "created_at": "2025-01-15T11:00:00Z"
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "配置名稱"
+  }
 }
 ```
 
 ---
 
-## 總結
+### 1.5.3 列出 Prompt 範本
 
-**端點數:** 6 個
+**端點：** `GET /api/v1/prompt-templates`
+**說明：** 取得所有 Prompt 範本
 
-**功能:**
-- ✅ 配置 CRUD
-- ✅ 配置複製
-- ✅ 使用統計
+**回應：**
+```json
+{
+  "success": true,
+  "data": {
+    "templates": [
+      {
+        "id": "uuid",
+        "name": "預設範本",
+        "content": "Prompt 內容...",
+        "is_default": true,
+        "created_at": "2025-01-15T10:30:00Z",
+        "usage_count": 20
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 1.5.4 建立 Prompt 範本
+
+**端點：** `POST /api/v1/prompt-templates`
+**說明：** 建立新的 Prompt 範本
+
+**請求：**
+```json
+{
+  "name": "自訂範本",
+  "content": "Prompt 內容（包含段落時長要求）..."
+}
+```
+
+**回應：**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "自訂範本"
+  }
+}
+```
+
+---
+
+### 1.5.5 刪除 Prompt 範本
+
+**端點：** `DELETE /api/v1/prompt-templates/:id`
+**說明：** 刪除 Prompt 範本（預設範本不可刪除）
+
+**回應：**
+```json
+{
+  "success": true,
+  "message": "範本已刪除"
+}
+```
