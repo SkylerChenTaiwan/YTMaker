@@ -56,3 +56,4 @@ Desktop.ini
 # 取消註解以下項目來忽略範本檔案（當你開始實際專案時）
 # task-template.md
 # issue-template.md
+.env.test
