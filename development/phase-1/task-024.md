@@ -2,7 +2,7 @@
 
 > **建立日期:** 2025-10-19
 > **狀態:** ⏳ 未開始
-> **預計時間:** 12 小時
+> **預計時間:** 14 小時
 > **優先級:** P0 (必須)
 
 ---
@@ -44,6 +44,7 @@
 - [x] 完成/失敗狀態正確處理
 - [x] 響應式設計完成
 - [x] 單元測試覆蓋率 > 85%
+- [x] Celery-WebSocket 整合測試通過 (任務進度推送、失敗通知)
 
 ---
 
@@ -593,9 +594,311 @@ describe('ProgressPage - 測試 5：錯誤處理', () => {
 
 ---
 
+#### 測試 6：WebSocket 重連後訊息恢復
+
+**目的：** 驗證 WebSocket 斷線重連後能恢復遺失的進度更新
+
+**前置條件：**
+- WebSocket 端點可用
+- 專案正在生成中
+
+**輸入：**
+```typescript
+// 模擬連線、斷線、重連流程
+const mockWs = {
+  readyState: WebSocket.OPEN,
+  close: vi.fn(() => {
+    mockWs.readyState = WebSocket.CLOSED
+  }),
+  send: vi.fn(),
+  addEventListener: vi.fn()
+}
+```
+
+**預期輸出：**
+- 斷線前進度顯示正常 (30%)
+- 斷線期間顯示「重新連線中」提示
+- 重連後立即收到最新進度 (70%)
+- 不會遺失進度更新
+
+**驗證點：**
+- [ ] 斷線時顯示重連提示
+- [ ] 重連後收到最新進度
+- [ ] 進度從 30% 跳到 70% (不是從 30% 逐步更新)
+- [ ] 重連延遲應 < 3 秒
+
+**測試程式碼骨架：**
+```typescript
+describe('ProgressPage - 測試 6：WebSocket 重連後訊息恢復', () => {
+  it('WebSocket 斷線重連後應恢復遺失的進度', async () => {
+    const { rerender } = render(<ProgressMonitorPage />)
+
+    // 建立初始連線
+    await waitFor(() => {
+      expect(screen.getByTestId('ws-status')).toHaveTextContent('已連線')
+    })
+
+    // 模擬進度從 0% 到 30%
+    mockWebSocket.send({ type: 'progress', value: 0.3 })
+    await waitFor(() => {
+      expect(screen.getByTestId('progress-bar')).toHaveAttribute('value', '30')
+    })
+
+    // 模擬斷線
+    mockWebSocket.close()
+    await waitFor(() => {
+      expect(screen.getByTestId('ws-status')).toHaveTextContent('重新連線中')
+    })
+
+    // 在斷線期間,後端進度從 30% 到 70%
+    // (這些訊息前端沒收到)
+
+    // 重新連線
+    mockWebSocket.reconnect()
+
+    // 重連後應立即收到最新進度
+    await waitFor(() => {
+      expect(screen.getByTestId('progress-bar')).toHaveAttribute('value', '70')
+    }, { timeout: 3000 })
+  })
+})
+```
+
+---
+
+#### 測試 7：訊息順序測試
+
+**目的：** 驗證 WebSocket 訊息亂序到達時能正確排序處理
+
+**前置條件：**
+- WebSocket 連線已建立
+- 訊息包含 sequence 序號
+
+**輸入：**
+```typescript
+// 模擬訊息亂序到達
+const messages = [
+  {
+    type: 'progress',
+    value: 0.5,
+    timestamp: 1000,
+    sequence: 2  // 第二個訊息先到
+  },
+  {
+    type: 'progress',
+    value: 0.3,
+    timestamp: 500,
+    sequence: 1  // 第一個訊息後到
+  },
+  {
+    type: 'progress',
+    value: 0.7,
+    timestamp: 1500,
+    sequence: 3  // 第三個訊息
+  }
+]
+```
+
+**預期輸出：**
+- 日誌顯示順序為 30% → 50% → 70%
+- 不會因為亂序導致進度回退
+- 進度條始終顯示最新的數值
+
+**驗證點：**
+- [ ] 訊息按 sequence 排序
+- [ ] 日誌顯示順序正確
+- [ ] 進度不會倒退
+- [ ] UI 更新流暢無跳躍
+
+**測試程式碼骨架：**
+```typescript
+describe('ProgressPage - 測試 7：訊息順序測試', () => {
+  it('亂序到達的 WebSocket 訊息應正確排序', async () => {
+    render(<ProgressMonitorPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ws-status')).toHaveTextContent('已連線')
+    })
+
+    // 模擬訊息亂序到達
+    mockWebSocket.send({
+      type: 'progress',
+      value: 0.5,
+      timestamp: 1000,
+      sequence: 2
+    })
+
+    mockWebSocket.send({
+      type: 'progress',
+      value: 0.3,
+      timestamp: 500,
+      sequence: 1
+    })
+
+    mockWebSocket.send({
+      type: 'progress',
+      value: 0.7,
+      timestamp: 1500,
+      sequence: 3
+    })
+
+    // 等待訊息處理
+    await waitFor(() => {
+      const logs = screen.getAllByTestId('progress-log-item')
+      expect(logs).toHaveLength(3)
+    })
+
+    // 檢查顯示順序應按 sequence 排序
+    const logs = screen.getAllByTestId('progress-log-item')
+    expect(logs[0]).toHaveTextContent('30%')
+    expect(logs[1]).toHaveTextContent('50%')
+    expect(logs[2]).toHaveTextContent('70%')
+  })
+})
+```
+
+---
+
+### 後端整合測試
+
+#### 測試 8：Celery 任務進度應透過 WebSocket 即時推送到前端
+
+**目的：** 驗證 Celery 後台任務與 WebSocket 推送的完整整合流程
+
+**前置條件：**
+- Celery worker 正在運行
+- WebSocket 端點可用
+- Redis 作為訊息代理正常運作
+
+**流程：**
+1. 建立 WebSocket 連線
+2. 訂閱專案進度
+3. 觸發 Celery 任務 (`generate_video.delay()`)
+4. 監聽 WebSocket 訊息
+5. 驗證收到進度更新訊息
+6. 驗證最終收到完成訊息
+
+**驗證點：**
+- [ ] 收到至少一個進度訊息
+- [ ] 訊息包含 `processing` 狀態
+- [ ] 最後訊息為 `completed` 狀態
+- [ ] 進度數值單調遞增
+- [ ] WebSocket 推送延遲 < 1 秒
+
+**測試程式碼：**
+```python
+# test_celery_websocket_integration.py
+
+@pytest.mark.integration
+async def test_celery_task_progress_pushes_to_websocket():
+    """Celery 任務進度應透過 WebSocket 即時推送到前端"""
+
+    # 1. 建立 WebSocket 連線
+    async with websockets.connect('ws://localhost:8000/ws') as ws:
+
+        # 2. 訂閱專案進度
+        await ws.send(json.dumps({
+            'type': 'subscribe',
+            'project_id': 'test-project-123'
+        }))
+
+        # 3. 觸發 Celery 任務
+        task = generate_video.delay('test-project-123')
+
+        # 4. 應收到進度更新
+        messages = []
+        timeout = time.time() + 30  # 30 秒超時
+
+        while time.time() < timeout:
+            try:
+                msg = await asyncio.wait_for(ws.recv(), timeout=1)
+                data = json.loads(msg)
+                messages.append(data)
+
+                if data.get('status') == 'completed':
+                    break
+            except asyncio.TimeoutError:
+                continue
+
+        # 5. 驗證收到的訊息
+        assert len(messages) > 0, "應收到至少一個進度訊息"
+
+        # 應包含 processing 狀態
+        assert any(m['status'] == 'processing' for m in messages)
+
+        # 最後應為 completed
+        assert messages[-1]['status'] == 'completed'
+
+        # 進度應遞增
+        progresses = [m.get('progress', 0) for m in messages if 'progress' in m]
+        assert progresses == sorted(progresses), "進度應單調遞增"
+```
+
+---
+
+#### 測試 9：Celery 任務失敗應透過 WebSocket 通知前端
+
+**目的：** 驗證 Celery 任務失敗時能透過 WebSocket 正確通知前端
+
+**前置條件：**
+- Celery worker 正在運行
+- WebSocket 端點可用
+- 測試資料包含會導致失敗的專案
+
+**流程：**
+1. 建立 WebSocket 連線
+2. 訂閱無效專案 ID
+3. 觸發 Celery 任務
+4. 監聽 WebSocket 訊息
+5. 驗證收到失敗通知
+6. 驗證錯誤訊息包含有用資訊
+
+**驗證點：**
+- [ ] 收到 `failed` 狀態訊息
+- [ ] 訊息包含 `error` 欄位
+- [ ] 錯誤訊息清楚描述失敗原因
+- [ ] 失敗通知延遲 < 3 秒
+
+**測試程式碼：**
+```python
+@pytest.mark.integration
+async def test_celery_task_failure_notifies_websocket():
+    """Celery 任務失敗應透過 WebSocket 通知前端"""
+
+    async with websockets.connect('ws://localhost:8000/ws') as ws:
+        await ws.send(json.dumps({
+            'type': 'subscribe',
+            'project_id': 'invalid-project'  # 這會導致失敗
+        }))
+
+        # 觸發任務
+        task = generate_video.delay('invalid-project')
+
+        # 等待失敗訊息
+        timeout = time.time() + 30
+        failure_received = False
+
+        while time.time() < timeout:
+            try:
+                msg = await asyncio.wait_for(ws.recv(), timeout=1)
+                data = json.loads(msg)
+
+                if data.get('status') == 'failed':
+                    failure_received = True
+                    assert 'error' in data
+                    assert len(data['error']) > 0
+                    break
+            except asyncio.TimeoutError:
+                continue
+
+        assert failure_received, "應收到失敗通知"
+```
+
+---
+
 ### 整合測試
 
-#### 測試 6：完整生成流程
+#### 測試 10：完整生成流程
 
 **目的：** 驗證從開始到完成的整個流程
 
@@ -623,7 +926,7 @@ describe('ProgressPage - 測試 5：錯誤處理', () => {
 
 ### E2E 測試 (使用 Playwright)
 
-#### 測試 7：真實 WebSocket 連線與進度更新
+#### 測試 11：真實 WebSocket 連線與進度更新
 
 **目的：** 在真實環境中測試 WebSocket 連線
 
@@ -1578,28 +1881,38 @@ ProgressPage 載入
 3. 處理失敗狀態 UI
 4. 執行測試 5 → 通過 ✅
 
-#### 第 13 步：整合測試 (60 分鐘)
-1. 撰寫「測試 6：完整生成流程」
+#### 第 13 步：撰寫測試 6 & 7 - WebSocket 進階測試 (40 分鐘)
+1. 撰寫「測試 6：WebSocket 重連後訊息恢復」
+2. 撰寫「測試 7：訊息順序測試」
+3. 執行測試 → 失敗
+
+#### 第 14 步：實作 WebSocket 進階功能 (40 分鐘)
+1. 實作重連後訊息恢復機制
+2. 實作訊息序號排序邏輯
+3. 執行測試 6, 7 → 通過 ✅
+
+#### 第 15 步：整合測試 (60 分鐘)
+1. 撰寫「測試 8：完整生成流程」
 2. 模擬完整流程（從開始到完成）
 3. 執行測試 → 通過 ✅
 
-#### 第 14 步：響應式設計 (60 分鐘)
+#### 第 16 步：響應式設計 (60 分鐘)
 1. 添加響應式樣式 (桌面/平板/手機)
 2. 測試不同螢幕尺寸
 3. 調整佈局和字體大小
 
-#### 第 15 步：E2E 測試 (可選，60 分鐘)
+#### 第 17 步：E2E 測試 (可選，60 分鐘)
 1. 撰寫 Playwright 測試
 2. 測試真實 WebSocket 連線
 3. 驗證自動重連
 
-#### 第 16 步：優化與重構 (30 分鐘)
+#### 第 18 步：優化與重構 (30 分鐘)
 1. 檢查程式碼重複
 2. 提取共用邏輯
 3. 優化 WebSocket 效能
 4. 再次執行所有測試
 
-#### 第 17 步：檢查與文檔 (20 分鐘)
+#### 第 19 步：檢查與文檔 (20 分鐘)
 1. 檢查測試覆蓋率：`npm run test:coverage`
 2. 執行 linter：`npm run lint`
 3. 格式化程式碼：`npm run format`
@@ -1656,8 +1969,9 @@ ProgressPage 載入
 - [ ] 元件卸載時關閉連線
 
 #### 測試
-- [ ] 所有單元測試通過 (5 個測試)
-- [ ] 整合測試通過 (1 個測試)
+- [ ] 所有單元測試通過 (7 個測試)
+- [ ] 後端整合測試通過 (2 個測試: Celery-WebSocket)
+- [ ] 前端整合測試通過 (1 個測試: 完整生成流程)
 - [ ] E2E 測試通過 (可選，1 個測試)
 - [ ] 測試覆蓋率 > 85%
 
@@ -1685,21 +1999,24 @@ ProgressPage 載入
 
 - 閱讀與準備：10 分鐘
 - 建立骨架：30 分鐘
-- 撰寫測試：120 分鐘 (6 個測試)
+- 撰寫測試 1-5：120 分鐘
 - 實作頁面：60 分鐘
-- 實作 WebSocket：90 分鐘
+- 實作 WebSocket 基礎：90 分鐘
 - 實作 LogViewer：60 分鐘
 - 實作控制功能：60 分鐘
 - 實作錯誤處理：45 分鐘
-- 整合測試：60 分鐘
+- 撰寫測試 6-7 (WebSocket 進階)：40 分鐘
+- 實作 WebSocket 進階功能：40 分鐘
+- 後端整合測試 (測試 8-9: Celery-WebSocket)：45 分鐘
+- 前端整合測試 (測試 10: 完整生成流程)：60 分鐘
 - 響應式設計：60 分鐘
-- E2E 測試 (可選)：60 分鐘
+- E2E 測試 (測試 11, 可選)：60 分鐘
 - 優化與重構：30 分鐘
 - 檢查與文檔：20 分鐘
 
-**總計：約 11.9 小時** (含 E2E) 或 **約 11 小時** (不含 E2E)
+**總計：約 13.8 小時** (含 E2E) 或 **約 12.8 小時** (不含 E2E)
 
-(預留 1 小時 buffer = 12 小時)
+(預留 0.2 小時 buffer = 14 小時)
 
 ---
 
