@@ -182,22 +182,22 @@ class ImageGenerationService:
         self, descriptions: list[str], config: Optional[dict[str, Any]] = None
     ) -> list[Optional[bytes]]:
         """
-        批次生成圖片 (含 Fallback 策略)
+        批次生成圖片 (嚴格模式 - 不容許任何失敗)
 
-        Fallback 規則:
-        - 部分圖片失敗返回 None
-        - 計算成功率
-        - 成功率 < 80% 時拋出異常
+        失敗處理策略:
+        - 任何一張圖片失敗立即拋出異常
+        - 因為影片渲染需要所有圖片才能完成
+        - 缺少任何一張圖片會導致影片無法組成
 
         Args:
             descriptions: 圖片描述列表 (英文)
             config: 配置 (包含 style_modifiers, negative_prompt)
 
         Returns:
-            List[Optional[bytes]]: 圖片資料列表 (失敗的為 None)
+            List[bytes]: 圖片資料列表 (保證全部成功)
 
         Raises:
-            ImageGenerationFailureError: 成功率 < 80%
+            ImageGenerationFailureError: 任何圖片生成失敗
         """
         if config is None:
             config = {}
@@ -224,10 +224,12 @@ class ImageGenerationService:
             f"Image generation success rate: {success_rate:.2%} ({success_count}/{len(results)})"
         )
 
-        # 檢查成功率
-        if success_rate < 0.8:
+        # 嚴格檢查：必須 100% 成功
+        if success_rate < 1.0:
+            failed_count = len(results) - success_count
             raise ImageGenerationFailureError(
-                f"Image generation success rate too low: {success_rate:.2%}"
+                f"Image generation failed: {failed_count}/{len(results)} images failed. "
+                f"All images must be generated successfully for video rendering."
             )
 
         return results

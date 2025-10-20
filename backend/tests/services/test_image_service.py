@@ -135,8 +135,8 @@ async def test_parallel_image_generation():
 
 
 @pytest.mark.asyncio
-async def test_partial_failure_tolerance():
-    """測試 7: 部分失敗容忍"""
+async def test_partial_failure_should_fail():
+    """測試 7: 任何失敗都應該拋出異常 (嚴格模式)"""
     service = ImageGenerationService(api_key="test_key")
 
     call_count = 0
@@ -144,10 +144,41 @@ async def test_partial_failure_tolerance():
     async def mock_generate(*args, **kwargs):
         nonlocal call_count
         call_count += 1
-        # 第 3 和第 8 次調用失敗
-        if call_count in [3, 8]:
+        # 只有第 3 次調用失敗 (90% 成功率)
+        if call_count == 3:
             raise Exception("Mock failure")
         # 其他成功
+        img = Image.new('RGB', (10, 10), color='red')
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        return buffer.getvalue()
+
+    service.client.generate_image_with_retry = mock_generate
+
+    descriptions = [f"Image {i}" for i in range(10)]
+
+    # Act & Assert
+    # 即使只有 1 張失敗 (90% 成功率)，也應該拋出異常
+    with pytest.raises(ImageGenerationFailureError) as exc_info:
+        await service.generate_images_with_fallback(
+            descriptions=descriptions,
+            config={"style_modifiers": []}
+        )
+
+    # 驗證錯誤訊息
+    assert "1/10 images failed" in str(exc_info.value)
+    assert "All images must be generated successfully" in str(exc_info.value)
+
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_all_success_should_pass():
+    """測試 7a: 全部成功時正常返回"""
+    service = ImageGenerationService(api_key="test_key")
+
+    async def mock_generate(*args, **kwargs):
+        # 全部成功
         img = Image.new('RGB', (10, 10), color='red')
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
@@ -165,18 +196,15 @@ async def test_partial_failure_tolerance():
 
     # Assert
     assert len(results) == 10
-    assert results[2] is None  # 第 3 個失敗
-    assert results[7] is None  # 第 8 個失敗
-    success_count = sum(1 for r in results if r is not None)
-    assert success_count == 8  # 80% 成功率
-    # 不應拋出異常 (因為成功率 >= 80%)
+    assert all(isinstance(r, bytes) for r in results)
+    assert all(r is not None for r in results)
 
     await service.close()
 
 
 @pytest.mark.asyncio
-async def test_failure_rate_too_high():
-    """測試 7: 失敗率過高時拋出異常"""
+async def test_multiple_failures_should_fail():
+    """測試 7b: 多張失敗時拋出異常"""
     service = ImageGenerationService(api_key="test_key")
 
     call_count = 0
@@ -204,6 +232,8 @@ async def test_failure_rate_too_high():
             config={"style_modifiers": []}
         )
 
-    assert "success rate too low" in str(exc_info.value)
+    # 驗證錯誤訊息
+    assert "3/10 images failed" in str(exc_info.value)
+    assert "All images must be generated successfully" in str(exc_info.value)
 
     await service.close()
