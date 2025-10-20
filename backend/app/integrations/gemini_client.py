@@ -19,9 +19,53 @@ class GeminiClient:
     Google Gemini API 客戶端
 
     支援模型：
-    - gemini-1.5-pro (更高品質，較慢)
-    - gemini-1.5-flash (較快速，成本較低)
+    - gemini-2.5-flash (快速，成本低)
+    - gemini-2.5-pro (高品質，較慢)
+    - 其他可用模型可透過 list_models() 查詢
     """
+
+    @staticmethod
+    def list_models(api_key: str) -> list[dict[str, Any]]:
+        """
+        列出所有可用的 Gemini 模型
+
+        Args:
+            api_key: Gemini API Key
+
+        Returns:
+            模型列表，每個模型包含：
+            - name: 模型名稱 (例如 "models/gemini-2.5-flash")
+            - display_name: 顯示名稱
+            - description: 模型描述
+            - supported_generation_methods: 支援的生成方法
+
+        Example:
+            >>> models = GeminiClient.list_models(api_key="your-key")
+            >>> [m['name'] for m in models]
+            ['models/gemini-2.5-flash', 'models/gemini-2.5-pro', ...]
+        """
+        genai.configure(api_key=api_key)
+
+        try:
+            models = []
+            for model in genai.list_models():
+                # 只包含支援 generateContent 的模型
+                if "generateContent" in model.supported_generation_methods:
+                    models.append(
+                        {
+                            "name": model.name,
+                            "display_name": model.display_name,
+                            "description": model.description,
+                            "supported_generation_methods": model.supported_generation_methods,
+                        }
+                    )
+
+            logger.info(f"Listed {len(models)} available Gemini models")
+            return models
+
+        except Exception as e:
+            logger.error(f"Failed to list Gemini models: {e}")
+            raise GeminiAPIError(f"無法列出 Gemini 模型：{str(e)}") from e
 
     def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
         """

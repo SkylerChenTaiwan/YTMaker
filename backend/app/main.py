@@ -6,7 +6,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import batch, configurations, health, projects, prompt_templates, stats, system, youtube
+from app.api.v1 import (
+    batch,
+    configurations,
+    gemini,
+    health,
+    projects,
+    prompt_templates,
+    stats,
+    system,
+    youtube,
+)
 from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
@@ -134,6 +144,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(health.router, tags=["health"])
 app.include_router(projects.router, prefix="/api/v1", tags=["projects"])
 app.include_router(system.router, prefix="/api/v1", tags=["system"])
+app.include_router(gemini.router, prefix="/api/v1", tags=["gemini"])
 app.include_router(youtube.router, prefix="/api/v1", tags=["youtube"])
 app.include_router(batch.router, prefix="/api/v1", tags=["batch"])
 app.include_router(stats.router, prefix="/api/v1")

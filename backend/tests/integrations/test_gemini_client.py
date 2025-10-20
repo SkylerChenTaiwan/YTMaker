@@ -158,3 +158,53 @@ async def test_generate_script_500_server_error_max_retries():
         # 執行並驗證拋出錯誤
         with pytest.raises(GeminiAPIError):
             await gemini_client.generate_script(prompt="Test prompt")
+
+
+def test_list_models_success():
+    """測試 10：成功列出可用的 Gemini 模型"""
+    with patch('app.integrations.gemini_client.genai') as mock_genai:
+        # Mock genai.list_models()
+        mock_model_1 = Mock()
+        mock_model_1.name = "models/gemini-2.5-flash"
+        mock_model_1.display_name = "Gemini 2.5 Flash"
+        mock_model_1.description = "Fast and versatile model"
+        mock_model_1.supported_generation_methods = ["generateContent"]
+
+        mock_model_2 = Mock()
+        mock_model_2.name = "models/gemini-2.5-pro"
+        mock_model_2.display_name = "Gemini 2.5 Pro"
+        mock_model_2.description = "High quality model"
+        mock_model_2.supported_generation_methods = ["generateContent"]
+
+        mock_model_3 = Mock()
+        mock_model_3.name = "models/embedding-001"
+        mock_model_3.display_name = "Embedding Model"
+        mock_model_3.description = "Text embedding"
+        mock_model_3.supported_generation_methods = ["embedContent"]  # 不支援 generateContent
+
+        mock_genai.configure = Mock()
+        mock_genai.list_models.return_value = [mock_model_1, mock_model_2, mock_model_3]
+
+        # 執行
+        models = GeminiClient.list_models(api_key="test-api-key")
+
+        # 驗證
+        assert len(models) == 2  # 只包含支援 generateContent 的模型
+        assert models[0]["name"] == "models/gemini-2.5-flash"
+        assert models[0]["display_name"] == "Gemini 2.5 Flash"
+        assert models[1]["name"] == "models/gemini-2.5-pro"
+        assert "generateContent" in models[0]["supported_generation_methods"]
+
+
+def test_list_models_api_error():
+    """測試 11：list_models() API 錯誤處理"""
+    with patch('app.integrations.gemini_client.genai') as mock_genai:
+        # Mock API 錯誤
+        mock_genai.configure = Mock()
+        mock_genai.list_models.side_effect = Exception("API error")
+
+        # 執行並驗證拋出錯誤
+        with pytest.raises(GeminiAPIError) as exc_info:
+            GeminiClient.list_models(api_key="invalid-key")
+
+        assert "無法列出 Gemini 模型" in str(exc_info.value)
