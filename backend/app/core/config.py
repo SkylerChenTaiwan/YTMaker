@@ -4,22 +4,28 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """應用配置"""
 
-    # 環境
-    ENV: str = "development"
-    DEBUG: bool = True
+    # 應用基本配置
+    APP_NAME: str = "YTMaker"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = False
 
-    # API
+    # API 配置
     API_V1_PREFIX: str = "/api/v1"
-    PORT: int = 8000
 
-    # 資料庫
-    DATABASE_URL: str = "sqlite:///./data/database.db"
+    # CORS 配置
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
+    # 資料庫配置
+    DATABASE_URL: str = "sqlite:///./ytmaker.db"
 
-    # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # Redis 配置
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
+    # 日誌配置
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "logs/app.log"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
