@@ -65,9 +65,21 @@ class Project(Base, TimestampMixin):
     # Generated Content
     script: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
+    # Batch Task Relationship
+    batch_task_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("batch_tasks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Error Information
+    error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     # Relationships
     assets = relationship("Asset", back_populates="project", cascade="all, delete-orphan")
     prompt_template = relationship("PromptTemplate", back_populates="projects")
+    batch_task = relationship("BatchTask", back_populates="projects")
 
     # Indexes (defined in Alembic migration)
     # - idx_status on status

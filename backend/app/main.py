@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import health
+from app.api.v1 import batch, health
 from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
@@ -132,6 +132,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # 註冊路由
 app.include_router(health.router, tags=["health"])
+app.include_router(batch.router, prefix="/api/v1", tags=["batch"])
 
 
 # 根路徑

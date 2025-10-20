@@ -28,8 +28,8 @@ async def create_batch_task(
     - **youtube_settings**: YouTube 設定（選填）
     """
     batch_service = BatchService(db)
-    batch_task = await batch_service.create_batch_task(data)
-    return {"success": True, "data": batch_task}
+    result = await batch_service.create_batch_task(data)
+    return result
 
 
 @router.get("", response_model=dict)
@@ -42,8 +42,8 @@ async def list_batch_tasks(
     按建立時間降序排列
     """
     batch_service = BatchService(db)
-    batches = await batch_service.list_batch_tasks()
-    return {"success": True, "data": {"batches": batches}}
+    result = await batch_service.list_batch_tasks()
+    return result
 
 
 @router.get("/{batch_id}", response_model=dict)
@@ -57,9 +57,9 @@ async def get_batch_task(
     包含所有專案的狀態和進度
     """
     batch_service = BatchService(db)
-    batch_task = await batch_service.get_batch_task(batch_id)
+    result = await batch_service.get_batch_task(batch_id)
 
-    if not batch_task:
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -68,7 +68,7 @@ async def get_batch_task(
             },
         )
 
-    return {"success": True, "data": batch_task}
+    return result
 
 
 @router.post("/{batch_id}/pause", response_model=MessageResponse, status_code=status.HTTP_200_OK)

@@ -68,3 +68,13 @@ class DetailedHealthStatus(BaseModel):
     status: str = Field(..., description="整體健康狀態")
     services: dict[str, ServiceStatus] = Field(..., description="各服務狀態")
     timestamp: datetime = Field(..., description="檢查時間")
+
+
+class MessageResponse(BaseModel):
+    """簡單訊息回應"""
+
+    success: bool = Field(default=True, description="是否成功")
+    message: str = Field(..., description="訊息內容")
+
+    class Config:
+        json_schema_extra = {"example": {"success": True, "message": "操作成功"}}
