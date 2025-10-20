@@ -33,12 +33,31 @@ def mock_settings():
         yield mock_settings
 
 
+def override_get_db():
+    """Override database dependency for testing"""
+    # 強制導入所有模型，確保 Base.metadata 包含所有表定義
+    import app.models.asset
+    import app.models.batch_task
+    import app.models.configuration
+    import app.models.project
+    import app.models.prompt_template
+    import app.models.system_settings
+    import app.models.youtube_account
+
+    Base.metadata.create_all(bind=engine)
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+
+app.dependency_overrides[get_db] = override_get_db
+
+
 @pytest.fixture(scope="function")
 def db_session():
     """建立測試資料庫 session"""
-    # 強制創建所有表
-    from app.models import __all__  # 確保所有模型都被導入
-
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
