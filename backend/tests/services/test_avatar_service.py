@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.services.avatar_service import AvatarGenerationService
 from app.integrations.did_client import QuotaExceededError, DIDAPIError
+from app.models.asset import AssetType
 
 
 @pytest.fixture
@@ -125,3 +126,135 @@ async def test_api_error_raises_error(avatar_service, mock_did_client):
                 )
 
             assert "api error" in str(exc_info.value).lower()
+
+
+# 測試 9: 完整虛擬主播生成流程(成功)
+@pytest.mark.asyncio
+async def test_full_avatar_generation_success(mock_db_session):
+    """
+    驗證完整的虛擬主播生成流程 - 成功案例
+    這是最重要的測試,覆蓋 generate_avatar_video 的主流程
+    """
+    # Arrange
+    with patch("app.services.avatar_service.settings") as mock_settings:
+        mock_settings.DID_API_KEY = "test_key"
+        mock_settings.STORAGE_PATH = "/tmp/test_storage"
+
+        service = AvatarGenerationService(db=mock_db_session)
+
+        project_id = 123
+        audio_path = "/path/to/audio.mp3"
+        segment_type = "intro"
+
+        # Mock 所有依賴
+        with patch.object(service, "_get_audio_duration", return_value=15.0):
+            with patch.object(service, "_get_video_duration", return_value=15.2):
+                with patch.object(service.storage, "upload_temporary", new_callable=AsyncMock) as mock_upload:
+                    with patch.object(service.storage, "delete_temporary", new_callable=AsyncMock) as mock_delete:
+                        with patch.object(service.storage, "save_asset", return_value="/fake/path/avatar_intro.mp4"):
+                            # Mock DIDClient
+                            service.did_client.can_generate_avatar = AsyncMock(return_value=True)
+                            service.did_client.create_talk = AsyncMock(return_value="talk_abc123")
+                            service.did_client.get_talk_status = AsyncMock(return_value={
+                                "status": "done",
+                                "result_url": "https://example.com/video.mp4",
+                                "duration": 15.2
+                            })
+                            service.did_client.download_video = AsyncMock(return_value=b"fake_video_data")
+
+                            mock_upload.return_value = "https://example.com/audio.mp3"
+
+                            # Act
+                            asset = await service.generate_avatar_video(
+                                project_id=project_id,
+                                audio_file_path=audio_path,
+                                segment_type=segment_type
+                            )
+
+                            # Assert
+                            # 驗證調用順序
+                            service.did_client.can_generate_avatar.assert_called_once_with(estimated_duration=15)
+                            mock_upload.assert_called_once_with(audio_path)
+                            service.did_client.create_talk.assert_called_once()
+                            service.did_client.get_talk_status.assert_called_once_with("talk_abc123")
+                            service.did_client.download_video.assert_called_once()
+                            mock_delete.assert_called_once()
+
+                            # 驗證 Asset
+                            assert asset.project_id == project_id
+                            assert asset.type == AssetType.AVATAR_INTRO
+                            assert asset.file_path == "/fake/path/avatar_intro.mp4"
+                            assert asset.extra_info["duration"] == 15.2
+                            assert asset.extra_info["talk_id"] == "talk_abc123"
+                            assert asset.extra_info["validation"]["is_valid"] is True
+
+                            # 驗證資料庫操作
+                            mock_db_session.add.assert_called_once_with(asset)
+                            mock_db_session.commit.assert_called_once()
+                            mock_db_session.refresh.assert_called_once_with(asset)
+
+
+# 測試: API Key 未配置時拋出異常
+def test_init_without_api_key(mock_db_session):
+    """
+    驗證當 D-ID API Key 未配置時,初始化拋出 ValueError
+    """
+    with patch("app.services.avatar_service.settings") as mock_settings:
+        mock_settings.DID_API_KEY = ""  # 空字串
+
+        # Act & Assert
+        with pytest.raises(ValueError) as exc_info:
+            AvatarGenerationService(db=mock_db_session)
+
+        assert "not configured" in str(exc_info.value).lower()
+
+
+# 測試: 時長驗證失敗但仍接受(warning log)
+@pytest.mark.asyncio
+async def test_duration_validation_warning(mock_db_session):
+    """
+    驗證當影片時長誤差 >= 5% 時,記錄 warning 但仍接受
+    """
+    with patch("app.services.avatar_service.settings") as mock_settings:
+        mock_settings.DID_API_KEY = "test_key"
+        mock_settings.STORAGE_PATH = "/tmp/test_storage"
+
+        service = AvatarGenerationService(db=mock_db_session)
+
+        project_id = 123
+        audio_path = "/path/to/audio.mp3"
+        segment_type = "intro"
+
+        # Mock 所有依賴
+        with patch.object(service, "_get_audio_duration", return_value=15.0):
+            with patch.object(service, "_get_video_duration", return_value=20.0):  # 誤差 33%
+                with patch.object(service.storage, "upload_temporary", new_callable=AsyncMock) as mock_upload:
+                    with patch.object(service.storage, "delete_temporary", new_callable=AsyncMock):
+                        with patch.object(service.storage, "save_asset", return_value="/fake/path/avatar_intro.mp4"):
+                            # Mock DIDClient
+                            service.did_client.can_generate_avatar = AsyncMock(return_value=True)
+                            service.did_client.create_talk = AsyncMock(return_value="talk_abc123")
+                            service.did_client.get_talk_status = AsyncMock(return_value={
+                                "status": "done",
+                                "result_url": "https://example.com/video.mp4",
+                                "duration": 20.0
+                            })
+                            service.did_client.download_video = AsyncMock(return_value=b"fake_video_data")
+                            mock_upload.return_value = "https://example.com/audio.mp3"
+
+                            # Act
+                            with patch("app.services.avatar_service.logger") as mock_logger:
+                                asset = await service.generate_avatar_video(
+                                    project_id=project_id,
+                                    audio_file_path=audio_path,
+                                    segment_type=segment_type
+                                )
+
+                                # Assert - 驗證記錄了 warning
+                                mock_logger.warning.assert_called_once()
+                                warning_call = mock_logger.warning.call_args[0][0]
+                                assert "duration mismatch" in warning_call.lower()
+
+                                # 驗證 Asset 仍然被建立
+                                assert asset.extra_info["validation"]["is_valid"] is False
+                                assert asset.extra_info["validation"]["error_rate"] > 0.05

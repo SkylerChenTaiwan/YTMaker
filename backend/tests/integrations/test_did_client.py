@@ -1,4 +1,5 @@
 import pytest
+import httpx
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.integrations.did_client import (
     DIDClient,
@@ -198,3 +199,68 @@ async def test_download_video(did_client, mock_httpx_client):
     # Assert
     assert result == video_data
     mock_client_instance.get.assert_called_once()
+
+
+# 測試: 輪詢超時
+@pytest.mark.asyncio
+async def test_poll_timeout():
+    """
+    驗證當輪詢超時時,拋出 TimeoutError
+    """
+    with patch("app.integrations.did_client.httpx.AsyncClient") as mock_httpx:
+        did_client = DIDClient(api_key="test_api_key")
+        talk_id = "talk_abc123"
+
+        # Mock 一直返回 "started" 狀態
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": talk_id,
+            "status": "started"
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.get = AsyncMock(return_value=mock_response)
+        mock_httpx.return_value.__aenter__.return_value = mock_client_instance
+
+        # Mock asyncio.sleep 和時間
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            with patch("asyncio.get_event_loop") as mock_loop:
+                # 模擬時間流逝
+                mock_loop.return_value.time.side_effect = [0, 650]  # 超過 600 秒
+
+                # Act & Assert
+                with pytest.raises(TimeoutError) as exc_info:
+                    await did_client.get_talk_status(talk_id, max_wait_time=600)
+
+                assert "timeout" in str(exc_info.value).lower()
+
+
+# 測試: HTTP 錯誤處理
+@pytest.mark.asyncio
+async def test_create_talk_http_error():
+    """
+    驗證當 API 返回 HTTP 錯誤時,正確處理
+    """
+    with patch("app.integrations.did_client.httpx.AsyncClient") as mock_httpx:
+        did_client = DIDClient(api_key="test_api_key")
+
+        # Mock HTTP 錯誤
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(return_value=mock_response)
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "500 Internal Server Error",
+            request=MagicMock(),
+            response=mock_response
+        )
+        mock_httpx.return_value.__aenter__.return_value = mock_client_instance
+
+        # Act & Assert
+        with pytest.raises(DIDAPIError) as exc_info:
+            await did_client.create_talk("https://example.com/audio.mp3")
+
+        assert "500" in str(exc_info.value)

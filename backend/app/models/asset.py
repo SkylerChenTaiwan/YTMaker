@@ -2,10 +2,10 @@
 Asset model - represents a media asset (audio, image, avatar, thumbnail, video).
 """
 import enum
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -56,6 +56,9 @@ class Asset(Base, TimestampMixin):
 
     # Optional: segment index for images (0, 1, 2, ...)
     segment_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Optional: extra_info for storing additional info (duration, validation, etc.)
+    extra_info: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Relationships
     project = relationship("Project", back_populates="assets")

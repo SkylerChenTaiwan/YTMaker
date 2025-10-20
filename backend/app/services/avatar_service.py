@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.storage import StorageService
 from app.integrations.did_client import DIDClient
-from app.models.asset import Asset
+from app.models.asset import Asset, AssetType
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +104,12 @@ class AvatarGenerationService:
                 # 這裡選擇接受但記錄警告
 
             # 9. 建立 Asset 記錄
+            asset_type = AssetType.AVATAR_INTRO if segment_type == "intro" else AssetType.AVATAR_OUTRO
             asset = Asset(
                 project_id=project_id,
-                asset_type=f"avatar_{segment_type}",
+                type=asset_type,
                 file_path=video_path,
-                metadata={
+                extra_info={
                     "duration": video_duration,
                     "talk_id": talk_id,
                     "validation": validation_result,
