@@ -272,6 +272,9 @@ class VideoRenderService:
         if "overlays" in segment_config:
             merged["overlays"] = segment_config["overlays"]
 
+        if "ken_burns_effect" in segment_config:
+            merged["ken_burns_effect"] = segment_config["ken_burns_effect"]
+
         return merged
 
     def _execute_ffmpeg(self, command: List[str]) -> None:
