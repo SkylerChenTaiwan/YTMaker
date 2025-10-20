@@ -108,3 +108,104 @@ describe('Error Handling - 500 with Retry', () => {
     expect(result).toEqual([{ id: '1' }])
   }, 10000) // Increase timeout for retries
 })
+
+describe('Error Handling - Various Status Codes', () => {
+  afterEach(() => {
+    mock.reset()
+  })
+
+  it('should handle 401 Unauthorized', async () => {
+    mock.onGet('/projects').reply(401, {
+      error: { message: 'Unauthorized' },
+    })
+
+    await expect(apiClient.get('/projects')).rejects.toThrow()
+  })
+
+  it('should handle 403 Forbidden', async () => {
+    mock.onGet('/projects').reply(403, {
+      error: { message: 'Forbidden' },
+    })
+
+    await expect(apiClient.get('/projects')).rejects.toThrow()
+  })
+
+  it('should handle 404 Not Found', async () => {
+    mock.onGet('/projects/999').reply(404, {
+      error: { message: 'Not Found' },
+    })
+
+    await expect(apiClient.get('/projects/999')).rejects.toThrow()
+  })
+
+  it('should handle 409 Conflict', async () => {
+    mock.onPost('/projects').reply(409, {
+      error: { message: 'Conflict' },
+    })
+
+    await expect(apiClient.post('/projects', {})).rejects.toThrow()
+  })
+
+  it('should handle 422 Validation Error', async () => {
+    mock.onPost('/projects').reply(422, {
+      error: { message: 'Validation failed' },
+    })
+
+    await expect(apiClient.post('/projects', {})).rejects.toThrow()
+  })
+
+  it('should handle 503 Service Unavailable', async () => {
+    mock.onGet('/projects').reply(503, {
+      error: { message: 'Service Unavailable' },
+    })
+
+    await expect(apiClient.get('/projects')).rejects.toThrow()
+  })
+
+  it('should handle unknown status codes', async () => {
+    mock.onGet('/projects').reply(418, {
+      error: { message: "I'm a teapot" },
+    })
+
+    await expect(apiClient.get('/projects')).rejects.toThrow()
+  })
+})
+
+describe('Error Handling - Network and Other Errors', () => {
+  afterEach(() => {
+    mock.reset()
+  })
+
+  it('should handle network errors', async () => {
+    mock.onGet('/projects').networkError()
+
+    await expect(apiClient.get('/projects')).rejects.toThrow()
+  })
+
+  it('should handle timeout errors', async () => {
+    mock.onGet('/projects').timeout()
+
+    await expect(apiClient.get('/projects')).rejects.toThrow()
+  })
+})
+
+describe('Request Interceptor - Error Handling', () => {
+  afterEach(() => {
+    mock.reset()
+  })
+
+  it('should handle request interceptor errors', async () => {
+    // Add a failing request interceptor
+    const interceptorId = apiClient.interceptors.request.use(
+      () => {
+        throw new Error('Request interceptor error')
+      },
+      (error) => Promise.reject(error)
+    )
+
+    await expect(apiClient.get('/projects')).rejects.toThrow('Request interceptor error')
+
+    // Clean up
+    apiClient.interceptors.request.eject(interceptorId)
+  })
+})

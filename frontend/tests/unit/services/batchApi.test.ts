@@ -71,4 +71,75 @@ describe('Batch API', () => {
       expect(mock.history.post.length).toBe(1)
     })
   })
+
+  describe('createBatchTask', () => {
+    it('should create batch task with FormData', async () => {
+      const mockFile1 = new File(['content1'], 'file1.txt', { type: 'text/plain' })
+      const mockFile2 = new File(['content2'], 'file2.txt', { type: 'text/plain' })
+
+      const batchData = {
+        task_name: 'Test Batch',
+        files: [mockFile1, mockFile2],
+        template_id: 'template-1',
+        prompt_template_id: 'prompt-1',
+        gemini_model: 'gemini-1.5-pro' as const,
+        youtube_config: {
+          title: 'Test',
+          description: 'Test',
+          tags: ['test'],
+          privacy: 'public' as const,
+          publish_type: 'immediate' as const,
+          ai_content_flag: true,
+        },
+      }
+
+      mock.onPost('/batch').reply(201, {
+        id: 'batch-123',
+        task_name: 'Test Batch',
+        project_count: 2,
+        status: 'QUEUED',
+        success_count: 0,
+        failed_count: 0,
+        created_at: '2025-10-21',
+      })
+
+      const result = await batchApi.createBatchTask(batchData)
+
+      expect(result.id).toBe('batch-123')
+      expect(result.task_name).toBe('Test Batch')
+      expect(mock.history.post.length).toBe(1)
+    })
+
+    it('should create batch task without optional fields', async () => {
+      const mockFile = new File(['content'], 'file.txt', { type: 'text/plain' })
+
+      const batchData = {
+        task_name: 'Test Batch',
+        files: [mockFile],
+        gemini_model: 'gemini-1.5-flash' as const,
+        youtube_config: {
+          title: 'Test',
+          description: 'Test',
+          tags: ['test'],
+          privacy: 'unlisted' as const,
+          publish_type: 'immediate' as const,
+          ai_content_flag: false,
+        },
+      }
+
+      mock.onPost('/batch').reply(201, {
+        id: 'batch-456',
+        task_name: 'Test Batch',
+        project_count: 1,
+        status: 'QUEUED',
+        success_count: 0,
+        failed_count: 0,
+        created_at: '2025-10-21',
+      })
+
+      const result = await batchApi.createBatchTask(batchData)
+
+      expect(result.id).toBe('batch-456')
+    })
+  })
 })
