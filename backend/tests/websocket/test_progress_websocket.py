@@ -3,6 +3,7 @@ import asyncio
 import json
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 
 
@@ -11,6 +12,7 @@ class TestWebSocketConnection:
 
     def test_websocket_connection(self, test_client, test_project_id):
         """測試成功建立 WebSocket 連線"""
+        # 使用較短的超時時間
         with test_client.websocket_connect(
             f"/api/v1/projects/{test_project_id}/progress"
         ) as websocket:

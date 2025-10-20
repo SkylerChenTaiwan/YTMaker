@@ -70,16 +70,112 @@ manager = ConnectionManager()
 @router.websocket("/projects/{project_id}/progress")
 async def progress_websocket(websocket: WebSocket, project_id: str):
     """
-    WebSocket 端點:即時推送專案生成進度
+    WebSocket 端點: 即時推送專案生成進度
 
-    參數:
-    - project_id: 專案 ID
+    ## 連線方式
+    ```javascript
+    const ws = new WebSocket('ws://localhost:8000/api/v1/projects/1/progress');
+    ```
 
-    訊息格式:
+    ## 訊息格式
+
+    ### 連線成功
+    ```json
     {
-      "event": "progress_update" | "stage_change" | "log" | "error" | "complete" | "ping",
-      "data": { ... }
+      "event": "connected",
+      "data": {
+        "project_id": "1",
+        "timestamp": "2025-10-21T10:00:00Z"
+      }
     }
+    ```
+
+    ### 進度更新
+    ```json
+    {
+      "event": "progress_update",
+      "data": {
+        "status": "SCRIPT_GENERATING",
+        "progress": 20,
+        "current_stage": "正在生成腳本...",
+        "estimated_remaining": 600,
+        "timestamp": "2025-10-21T10:00:00Z"
+      }
+    }
+    ```
+
+    ### 階段變化
+    ```json
+    {
+      "event": "stage_change",
+      "data": {
+        "previous_stage": "SCRIPT_GENERATING",
+        "current_stage": "ASSETS_GENERATING",
+        "progress": 25,
+        "timestamp": "2025-10-21T10:00:00Z"
+      }
+    }
+    ```
+
+    ### 日誌訊息
+    ```json
+    {
+      "event": "log",
+      "data": {
+        "level": "INFO",
+        "message": "開始生成圖片...",
+        "timestamp": "2025-10-21T10:00:00Z"
+      }
+    }
+    ```
+
+    ### 錯誤訊息
+    ```json
+    {
+      "type": "error",
+      "project_id": "1",
+      "error": {
+        "code": "GEMINI_QUOTA_EXCEEDED",
+        "message": "Gemini API 配額已用盡",
+        "stage": "SCRIPT_GENERATING",
+        "is_retryable": false,
+        "details": {...},
+        "solutions": ["等待配額重置", "升級方案"],
+        "timestamp": "2025-10-21T10:00:00Z"
+      }
+    }
+    ```
+
+    ### 完成訊息
+    ```json
+    {
+      "event": "complete",
+      "data": {
+        "status": "COMPLETED",
+        "youtube_url": "https://youtube.com/watch?v=...",
+        "timestamp": "2025-10-21T10:00:00Z"
+      }
+    }
+    ```
+
+    ### 心跳檢測
+    伺服器每 30 秒發送 ping，客戶端應回應 pong：
+    ```json
+    // Server → Client
+    {"event": "ping", "data": {"timestamp": "..."}}
+
+    // Client → Server
+    {"event": "pong"}
+    ```
+
+    ## 參數
+    - **project_id** (path): 專案 ID
+
+    ## 注意事項
+    - 支援多客戶端同時連線
+    - 心跳機制：30秒 ping, 60秒無回應則斷線
+    - 自動清理斷線連線
+    - 所有訊息使用 JSON 格式
     """
 
     # 建立連線

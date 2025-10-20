@@ -93,7 +93,7 @@ class ProgressService:
             },
         }
 
-        redis = await get_async_redis()
+        redis = get_async_redis()
         await redis.publish(f"progress:{project_id}", json.dumps(log_message))
 
         logger.log(getattr(logging, level), f"[Project {project_id}] {message}")
