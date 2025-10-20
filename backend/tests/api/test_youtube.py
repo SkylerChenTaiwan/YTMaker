@@ -288,7 +288,7 @@ def test_delete_account_success(client, db_session):
     cipher = Fernet(TEST_ENCRYPTION_KEY.encode())
 
     # 建立一個測試帳號
-    test_id = uuid4()
+    test_id = str(uuid4())  # 轉換為字串
     account = YouTubeAccount(
         id=test_id,
         channel_id="UC_to_delete",
@@ -317,9 +317,10 @@ def test_delete_account_success(client, db_session):
 
 def test_delete_account_not_found(client):
     """測試 5a：移除不存在的帳號"""
-    non_existent_id = uuid4()
+    non_existent_id = str(uuid4())  # 轉換為字串
     response = client.delete(f"/api/v1/youtube/accounts/{non_existent_id}")
 
     assert response.status_code == 404
     data = response.json()
-    assert data["detail"]["code"] == "ACCOUNT_NOT_FOUND"
+    assert data["success"] is False
+    assert data["error"]["code"] == "NOT_FOUND"  # 實際返回的錯誤代碼

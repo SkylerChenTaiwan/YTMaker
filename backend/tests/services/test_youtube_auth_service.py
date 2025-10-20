@@ -76,7 +76,7 @@ def test_refresh_access_token(mock_post, youtube_service):
 def test_get_valid_credentials_with_expired_token(mock_post, youtube_service, db_session):
     """測試 Token 過期時自動更新"""
     # 建立一個 token 已過期的帳號
-    test_id = uuid4()
+    test_id = str(uuid4())  # 轉換為字串
     cipher = youtube_service.cipher
 
     account = YouTubeAccount(
@@ -100,7 +100,7 @@ def test_get_valid_credentials_with_expired_token(mock_post, youtube_service, db
     mock_post.return_value = mock_response
 
     # 取得有效 credentials
-    credentials = youtube_service.get_valid_credentials(str(test_id), db_session)
+    credentials = youtube_service.get_valid_credentials(test_id, db_session)
 
     # 驗證 credentials
     assert credentials.token == "new-access-token"
@@ -115,7 +115,7 @@ def test_get_valid_credentials_with_expired_token(mock_post, youtube_service, db
 
 def test_get_valid_credentials_with_valid_token(youtube_service, db_session):
     """測試 Token 未過期時直接使用"""
-    test_id = uuid4()
+    test_id = str(uuid4())  # 轉換為字串
     cipher = youtube_service.cipher
 
     account = YouTubeAccount(
@@ -133,7 +133,7 @@ def test_get_valid_credentials_with_valid_token(youtube_service, db_session):
     db_session.commit()
 
     # 取得有效 credentials
-    credentials = youtube_service.get_valid_credentials(str(test_id), db_session)
+    credentials = youtube_service.get_valid_credentials(test_id, db_session)
 
     # 驗證 credentials
     assert credentials.token == "valid-access-token"
