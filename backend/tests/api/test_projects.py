@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.core.database import get_db
+from app.main import app
 from app.models.base import Base
 
 # Setup test database
@@ -41,9 +41,8 @@ def setup_database():
 # Helper function to create valid content
 def valid_content():
     """Generate valid content (>500 chars)"""
-    return "這是測試內容。" * 70  # 7 chars * 70 = 490, need more
-    # Actually: 7 chars (這是測試內容) + 1 char (。) = 8 chars
-    # 8 * 70 = 560 chars (>500) ✓
+    # "這是測試內容。" = 7 chars, * 75 = 525 chars (>500) ✓
+    return "這是測試內容。" * 75
 
 
 # ===== Test 1-2: Create Project =====
