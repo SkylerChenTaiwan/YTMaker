@@ -234,12 +234,25 @@ def retry_with_backoff(func, max_retries=3, delays=[2, 5, 10]):
                 raise
 ```
 
-#### 3.6.2 降級策略
+#### 3.6.2 錯誤處理策略（嚴格模式）
 
-**虛擬主播失敗：**
-- 跳過虛擬主播
-- 使用純音訊 + 圖片
+> **重要：** 採用「失敗零容忍」策略，不使用自動降級。所有錯誤都必須明確記錄並通知用戶。
 
-**部分圖片失敗：**
-- 標記失敗圖片
-- 提供選項：使用佔位圖 / 移除該段落
+**虛擬主播生成失敗：**
+- ❌ **不再自動跳過或降級**
+- ✅ 拋出 `AvatarGenerationError`，包含詳細錯誤碼和原因
+- ✅ 更新專案狀態為 `FAILED`
+- ✅ 在 `Project.error_info` 記錄錯誤詳情
+- ✅ 透過 WebSocket 通知前端（包含錯誤碼、是否可重試、解決方案）
+- ✅ 記錄結構化日誌（包含 trace_id）
+
+**圖片生成失敗：**
+- ✅ 記錄每張失敗圖片及其錯誤碼
+- ✅ 如果失敗率 < 20%，標記為部分成功，繼續流程，但在前端顯示警告
+- ✅ 如果失敗率 >= 20%，整個任務失敗，拋出 `ImageGenerationError`
+- ✅ 前端顯示哪些圖片失敗及原因
+
+**參考規範：**
+- 錯誤碼定義：`tech-specs/backend/error-codes.md`
+- 日誌規範：`tech-specs/backend/logging.md`
+- 監控規範：`tech-specs/backend/monitoring.md`

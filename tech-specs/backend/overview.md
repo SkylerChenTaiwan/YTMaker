@@ -245,11 +245,33 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 ## 7. 日誌架構
 
-**日誌配置:**
-- **位置:** `logs/app.log`
-- **等級:** INFO (生產), DEBUG (開發)
-- **輪替:** 每日輪替，保留 30 天
-- **格式:** `[時間] [等級] [模組] - 訊息`
+> **重要：** 採用結構化日誌策略，使用 JSON 格式，包含 trace_id。
+
+**完整規範請參考：** `tech-specs/backend/logging.md`
+
+**核心要求：**
+- ✅ 所有日誌使用 **JSON 格式**（結構化日誌）
+- ✅ 每個請求都有唯一的 **trace_id**
+- ✅ 包含標準欄位：`trace_id`, `timestamp`, `level`, `message`, `project_id`, `error_code`, `details`
+- ✅ 使用 `StructuredLogger` 類別
+- ✅ 輪替：每日輪替，保留 30 天
+- ✅ 等級：INFO（生產）, DEBUG（開發）
+
+**範例日誌：**
+```json
+{
+  "trace_id": "abc-123-def-456",
+  "timestamp": "2025-10-20T10:30:15.123Z",
+  "level": "error",
+  "message": "Gemini API quota exceeded",
+  "project_id": "proj_12345",
+  "error_code": "GEMINI_QUOTA_EXCEEDED",
+  "details": {
+    "quota_used": 1000,
+    "quota_total": 1000
+  }
+}
+```
 
 ---
 

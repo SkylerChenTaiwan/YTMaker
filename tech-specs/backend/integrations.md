@@ -236,20 +236,84 @@ def generate_avatar_video(audio_url, avatar_image_url):
         time.sleep(5)
 ```
 
-**重試機制：**
-- 429 Quota Exceeded：停止生成，提示用戶升級方案
-- 500 Server Error：等待 30 秒後重試，最多 3 次
+**錯誤處理（嚴格模式）：**
 
-**降級策略：**
+> **重要：** 採用「失敗零容忍」策略，不使用自動降級。參考 `error-codes.md` 的完整錯誤碼定義。
+
 ```python
-def generate_avatar_with_fallback(audio_url, avatar_image_url):
+from app.utils.logging import StructuredLogger
+from app.models.errors import DIDAPIError
+
+logger = StructuredLogger(__name__)
+
+async def generate_avatar_strict(audio_url: str, avatar_image_url: str, project_id: str):
+    """
+    嚴格模式：失敗時拋出異常，包含詳細錯誤資訊
+    """
     try:
-        return generate_avatar_video(audio_url, avatar_image_url)
-    except Exception as e:
-        log_error(f"Avatar generation failed: {str(e)}")
-        # 降級：不使用虛擬主播，直接使用音訊 + 圖片
-        return None
+        result = await did_client.create_video(
+            audio_url=audio_url,
+            image_url=avatar_image_url
+        )
+
+        logger.info("Avatar generation succeeded", extra={
+            "api": "d-id",
+            "project_id": project_id,
+            "video_id": result.id
+        })
+
+        return result.video_url
+
+    except DIDQuotaExceededError as e:
+        # 配額用盡：不可重試
+        logger.error("D-ID quota exceeded", extra={
+            "error_code": "DID_QUOTA_EXCEEDED",
+            "project_id": project_id,
+            "details": e.details
+        })
+        raise DIDAPIError(
+            reason="DID_QUOTA_EXCEEDED",
+            is_retryable=False,
+            details={
+                "quota_used": e.quota_used,
+                "quota_total": e.quota_total,
+                "reset_date": e.reset_date
+            }
+        )
+
+    except DIDServerError as e:
+        # 伺服器錯誤：可重試
+        logger.error("D-ID server error", extra={
+            "error_code": "DID_SERVER_ERROR",
+            "project_id": project_id,
+            "status_code": e.status_code
+        })
+        raise DIDAPIError(
+            reason="DID_SERVER_ERROR",
+            is_retryable=True,
+            details={"status_code": e.status_code}
+        )
+
+    except DIDProcessingTimeout as e:
+        # 處理超時：可重試
+        logger.error("D-ID processing timeout", extra={
+            "error_code": "DID_PROCESSING_TIMEOUT",
+            "project_id": project_id
+        })
+        raise DIDAPIError(
+            reason="DID_PROCESSING_TIMEOUT",
+            is_retryable=True,
+            details={}
+        )
 ```
+
+**重試策略：**
+參考 `error-codes.md` 第 3.2 節的 D-ID 重試配置。
+
+**禁止自動降級：**
+- ❌ 不再使用 `generate_avatar_with_fallback`
+- ❌ 不再自動返回 `None` 並繼續執行
+- ✅ 所有錯誤都必須拋出異常，由呼叫者處理
 
 ---
 

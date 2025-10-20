@@ -27,6 +27,7 @@
 | youtube_settings | JSON | NULLABLE | YouTube 設定 |
 | youtube_video_id | VARCHAR(50) | NULLABLE | YouTube 影片 ID |
 | script | JSON | NULLABLE | 生成的腳本 |
+| error_info | JSON | NULLABLE | 錯誤資訊（見下方） |
 | created_at | TIMESTAMP | NOT NULL | 建立時間 |
 | updated_at | TIMESTAMP | NOT NULL | 最後更新時間 |
 
@@ -44,6 +45,36 @@
 - `COMPLETED` - 已完成
 - `FAILED` - 失敗
 - `PAUSED` - 暫停
+
+**error_info JSON 結構：**
+
+當專案狀態為 `FAILED` 時，此欄位記錄詳細的錯誤資訊：
+
+```json
+{
+  "stage": "assets_generating",
+  "error_code": "GEMINI_QUOTA_EXCEEDED",
+  "error_message": "Gemini API quota exceeded",
+  "is_retryable": false,
+  "details": {
+    "api": "gemini",
+    "quota_used": 1000,
+    "quota_total": 1000,
+    "reset_date": "2025-10-21T00:00:00Z"
+  },
+  "timestamp": "2025-10-20T10:30:15.123Z",
+  "trace_id": "abc-123-def-456"
+}
+```
+
+**欄位說明：**
+- `stage`：失敗的階段（script_generating, assets_generating, rendering, uploading）
+- `error_code`：錯誤碼（參考 `error-codes.md`）
+- `error_message`：人類可讀的錯誤訊息
+- `is_retryable`：是否可重試
+- `details`：額外的錯誤詳情（依錯誤類型而定）
+- `timestamp`：錯誤發生時間（ISO 8601 格式）
+- `trace_id`：追蹤 ID（用於日誌關聯）
 
 **索引：**
 - `idx_status` ON `status`
