@@ -1,9 +1,8 @@
-import pytest
-from fastapi.testclient import TestClient
 from datetime import datetime
 
+from fastapi.testclient import TestClient
+
 from app.main import app
-from app.core.exceptions import NotFoundException, ProjectNotFoundException
 
 client = TestClient(app)
 
