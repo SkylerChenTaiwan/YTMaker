@@ -170,10 +170,8 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
             <h2 className="text-xl font-semibold mb-4">Prompt 範本</h2>
 
             <div className="mb-4">
-              <label className="block mb-2 font-medium text-gray-700">
-                選擇範本
-              </label>
               <Select
+                label="選擇範本"
                 value={formData.prompt_template_id}
                 onChange={handleTemplateChange}
                 options={templates.map((t) => ({

@@ -2,14 +2,17 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Project Creation Flow - Steps 3 & 4', () => {
+  // Use a valid UUID for testing
+  const testProjectId = '123e4567-e89b-12d3-a456-426614174000'
+
   test.beforeEach(async ({ page }) => {
     // Mock API responses
-    await page.route('**/api/v1/projects/test-123', async (route) => {
+    await page.route(`**/api/v1/projects/${testProjectId}`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'test-123',
+          id: testProjectId,
           project_name: 'Test Project',
           prompt_template_id: 'default',
           prompt_content: '預設 Prompt 內容...' + 'x'.repeat(180),
