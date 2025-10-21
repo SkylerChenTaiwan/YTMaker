@@ -4,18 +4,8 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import VisualConfigPage from '@/app/project/[id]/configure/visual/page'
 
-// Mock dependencies
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    back: jest.fn(),
-  }),
-  notFound: jest.fn(),
-}))
-
-jest.mock('@/lib/validators', () => ({
-  validateProjectId: (id: string) => id.length === 36, // Mock UUID validation
-}))
+// Note: Next.js navigation and toast are globally mocked in jest.setup.js
+// We test the real validateProjectId implementation
 
 /**
  * 測試 4：視覺配置即時預覽
