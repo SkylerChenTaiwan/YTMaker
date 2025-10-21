@@ -5,15 +5,25 @@ import type { Quotas, YouTubeChannel } from '@/types/system'
 import { systemApi } from '@/lib/api/system'
 import { youtubeApi } from '@/lib/api/youtube'
 
+interface ApiKeyStatus {
+  value: string
+  tested: boolean
+}
+
+interface YouTubeAuth {
+  connected: boolean
+  channel_name: string
+  channel_id: string
+  thumbnail_url: string
+}
+
 interface AuthState {
   apiKeys: {
-    gemini: string | null
-    stabilityAI: string | null
-    dId: string | null
-    geminiLastTested?: string
-    stabilityAILastTested?: string
-    didLastTested?: string
+    gemini: ApiKeyStatus
+    stabilityAI: ApiKeyStatus
+    dId: ApiKeyStatus
   }
+  youtube: YouTubeAuth
   quotas: Quotas
   youtubeAccounts: YouTubeAccount[]
   youtubeChannels: YouTubeChannel[]
@@ -25,7 +35,13 @@ interface AuthState {
 }
 
 interface AuthActions {
-  setApiKey: (service: 'gemini' | 'stabilityAI' | 'dId', key: string) => void
+  setApiKey: (
+    service: 'gemini' | 'stabilityAI' | 'dId',
+    key: string,
+    tested?: boolean
+  ) => void
+  setYouTubeAuth: (auth: Partial<YouTubeAuth>) => void
+  clearAuth: () => void
   addYouTubeAccount: (account: YouTubeAccount) => void
   removeYouTubeAccount: (accountId: string) => void
   updatePreferences: (preferences: Partial<UserPreferences>) => void
@@ -50,9 +66,15 @@ export const useAuthStore = create<AuthState & AuthActions>()(
     (set) => ({
       // ========== State ==========
       apiKeys: {
-        gemini: null,
-        stabilityAI: null,
-        dId: null,
+        gemini: { value: '', tested: false },
+        stabilityAI: { value: '', tested: false },
+        dId: { value: '', tested: false },
+      },
+      youtube: {
+        connected: false,
+        channel_name: '',
+        channel_id: '',
+        thumbnail_url: '',
       },
       quotas: {},
       youtubeAccounts: [],
@@ -64,13 +86,35 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       },
 
       // ========== Actions ==========
-      setApiKey: (service, key) => {
+      setApiKey: (service, key, tested = true) => {
         set((state) => ({
           apiKeys: {
             ...state.apiKeys,
-            [service]: key,
+            [service]: { value: key, tested },
           },
         }))
+      },
+
+      setYouTubeAuth: (auth) => {
+        set((state) => ({
+          youtube: { ...state.youtube, ...auth },
+        }))
+      },
+
+      clearAuth: () => {
+        set({
+          apiKeys: {
+            gemini: { value: '', tested: false },
+            stabilityAI: { value: '', tested: false },
+            dId: { value: '', tested: false },
+          },
+          youtube: {
+            connected: false,
+            channel_name: '',
+            channel_id: '',
+            thumbnail_url: '',
+          },
+        })
       },
 
       addYouTubeAccount: (account) => {
@@ -117,7 +161,23 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       fetchAPIKeys: async () => {
         try {
           const data = await systemApi.getAPIKeys()
-          set({ apiKeys: data })
+          // 轉換為 ApiKeyStatus 結構
+          set({
+            apiKeys: {
+              gemini: {
+                value: data.gemini || '',
+                tested: !!data.gemini,
+              },
+              stabilityAI: {
+                value: data.stabilityAI || '',
+                tested: !!data.stabilityAI,
+              },
+              dId: {
+                value: data.dId || '',
+                tested: !!data.dId,
+              },
+            },
+          })
         } catch (error) {
           console.error('Failed to fetch API keys', error)
         }
