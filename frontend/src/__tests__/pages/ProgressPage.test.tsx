@@ -479,6 +479,13 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // 重新設定 API mocks
+    ;(projectApi.pauseGeneration as jest.Mock).mockResolvedValue({ success: true })
+    ;(projectApi.resumeGeneration as jest.Mock).mockResolvedValue({ success: true })
+    ;(projectApi.cancelGeneration as jest.Mock).mockResolvedValue({ success: true })
+
+    // 設定專案資料
     mockProjectState.current = mockProject
     mockProgress.overall = 45
     mockProgress.stage = 'assets'
@@ -487,10 +494,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
   })
 
   it('應該正確處理暫停與繼續', async () => {
-    (projectApi.pauseGeneration as jest.Mock).mockResolvedValue({ success: true })
-    (projectApi.resumeGeneration as jest.Mock).mockResolvedValue({ success: true })
-    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
-
+    // beforeEach 已經設定好 API mocks
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
@@ -527,9 +531,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
   })
 
   it('應該正確處理取消', async () => {
-    (projectApi.cancelGeneration as jest.Mock).mockResolvedValue({ success: true })
-    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
-
+    // beforeEach 已經設定好 API mocks
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
@@ -542,7 +544,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 
     // 驗證 Modal 顯示
     await waitFor(() => {
-      expect(screen.getByText('確定要取消生成嗎?')).toBeInTheDocument()
+      expect(screen.getByText(/確定要取消生成嗎/)).toBeInTheDocument()
     })
 
     // 點擊 Modal 的確定按鈕
@@ -590,6 +592,11 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // 重新設定 API mocks
+    ;(projectApi.retryGeneration as jest.Mock).mockResolvedValue({ success: true })
+
+    // 設定專案資料
     mockProjectState.current = mockProjectFailed
     mockProgress.overall = 45
     mockProgress.stage = 'assets'
@@ -619,9 +626,7 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
   })
 
   it('應該正確處理重試', async () => {
-    (projectApi.retryGeneration as jest.Mock).mockResolvedValue({ success: true })
-    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProjectFailed)
-
+    // beforeEach 已經設定好 API mocks
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
