@@ -8,7 +8,6 @@
  * - 進度重置
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
 import { useProgressStore } from '@/store/useProgressStore'
 
 describe('useProgressStore', () => {

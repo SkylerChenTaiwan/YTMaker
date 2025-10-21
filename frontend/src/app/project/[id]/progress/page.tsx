@@ -21,10 +21,10 @@ import { Modal } from '@/components/ui/Modal'
 import { StageProgress } from '@/components/feature/StageProgress'
 import { LogViewer } from '@/components/feature/LogViewer'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { useProjectStore } from '@/store/projectStore'
-import { useProgressStore } from '@/store/progressStore'
+import { useProjectStore } from '@/store/useProjectStore'
+import { useProgressStore } from '@/store/useProgressStore'
 import * as api from '@/lib/api/projects'
-import { toast } from '@/services/toast'
+import { toast } from '@/lib/toast'
 
 interface ProgressPageProps {
   params: { id: string }

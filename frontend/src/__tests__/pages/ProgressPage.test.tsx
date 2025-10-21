@@ -10,29 +10,43 @@
  */
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import ProgressPage from '@/app/project/[id]/progress/page'
+
+// Mock @/lib/api/projects
+jest.mock('@/lib/api/projects', () => ({
+  getProject: jest.fn(),
+  pauseGeneration: jest.fn(),
+  resumeGeneration: jest.fn(),
+  cancelGeneration: jest.fn(),
+  retryGeneration: jest.fn(),
+  startGeneration: jest.fn(),
+}))
+
 import * as projectApi from '@/lib/api/projects'
 
 // Mock next/navigation
-const mockPush = vi.fn()
-const mockBack = vi.fn()
-vi.mock('next/navigation', () => ({
+jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: mockPush,
-    back: mockBack,
+    push: jest.fn(),
+    back: jest.fn(),
   }),
   usePathname: () => '/project/123/progress',
+  notFound: jest.fn(),
 }))
 
 // Mock toast
-vi.mock('@/services/toast', () => ({
+jest.mock('@/lib/toast', () => ({
   toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
+    success: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
   },
 }))
+
+// 全局清理：每個測試後恢復所有 mocks
+afterEach(() => {
+  jest.restoreAllMocks()
+})
 
 describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
   const mockProject = {
@@ -62,12 +76,12 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
   }
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('應該正確顯示專案進度和階段狀態', async () => {
     // Mock API
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     // 渲染頁面
     render(<ProgressPage params={{ id: '123' }} />)
@@ -101,7 +115,7 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
   })
 
   it('應該正確顯示子任務進度', async () => {
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -128,20 +142,20 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
 
 describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('應該透過 WebSocket 即時更新進度', async () => {
     // Mock WebSocket
     const mockWs = {
-      send: vi.fn(),
-      close: vi.fn(),
+      send: jest.fn(),
+      close: jest.fn(),
       readyState: WebSocket.OPEN,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
     }
 
-    global.WebSocket = vi.fn(() => mockWs) as any
+    global.WebSocket = jest.fn(() => mockWs) as any
 
     // Mock initial project
     const mockProject = {
@@ -162,7 +176,7 @@ describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
       },
     }
 
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -214,7 +228,7 @@ describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
 
 describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   const mockProject = {
@@ -236,7 +250,7 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
   }
 
   it('應該正確顯示日誌並自動捲動到最新', async () => {
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -291,7 +305,7 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
   })
 
   it('用戶手動捲動後,應暫停自動捲動', async () => {
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -333,7 +347,7 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
 
 describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   const mockProject = {
@@ -355,11 +369,9 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
   }
 
   it('應該正確處理暫停與繼續', async () => {
-    const pauseMock = vi.spyOn(projectApi, 'pauseGeneration').mockResolvedValue({ success: true })
-    const resumeMock = vi
-      .spyOn(projectApi, 'resumeGeneration')
-      .mockResolvedValue({ success: true })
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    const pauseMock = (projectApi.pauseGeneration as jest.Mock).mockResolvedValue({ success: true })
+    const resumeMock = (projectApi.resumeGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -397,8 +409,8 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
   })
 
   it('應該正確處理取消', async () => {
-    const cancelMock = vi.spyOn(projectApi, 'cancelGeneration').mockResolvedValue({ success: true })
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    const cancelMock = (projectApi.cancelGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -433,7 +445,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 
 describe('ProgressPage - 測試 5: 錯誤處理', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   const mockProjectFailed = {
@@ -461,7 +473,7 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
   }
 
   it('應該正確顯示失敗狀態和錯誤訊息', async () => {
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProjectFailed)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProjectFailed)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -482,8 +494,8 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
   })
 
   it('應該正確處理重試', async () => {
-    const retryMock = vi.spyOn(projectApi, 'retryGeneration').mockResolvedValue({ success: true })
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProjectFailed)
+    const retryMock = (projectApi.retryGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProjectFailed)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -504,7 +516,7 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
 
 describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('WebSocket 斷線重連後應恢復遺失的進度', async () => {
@@ -514,21 +526,21 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
     let onMessageHandler: any = null
 
     // Mock WebSocket 建構函數
-    global.WebSocket = vi.fn((url) => {
+    global.WebSocket = jest.fn((url) => {
       wsInstance = {
         url,
         readyState: WebSocket.CONNECTING,
-        send: vi.fn(),
-        close: vi.fn(() => {
+        send: jest.fn(),
+        close: jest.fn(() => {
           wsInstance.readyState = WebSocket.CLOSED
           if (onCloseHandler) onCloseHandler()
         }),
-        addEventListener: vi.fn((event, handler) => {
+        addEventListener: jest.fn((event, handler) => {
           if (event === 'open') onOpenHandler = handler
           if (event === 'close') onCloseHandler = handler
           if (event === 'message') onMessageHandler = handler
         }),
-        removeEventListener: vi.fn(),
+        removeEventListener: jest.fn(),
       }
 
       // 模擬連線成功
@@ -558,7 +570,7 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
       },
     }
 
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
@@ -616,21 +628,21 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
 
 describe('ProgressPage - 測試 7: 訊息順序測試', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
   })
 
   it('亂序到達的 WebSocket 訊息應正確處理', async () => {
     let onMessageHandler: any = null
 
-    global.WebSocket = vi.fn(() => ({
+    global.WebSocket = jest.fn(() => ({
       readyState: WebSocket.OPEN,
-      send: vi.fn(),
-      close: vi.fn(),
-      addEventListener: vi.fn((event, handler) => {
+      send: jest.fn(),
+      close: jest.fn(),
+      addEventListener: jest.fn((event, handler) => {
         if (event === 'open') setTimeout(handler, 10)
         if (event === 'message') onMessageHandler = handler
       }),
-      removeEventListener: vi.fn(),
+      removeEventListener: jest.fn(),
     })) as any
 
     const mockProject = {
@@ -651,7 +663,7 @@ describe('ProgressPage - 測試 7: 訊息順序測試', () => {
       },
     }
 
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 

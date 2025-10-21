@@ -5,29 +5,29 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from .@jest/globals.
 import ProgressPage from '@/app/project/[id]/progress/page'
 import * as projectApi from '@/lib/api/projects'
 
 // Mock next/navigation
-const mockPush = vi.fn()
-vi.mock('next/navigation', () => ({
+const mockPush = jest.fn()
+jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/project/123/progress',
-  notFound: vi.fn(),
+  notFound: jest.fn(),
 }))
 
 // Mock toast
-vi.mock('@/services/toast', () => ({
+jest.mock('@/services/toast', () => ({
   toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
+    success: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
   },
 }))
 
 // Mock validators
-vi.mock('@/lib/validators', () => ({
+jest.mock('@/lib/validators', () => ({
   validateProjectId: () => true,
 }))
 
@@ -36,18 +36,18 @@ describe('ProgressPage - 測試 10: 完整生成流程', () => {
   let wsReadyState = WebSocket.OPEN
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    jest.clearAllMocks()
 
     // Mock WebSocket
-    global.WebSocket = vi.fn(() => ({
+    global.WebSocket = jest.fn(() => ({
       readyState: wsReadyState,
-      send: vi.fn(),
-      close: vi.fn(),
-      addEventListener: vi.fn((event, handler) => {
+      send: jest.fn(),
+      close: jest.fn(),
+      addEventListener: jest.fn((event, handler) => {
         if (event === 'open') setTimeout(handler, 10)
         if (event === 'message') onMessageHandler = handler
       }),
-      removeEventListener: vi.fn(),
+      removeEventListener: jest.fn(),
     })) as any
   })
 
@@ -71,7 +71,7 @@ describe('ProgressPage - 測試 10: 完整生成流程', () => {
       },
     }
 
-    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProjectInitial)
+    jest.spyOn(projectApi, 'getProject').mockResolvedValue(mockProjectInitial)
 
     render(<ProgressPage params={{ id: '123' }} />)
 

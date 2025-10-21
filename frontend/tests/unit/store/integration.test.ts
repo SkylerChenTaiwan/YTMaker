@@ -30,7 +30,11 @@ describe('Store Integration Tests', () => {
           updated_at: '2025-01-19T10:00:00Z',
         },
       ])
-      useProgressStore.getState().updateProgress({ percentage: 50 })
+      useProgressStore.getState().updateProgress({
+        overall: 50,
+        stage: 'assets',
+        message: 'Test progress'
+      })
     })
 
     // 驗證狀態已設定
@@ -39,7 +43,7 @@ describe('Store Integration Tests', () => {
     expect(useAuthStore.getState().ui.theme).toBe('dark')
     expect(useAuthStore.getState().preferences.voice_gender).toBe('male')
     expect(useProjectStore.getState().projects.list).toHaveLength(1)
-    expect(useProgressStore.getState().percentage).toBe(50)
+    expect(useProgressStore.getState().progress.overall).toBe(50)
 
     // 檢查 localStorage
     const storedData = localStorage.getItem('ytmaker-auth-storage')
