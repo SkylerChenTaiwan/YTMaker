@@ -112,4 +112,69 @@ describe('ProjectList', () => {
     expect(screen.getByText('還沒有任何專案')).toBeInTheDocument()
     expect(screen.getByText('開始第一個專案')).toBeInTheDocument()
   })
+
+  it('should call onSort when updated_at column header is clicked', () => {
+    const mockOnSort = jest.fn()
+
+    render(<ProjectList {...defaultProps} onSort={mockOnSort} sortBy="created_at" />)
+
+    const updatedAtHeader = screen.getByText('最後更新')
+    fireEvent.click(updatedAtHeader)
+
+    expect(mockOnSort).toHaveBeenCalledWith('updated_at', 'asc')
+  })
+
+  it('should call onView when view button is clicked', () => {
+    const mockOnView = jest.fn()
+
+    render(<ProjectList {...defaultProps} onView={mockOnView} />)
+
+    const viewButtons = screen.getAllByLabelText('查看專案')
+    fireEvent.click(viewButtons[0])
+
+    expect(mockOnView).toHaveBeenCalledWith('proj-001')
+  })
+
+  it('should call onContinue when continue button is clicked', () => {
+    const mockOnContinue = jest.fn()
+
+    render(<ProjectList {...defaultProps} onContinue={mockOnContinue} />)
+
+    const continueButton = screen.getByLabelText('繼續專案')
+    fireEvent.click(continueButton)
+
+    expect(mockOnContinue).toHaveBeenCalledWith('proj-002')
+  })
+
+  it('should call onPageChange when next page button is clicked', () => {
+    const mockOnPageChange = jest.fn()
+    const mockPagination = {
+      total: 50,
+      limit: 20,
+      offset: 0,
+    }
+
+    render(<ProjectList {...defaultProps} pagination={mockPagination} onPageChange={mockOnPageChange} />)
+
+    const nextButton = screen.getByLabelText('下一頁')
+    fireEvent.click(nextButton)
+
+    expect(mockOnPageChange).toHaveBeenCalledWith(2)
+  })
+
+  it('should call onPageChange when previous page button is clicked', () => {
+    const mockOnPageChange = jest.fn()
+    const mockPagination = {
+      total: 50,
+      limit: 20,
+      offset: 20, // 第 2 頁
+    }
+
+    render(<ProjectList {...defaultProps} pagination={mockPagination} onPageChange={mockOnPageChange} />)
+
+    const prevButton = screen.getByLabelText('上一頁')
+    fireEvent.click(prevButton)
+
+    expect(mockOnPageChange).toHaveBeenCalledWith(1)
+  })
 })
