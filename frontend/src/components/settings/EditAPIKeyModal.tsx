@@ -44,9 +44,10 @@ export const EditAPIKeyModal = ({ provider, currentKey, onClose, onSave }: Props
         setTestStatus('error')
         setTestMessage(result.message || '連線失敗')
       }
-    } catch (error: any) {
+    } catch (error) {
       setTestStatus('error')
-      setTestMessage(error.message || 'API Key 無效或已過期')
+      const errorMessage = error instanceof Error ? error.message : 'API Key 無效或已過期'
+      setTestMessage(errorMessage)
     }
   }
 
@@ -61,8 +62,9 @@ export const EditAPIKeyModal = ({ provider, currentKey, onClose, onSave }: Props
       await systemApi.saveAPIKey(provider, apiKey)
       message.success('API Key 已儲存')
       onSave()
-    } catch (error: any) {
-      message.error(error.message || '儲存失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '儲存失敗'
+      message.error(errorMessage)
     } finally {
       setIsSaving(false)
     }

@@ -38,30 +38,30 @@ class ApiClient {
     )
   }
 
-  async get<T = any>(
+  async get<T = unknown>(
     url: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
     return this.client.get<T>(url, config)
   }
 
-  async post<T = any>(
+  async post<T = unknown>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
     return this.client.post<T>(url, data, config)
   }
 
-  async put<T = any>(
+  async put<T = unknown>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
     return this.client.put<T>(url, data, config)
   }
 
-  async delete<T = any>(
+  async delete<T = unknown>(
     url: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {

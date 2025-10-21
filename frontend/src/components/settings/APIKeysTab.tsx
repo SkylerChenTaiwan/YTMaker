@@ -22,10 +22,6 @@ export const APIKeysTab = () => {
   const [editingProvider, setEditingProvider] = useState<APIProvider | null>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
   const loadData = async () => {
     setLoading(true)
     try {
@@ -35,13 +31,28 @@ export const APIKeysTab = () => {
     }
   }
 
+  useEffect(() => {
+    loadData()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleEdit = (provider: APIProvider) => {
     setEditingProvider(provider)
     setIsEditModalOpen(true)
   }
 
+  // 映射 API provider 名稱（從 snake_case 到 camelCase）
+  const getStoreKey = (provider: APIProvider): keyof typeof apiKeys => {
+    const mapping = {
+      gemini: 'gemini',
+      stability_ai: 'stabilityAI',
+      did: 'dId',
+    } as const
+    return mapping[provider]
+  }
+
   const handleTest = async (provider: APIProvider) => {
-    const key = apiKeys[provider]?.value
+    const storeKey = getStoreKey(provider)
+    const key = apiKeys[storeKey]?.value
     if (!key) {
       message.error('請先設定 API Key')
       return
@@ -55,8 +66,9 @@ export const APIKeysTab = () => {
       } else {
         message.error('連線失敗')
       }
-    } catch (error: any) {
-      message.error(error.message || '測試失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '測試失敗'
+      message.error(errorMessage)
     }
   }
 
@@ -65,8 +77,9 @@ export const APIKeysTab = () => {
       await systemApi.deleteAPIKey(provider)
       message.success('API Key 已刪除')
       await fetchAPIKeys()
-    } catch (error: any) {
-      message.error(error.message || '刪除失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '刪除失敗'
+      message.error(errorMessage)
     }
   }
 
@@ -126,7 +139,7 @@ export const APIKeysTab = () => {
           <Button size="small" onClick={() => handleTest(record.provider)}>
             測試連線
           </Button>
-          {apiKeys[record.provider]?.value && (
+          {apiKeys[getStoreKey(record.provider)]?.value && (
             <Button
               size="small"
               danger
@@ -221,7 +234,7 @@ export const APIKeysTab = () => {
       {isEditModalOpen && editingProvider && (
         <EditAPIKeyModal
           provider={editingProvider}
-          currentKey={apiKeys[editingProvider]?.value || null}
+          currentKey={apiKeys[getStoreKey(editingProvider)]?.value || null}
           onClose={() => {
             setIsEditModalOpen(false)
             setEditingProvider(null)

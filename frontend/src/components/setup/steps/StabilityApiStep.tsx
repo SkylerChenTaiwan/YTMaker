@@ -120,7 +120,7 @@ export const StabilityApiStep: React.FC = () => {
 
       if (result.success) {
         setTestStatus('success')
-        saveApiKey('stability', apiKey, true)
+        saveApiKey('stabilityAI', apiKey, true)
       }
     } catch (error) {
       setTestStatus('error')

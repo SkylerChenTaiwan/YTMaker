@@ -8,9 +8,9 @@ describe('useAuthStore', () => {
     // 重置 store
     useAuthStore.setState({
       apiKeys: {
-        gemini: null,
-        stabilityAI: null,
-        dId: null,
+        gemini: { value: '', tested: false },
+        stabilityAI: { value: '', tested: false },
+        dId: { value: '', tested: false },
       },
       youtubeAccounts: [],
       preferences: {
@@ -37,14 +37,17 @@ describe('useAuthStore', () => {
     }
 
     act(() => {
-      result.current.setApiKey('gemini', keys.gemini)
-      result.current.setApiKey('stabilityAI', keys.stabilityAI)
-      result.current.setApiKey('dId', keys.dId)
+      result.current.setApiKey('gemini', keys.gemini, true)
+      result.current.setApiKey('stabilityAI', keys.stabilityAI, true)
+      result.current.setApiKey('dId', keys.dId, true)
     })
 
-    expect(result.current.apiKeys.gemini).toBe('AIzaSy...')
-    expect(result.current.apiKeys.stabilityAI).toBe('sk-...')
-    expect(result.current.apiKeys.dId).toBe('did-...')
+    expect(result.current.apiKeys.gemini.value).toBe('AIzaSy...')
+    expect(result.current.apiKeys.gemini.tested).toBe(true)
+    expect(result.current.apiKeys.stabilityAI.value).toBe('sk-...')
+    expect(result.current.apiKeys.stabilityAI.tested).toBe(true)
+    expect(result.current.apiKeys.dId.value).toBe('did-...')
+    expect(result.current.apiKeys.dId.tested).toBe(true)
   })
 
   it('測試 4.2: addYouTubeAccount 新增 YouTube 帳號', () => {

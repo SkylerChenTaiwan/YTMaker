@@ -7,20 +7,21 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { youtubeApi } from '@/lib/api/youtube'
 
 export const YouTubeAuthTab = () => {
-  const { youtubeChannels, fetchYouTubeChannels, setYouTubeChannels } = useAuthStore()
+  const { youtubeChannels, fetchYouTubeChannels } = useAuthStore()
   const [isConnecting, setIsConnecting] = useState(false)
-
-  useEffect(() => {
-    loadChannels()
-  }, [])
 
   const loadChannels = async () => {
     try {
       await fetchYouTubeChannels()
-    } catch (error: any) {
-      message.error(error.message || '載入頻道列表失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '載入頻道列表失敗'
+      message.error(errorMessage)
     }
   }
+
+  useEffect(() => {
+    loadChannels()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = async () => {
     setIsConnecting(true)
@@ -44,8 +45,9 @@ export const YouTubeAuthTab = () => {
           message.success('YouTube 帳號已連結')
         }
       }, 1000)
-    } catch (error: any) {
-      message.error(error.message || '授權失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '授權失敗'
+      message.error(errorMessage)
       setIsConnecting(false)
     }
   }
@@ -55,12 +57,13 @@ export const YouTubeAuthTab = () => {
       await youtubeApi.removeChannel(channelId)
       message.success('授權已移除')
       await loadChannels()
-    } catch (error: any) {
-      message.error(error.message || '移除失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '移除失敗'
+      message.error(errorMessage)
     }
   }
 
-  const handleReauthorize = async (channelId: string) => {
+  const handleReauthorize = async (_channelId: string) => {
     // 重新授權與連結新帳號流程相同
     await handleConnect()
   }

@@ -37,9 +37,9 @@ export interface Preferences {
 // ========== Export Data ==========
 export interface ExportData {
   export_date: string
-  projects: any[]
-  configurations: any[]
-  templates: any[]
+  projects: Record<string, unknown>[]
+  configurations: Record<string, unknown>[]
+  templates: Record<string, unknown>[]
 }
 
 // ========== Import Result ==========
