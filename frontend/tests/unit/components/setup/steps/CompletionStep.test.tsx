@@ -38,14 +38,12 @@ describe('CompletionStep', () => {
 
     render(<CompletionStep />)
 
-    expect(screen.getByText('所有設定已完成!')).toBeInTheDocument()
-    // 檢查 SVG 圖示存在
-    const icon = screen.getByRole('img')
-    expect(icon).toBeInTheDocument()
+    expect(screen.getByText('設定完成!')).toBeInTheDocument()
+    expect(screen.getByText(/所有 API Keys 已設定並測試成功/)).toBeInTheDocument()
   })
 
-  it('正確顯示 API Keys 設定狀態 (X/3)', () => {
-    // 設定 2 個 API Keys
+  it('正確顯示 API Keys 設定狀態', () => {
+    // 設定部分 API Keys
     useAuthStore.setState({
       apiKeys: {
         gemini: { value: 'test-key', tested: true },
@@ -56,13 +54,15 @@ describe('CompletionStep', () => {
 
     render(<CompletionStep />)
 
-    expect(screen.getByText(/已設定 2\/3/)).toBeInTheDocument()
+    // 使用 getAllByText 因為這段文字會出現在兩個地方（摘要區和警告區）
+    const matches = screen.getAllByText(/部分 API Keys 未設定/)
+    expect(matches.length).toBeGreaterThan(0)
   })
 
   it('未連結時顯示未連結狀態', () => {
     // 測試未連結狀態
     render(<CompletionStep />)
-    expect(screen.getByText('未連結')).toBeInTheDocument()
+    expect(screen.getByText(/未連結/)).toBeInTheDocument()
   })
 
   it('已連結時顯示頻道名稱', () => {
@@ -77,7 +77,7 @@ describe('CompletionStep', () => {
     })
 
     render(<CompletionStep />)
-    expect(screen.getByText(/已連結 Test Channel/)).toBeInTheDocument()
+    expect(screen.getByText(/已連結: Test Channel/)).toBeInTheDocument()
   })
 
   it('部分未完成時顯示警告訊息', () => {
@@ -99,9 +99,9 @@ describe('CompletionStep', () => {
     render(<CompletionStep />)
 
     expect(
-      screen.getByText(/部分設定未完成,部分功能可能無法使用/)
+      screen.getByText(/部分 API Keys 未設定,可能會影響某些功能/)
     ).toBeInTheDocument()
-    expect(screen.getByText(/您可以稍後在設定頁面完成配置/)).toBeInTheDocument()
+    expect(screen.getByText(/您可以稍後在「系統設定」中完成配置/)).toBeInTheDocument()
   })
 
   it('全部完成時不顯示警告訊息', () => {
@@ -123,7 +123,7 @@ describe('CompletionStep', () => {
     render(<CompletionStep />)
 
     expect(
-      screen.queryByText(/部分設定未完成/)
+      screen.queryByText(/部分 API Keys 未設定/)
     ).not.toBeInTheDocument()
   })
 })

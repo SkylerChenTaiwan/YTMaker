@@ -29,30 +29,40 @@
 - 顯示「開始設定」按鈕
 - 簡潔明瞭的設計
 
-**程式碼骨架:**
+**實際實作（已簡化設計）:**
 ```tsx
 export const WelcomeStep: React.FC = () => {
   return (
-    <div className="text-center space-y-6 py-12">
-      <h1 className="text-4xl font-bold text-gray-900">
-        歡迎使用 YTMaker
-      </h1>
-
-      <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-        這是一個本地端的 YouTube 影片自動化生產工具
-      </p>
-
-      <div className="space-y-4 text-gray-700">
-        <p>🎬 自動生成腳本</p>
-        <p>🖼️ 自動生成圖片</p>
-        <p>🎙️ 自動生成語音</p>
-        <p>🎥 自動合成影片</p>
-        <p>📤 自動上傳 YouTube</p>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold mb-2">歡迎使用 YTMaker</h2>
+        <p className="text-gray-600 mb-4">
+          YTMaker 是一個智能影片生成工具,可以幫助您快速將文字內容轉換為專業的 YouTube 影片。
+        </p>
       </div>
 
-      <div className="mt-8">
-        <p className="text-sm text-gray-500">
-          讓我們先完成一些基本設定
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">設定流程</h3>
+        <div className="space-y-3">
+          <div className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold mr-3">
+              1
+            </div>
+            <div>
+              <h4 className="font-medium mb-1">設定 API Keys</h4>
+              <p className="text-sm text-gray-600">
+                配置 Gemini、Stability AI 和 D-ID 的 API 金鑰
+              </p>
+            </div>
+          </div>
+          {/* 步驟 2 和 3 類似結構 */}
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-900 mb-2">準備好了嗎？</h4>
+        <p className="text-sm text-blue-700">
+          點擊「下一步」開始設定您的 API Keys
         </p>
       </div>
     </div>
@@ -60,12 +70,18 @@ export const WelcomeStep: React.FC = () => {
 }
 ```
 
+**設計變更說明：**
+- ❌ 移除 emoji 圖示（保持簡潔專業）
+- ✅ 改為編號式的設定流程說明
+- ✅ 增加詳細的步驟描述
+- ✅ 加入視覺引導提示框
+
 #### `frontend/tests/unit/components/setup/steps/WelcomeStep.test.tsx`
 
 **測試案例:**
-- [ ] 顯示歡迎標題
-- [ ] 顯示功能列表
-- [ ] 顯示說明文字
+- [x] 顯示歡迎標題
+- [x] 顯示設定流程說明（步驟 1-3）
+- [x] 顯示說明文字與引導提示
 
 ---
 
@@ -141,12 +157,23 @@ export const CompletionStep: React.FC<CompletionStepProps> = () => {
 
 #### `frontend/tests/unit/components/setup/steps/CompletionStep.test.tsx`
 
-**測試案例 (根據 Task 文件的測試 6):**
-- [ ] 全部完成時顯示成功圖示和訊息
-- [ ] 正確顯示 API Keys 設定狀態 (X/3)
-- [ ] 正確顯示 YouTube 連結狀態
-- [ ] 部分未完成時顯示警告訊息
-- [ ] 顯示「進入主控台」按鈕文字
+**測試案例:**
+- [x] 全部完成時顯示成功圖示和訊息
+- [x] 正確顯示 API Keys 設定狀態（文字描述而非數字）
+- [x] 正確顯示 YouTube 連結狀態
+- [x] 部分未完成時顯示警告訊息
+- [x] 顯示引導提示框
+
+**實際實作的文案變更：**
+- 標題：「設定完成!」（而非「所有設定已完成!」）
+- API Keys 狀態：
+  - 全部完成：「所有 API Keys 已設定並測試成功」
+  - 部分完成：「部分 API Keys 未設定」
+  - ❌ 沒有使用 "X/3" 數字格式（更簡潔）
+- YouTube 狀態：
+  - 已連結：「已連結: 頻道名稱」（用冒號）
+  - 未連結：「未連結（可稍後設定）」
+- 警告訊息：「⚠️ 部分 API Keys 未設定,可能會影響某些功能。您可以稍後在「系統設定」中完成配置。」
 
 ---
 

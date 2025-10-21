@@ -9,20 +9,20 @@ describe('WelcomeStep', () => {
     expect(title).toBeInTheDocument()
   })
 
-  it('顯示功能列表', () => {
+  it('顯示設定流程說明', () => {
     render(<WelcomeStep />)
 
-    expect(screen.getByText(/🎬 自動生成腳本/)).toBeInTheDocument()
-    expect(screen.getByText(/🖼️ 自動生成圖片/)).toBeInTheDocument()
-    expect(screen.getByText(/🎙️ 自動生成語音/)).toBeInTheDocument()
-    expect(screen.getByText(/🎥 自動合成影片/)).toBeInTheDocument()
-    expect(screen.getByText(/📤 自動上傳 YouTube/)).toBeInTheDocument()
+    expect(screen.getByText(/設定流程/)).toBeInTheDocument()
+    expect(screen.getByText(/設定 API Keys/)).toBeInTheDocument()
+    expect(screen.getByText(/配置 Gemini、Stability AI 和 D-ID 的 API 金鑰/)).toBeInTheDocument()
+    expect(screen.getByText(/連結 YouTube 帳號/)).toBeInTheDocument()
+    expect(screen.getByText(/開始使用/)).toBeInTheDocument()
   })
 
   it('顯示說明文字', () => {
     render(<WelcomeStep />)
 
-    expect(screen.getByText(/這是一個本地端的 YouTube 影片自動化生產工具/)).toBeInTheDocument()
-    expect(screen.getByText(/讓我們先完成一些基本設定/)).toBeInTheDocument()
+    expect(screen.getByText(/YTMaker 是一個智能影片生成工具/)).toBeInTheDocument()
+    expect(screen.getByText(/點擊「下一步」開始設定您的 API Keys/)).toBeInTheDocument()
   })
 })
