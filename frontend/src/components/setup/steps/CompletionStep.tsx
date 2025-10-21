@@ -1,71 +1,98 @@
+import React from 'react'
 import { useAuthStore } from '@/store/useAuthStore'
+
+const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={3}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+  </svg>
+)
 
 export const CompletionStep: React.FC = () => {
   const { apiKeys, youtube } = useAuthStore()
 
-  // 計算已設定的 API Keys 數量
-  const apiKeyCount = [
-    apiKeys.gemini.tested,
-    apiKeys.stabilityAI.tested,
-    apiKeys.dId.tested,
-  ].filter(Boolean).length
-
-  const allComplete = apiKeyCount === 3 && youtube.connected
+  const allApiKeysTested =
+    apiKeys.gemini.tested &&
+    apiKeys.stabilityAI.tested &&
+    apiKeys.dId.tested
 
   return (
-    <div className="text-center space-y-6 py-8">
-      {/* 成功圖示 */}
-      <div className="flex justify-center">
-        <svg
-          className="w-24 h-24 text-green-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          role="img"
-          aria-label="Success icon"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
+    <div className="space-y-6">
+      <div className="text-center">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckIcon className="w-10 h-10 text-green-600" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">設定完成!</h2>
+        <p className="text-gray-600">
+          恭喜!您已完成所有必要設定,現在可以開始使用 YTMaker 了。
+        </p>
       </div>
 
-      {/* 標題 */}
-      <h2 className="text-3xl font-bold text-gray-900">
-        {allComplete ? '所有設定已完成!' : '基本設定已完成!'}
-      </h2>
+      <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+        <h3 className="font-semibold text-lg mb-3">設定摘要</h3>
 
-      {/* 設定摘要 */}
-      <div className="max-w-md mx-auto space-y-3">
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-          <span>API Keys</span>
-          <span
-            className={apiKeyCount === 3 ? 'text-green-600' : 'text-yellow-600'}
-          >
-            已設定 {apiKeyCount}/3
-          </span>
-        </div>
+        <div className="space-y-3">
+          <div className="flex items-center">
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                allApiKeysTested ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            >
+              {allApiKeysTested && (
+                <CheckIcon className="w-4 h-4 text-white" />
+              )}
+            </div>
+            <div>
+              <p className="font-medium">API Keys</p>
+              <p className="text-sm text-gray-600">
+                {allApiKeysTested
+                  ? '所有 API Keys 已設定並測試成功'
+                  : '部分 API Keys 未設定'}
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-          <span>YouTube 授權</span>
-          <span className={youtube.connected ? 'text-green-600' : 'text-gray-400'}>
-            {youtube.connected ? `已連結 ${youtube.channel_name}` : '未連結'}
-          </span>
+          <div className="flex items-center">
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                youtube.connected ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            >
+              {youtube.connected && (
+                <CheckIcon className="w-4 h-4 text-white" />
+              )}
+            </div>
+            <div>
+              <p className="font-medium">YouTube 授權</p>
+              <p className="text-sm text-gray-600">
+                {youtube.connected
+                  ? `已連結: ${youtube.channel_name}`
+                  : '未連結（可稍後設定）'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 警告訊息 */}
-      {!allComplete && (
-        <div className="max-w-md mx-auto p-4 bg-yellow-50 border border-yellow-200 rounded">
-          <p className="text-sm text-yellow-800">
-            部分設定未完成,部分功能可能無法使用。
-            您可以稍後在設定頁面完成配置。
+      {!allApiKeysTested && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm text-yellow-700">
+            ⚠️ 部分 API Keys 未設定,可能會影響某些功能。您可以稍後在「系統設定」中完成配置。
           </p>
         </div>
       )}
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-900 mb-2">準備就緒</h4>
+        <p className="text-sm text-blue-700">
+          點擊「進入主控台」開始創建您的第一支影片!
+        </p>
+      </div>
     </div>
   )
 }
