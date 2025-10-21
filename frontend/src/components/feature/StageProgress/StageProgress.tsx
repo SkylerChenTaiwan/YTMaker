@@ -107,22 +107,24 @@ export const StageProgress: React.FC<StageProgressProps> = ({ stages, currentSta
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-6">
-      <h2 className="text-xl font-semibold mb-4">生成階段</h2>
+    <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-4 md:mb-6">
+      <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">生成階段</h2>
 
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {Object.entries(stages).map(([key, stage]) => (
-          <div key={key} className="border-l-4 border-gray-200 pl-4">
+          <div key={key} className="border-l-4 border-gray-200 pl-3 md:pl-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center flex-1">
                 <span
-                  className={cn('text-2xl mr-3', stageIconColors[stage.status])}
+                  className={cn('text-xl md:text-2xl mr-2 md:mr-3', stageIconColors[stage.status])}
                   data-testid={`stage-${key}-icon`}
                 >
                   {stageIcons[stage.status]}
                 </span>
                 <div className="flex-1">
-                  <p className="font-medium">{stageLabels[key as keyof typeof stageLabels]}</p>
+                  <p className="text-sm md:text-base font-medium">
+                    {stageLabels[key as keyof typeof stageLabels]}
+                  </p>
                   {stage.status === 'in_progress' && (
                     <div className="mt-2 max-w-xs">
                       <ProgressBar value={stage.progress} showPercentage />

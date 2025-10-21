@@ -73,7 +73,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ logs }) => {
       {isExpanded && (
         <div
           ref={logContainerRef}
-          className="p-4 h-64 overflow-y-auto font-mono text-sm bg-gray-50"
+          className="p-3 md:p-4 h-48 md:h-64 overflow-y-auto font-mono text-xs md:text-sm bg-gray-50"
           onScroll={handleScroll}
           data-testid="log-viewer"
         >

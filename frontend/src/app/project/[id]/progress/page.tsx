@@ -137,11 +137,13 @@ export default function ProgressPage({ params }: ProgressPageProps) {
         ]}
       />
 
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">{currentProject.project_name}</h1>
+      <div className="p-4 md:p-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">
+          {currentProject.project_name}
+        </h1>
 
         {/* 總進度區 */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-4 md:mb-6">
           <div className="mb-4">
             <p className="text-lg font-medium mb-2">
               {isCompleted ? '影片生成完成!' : isFailed ? '生成失敗' : progress.message}
@@ -196,7 +198,7 @@ export default function ProgressPage({ params }: ProgressPageProps) {
         <LogViewer logs={logs} />
 
         {/* 操作按鈕 */}
-        <div className="flex justify-end gap-4 mt-6">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 md:gap-4 mt-4 md:mt-6">
           {!isCompleted && !isFailed && (
             <>
               {!isPaused ? (

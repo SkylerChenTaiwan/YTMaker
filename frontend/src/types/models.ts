@@ -17,6 +17,43 @@ export interface UserPreferences {
 }
 
 // ========== Project ==========
+export interface SubTask {
+  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  progress: number
+  total?: number
+}
+
+export interface Stage {
+  status: 'pending' | 'in_progress' | 'completed' | 'failed'
+  progress: number
+  subtasks?: {
+    audio?: SubTask
+    images?: SubTask
+    avatar?: SubTask
+  }
+}
+
+export interface ProjectProgress {
+  overall: number
+  stage: string
+  message: string
+  estimatedTime?: string
+  stages: {
+    script: Stage
+    assets: Stage
+    render: Stage
+    thumbnail: Stage
+    upload: Stage
+  }
+}
+
+export interface ProjectError {
+  stage: string
+  message: string
+  code: string
+  timestamp: string
+}
+
 export interface Project {
   id: string
   project_name: string
@@ -24,6 +61,8 @@ export interface Project {
   content_text: string
   created_at: string
   updated_at: string
+  progress?: ProjectProgress
+  error?: ProjectError
 }
 
 export type ProjectStatus =
