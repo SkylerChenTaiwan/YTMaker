@@ -76,7 +76,7 @@ const XIcon: React.FC<{ className?: string; 'data-testid'?: string }> = ({
   </svg>
 )
 
-export const GeminiApiStep: React.FC = () => {
+export const DIdApiStep: React.FC = () => {
   const [apiKey, setApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -98,13 +98,13 @@ export const GeminiApiStep: React.FC = () => {
 
   const handleBlur = () => {
     if (!apiKey) {
-      setValidationError('請輸入 Gemini API Key')
+      setValidationError('請輸入 D-ID API Key')
     }
   }
 
   const handleTestConnection = async () => {
     if (!apiKey) {
-      setValidationError('請輸入 Gemini API Key')
+      setValidationError('請輸入 D-ID API Key')
       return
     }
 
@@ -114,13 +114,13 @@ export const GeminiApiStep: React.FC = () => {
 
     try {
       const result = await systemApi.testApiKey({
-        provider: 'gemini',
+        provider: 'did',
         apiKey,
       })
 
       if (result.success) {
         setTestStatus('success')
-        saveApiKey('gemini', apiKey, true)
+        saveApiKey('did', apiKey, true)
       }
     } catch (error) {
       setTestStatus('error')
@@ -135,12 +135,12 @@ export const GeminiApiStep: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Gemini API Key</h2>
+        <h2 className="text-2xl font-bold mb-2">D-ID API Key</h2>
         <p className="text-gray-600 mb-2">
-          請輸入您的 Google Gemini API Key,用於生成影片腳本
+          請輸入您的 D-ID API Key,用於生成虛擬主播影片
         </p>
         <a
-          href="https://makersuite.google.com/app/apikey"
+          href="https://studio.d-id.com/account-settings"
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-500 hover:underline text-sm"
@@ -150,17 +150,17 @@ export const GeminiApiStep: React.FC = () => {
       </div>
 
       <div>
-        <label htmlFor="gemini-api-key" className="block mb-2 font-medium">
+        <label htmlFor="did-api-key" className="block mb-2 font-medium">
           API Key
         </label>
         <div className="relative">
           <input
-            id="gemini-api-key"
+            id="did-api-key"
             type={showKey ? 'text' : 'password'}
             value={apiKey}
             onChange={handleApiKeyChange}
             onBlur={handleBlur}
-            placeholder="輸入 Gemini API Key"
+            placeholder="輸入 D-ID API Key"
             className={`block w-full px-4 py-2 pr-12 text-base border rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-0 ${
               validationError || testStatus === 'error'
                 ? 'border-red-500 focus:ring-red-500'
