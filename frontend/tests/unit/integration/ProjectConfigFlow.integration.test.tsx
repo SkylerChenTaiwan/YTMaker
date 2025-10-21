@@ -49,7 +49,7 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
     mockPush.mockClear()
   })
 
-  it.skip('完整流程: Prompt 設定 -> YouTube 設定 -> 開始生成', async () => {
+  it('完整流程: Prompt 設定 -> YouTube 設定 -> 開始生成', async () => {
     const user = userEvent.setup()
     const queryClient = createTestQueryClient()
 
@@ -70,13 +70,13 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
 
     ;(projectsApi.getPromptTemplates as jest.Mock).mockResolvedValue([
       { id: 'default', name: '預設範本', content: '預設 Prompt 內容...' + 'x'.repeat(180) },
-      { id: 'custom-1', name: '自訂範本 1', content: '自訂內容...' + 'x'.repeat(188) },
+      { id: 'custom-1', name: '自訂範本 1', content: '自訂內容...' + 'x'.repeat(193) }, // 7 + 193 = 200
     ])
 
     ;(projectsApi.updatePromptSettings as jest.Mock).mockResolvedValue({
       id: 'project-123',
       prompt_template_id: 'custom-1',
-      prompt_content: '自訂內容...' + 'x'.repeat(188),
+      prompt_content: '自訂內容...' + 'x'.repeat(193), // 7 + 193 = 200
       gemini_model: 'gemini-1.5-pro',
     })
 
@@ -91,9 +91,9 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
       expect(screen.queryByText('載入中...')).not.toBeInTheDocument()
     })
 
-    // 1. Select template using fireEvent
+    // 1. Select template using userEvent
     const templateSelect = screen.getByLabelText('選擇範本') as HTMLSelectElement
-    fireEvent.change(templateSelect, { target: { value: 'custom-1' } })
+    await user.selectOptions(templateSelect, 'custom-1')
 
     // Wait for template content to update
     await waitFor(() => {
@@ -105,9 +105,14 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
     const proModel = screen.getByLabelText('Gemini 1.5 Pro')
     await user.click(proModel)
 
-    // 3. Click next (use fireEvent because button type is submit)
+    // Wait for model selection to register
+    await waitFor(() => {
+      expect(proModel).toBeChecked()
+    })
+
+    // 3. Click next
     const nextButton = screen.getByText('下一步') as HTMLButtonElement
-    fireEvent.click(nextButton)
+    await user.click(nextButton)
 
     // 4. Verify API called
     await waitFor(() => {
@@ -144,22 +149,36 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
     const descInput = screen.getByTestId('youtube-description')
     await user.type(descInput, '這是一部關於 AI 的教學影片')
 
-    // 7. Add tags using fireEvent
+    // 7. Add tags - need to use fireEvent for tags due to complex interaction
     const tagInput = screen.getByTestId('youtube-tags-input') as HTMLInputElement
     fireEvent.change(tagInput, { target: { value: 'AI' } })
     fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.getByText('AI')).toBeInTheDocument()
+    })
+
     fireEvent.change(tagInput, { target: { value: '教學' } })
     fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.getByText('教學')).toBeInTheDocument()
+    })
+
     fireEvent.change(tagInput, { target: { value: '科技' } })
     fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.getByText('科技')).toBeInTheDocument()
+    })
 
     // 8. Privacy should default to public
     const publicOption = screen.getByLabelText('公開') as HTMLInputElement
     expect(publicOption).toBeChecked()
 
-    // 9. Start generation (use fireEvent because button type is submit)
+    // 9. Start generation
     const startButton = screen.getByText('開始生成') as HTMLButtonElement
-    fireEvent.click(startButton)
+    await user.click(startButton)
 
     // 10. Verify YouTube settings API called
     await waitFor(() => {
