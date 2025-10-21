@@ -2,12 +2,25 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { YouTubeAccount, UserPreferences } from '@/types/models'
 
+interface ApiKeyStatus {
+  value: string
+  tested: boolean
+}
+
+interface YouTubeAuth {
+  connected: boolean
+  channel_name: string
+  channel_id: string
+  thumbnail_url: string
+}
+
 interface AuthState {
   apiKeys: {
-    gemini: string | null
-    stabilityAI: string | null
-    dId: string | null
+    gemini: ApiKeyStatus
+    stabilityAI: ApiKeyStatus
+    dId: ApiKeyStatus
   }
+  youtube: YouTubeAuth
   youtubeAccounts: YouTubeAccount[]
   preferences: UserPreferences
   ui: {
@@ -17,7 +30,13 @@ interface AuthState {
 }
 
 interface AuthActions {
-  setApiKey: (service: 'gemini' | 'stabilityAI' | 'dId', key: string) => void
+  setApiKey: (
+    service: 'gemini' | 'stabilityAI' | 'dId',
+    key: string,
+    tested?: boolean
+  ) => void
+  setYouTubeAuth: (auth: Partial<YouTubeAuth>) => void
+  clearAuth: () => void
   addYouTubeAccount: (account: YouTubeAccount) => void
   removeYouTubeAccount: (accountId: string) => void
   updatePreferences: (preferences: Partial<UserPreferences>) => void
@@ -38,9 +57,15 @@ export const useAuthStore = create<AuthState & AuthActions>()(
     (set) => ({
       // ========== State ==========
       apiKeys: {
-        gemini: null,
-        stabilityAI: null,
-        dId: null,
+        gemini: { value: '', tested: false },
+        stabilityAI: { value: '', tested: false },
+        dId: { value: '', tested: false },
+      },
+      youtube: {
+        connected: false,
+        channel_name: '',
+        channel_id: '',
+        thumbnail_url: '',
       },
       youtubeAccounts: [],
       preferences: defaultPreferences,
@@ -50,13 +75,35 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       },
 
       // ========== Actions ==========
-      setApiKey: (service, key) => {
+      setApiKey: (service, key, tested = true) => {
         set((state) => ({
           apiKeys: {
             ...state.apiKeys,
-            [service]: key,
+            [service]: { value: key, tested },
           },
         }))
+      },
+
+      setYouTubeAuth: (auth) => {
+        set((state) => ({
+          youtube: { ...state.youtube, ...auth },
+        }))
+      },
+
+      clearAuth: () => {
+        set({
+          apiKeys: {
+            gemini: { value: '', tested: false },
+            stabilityAI: { value: '', tested: false },
+            dId: { value: '', tested: false },
+          },
+          youtube: {
+            connected: false,
+            channel_name: '',
+            channel_id: '',
+            thumbnail_url: '',
+          },
+        })
       },
 
       addYouTubeAccount: (account) => {
