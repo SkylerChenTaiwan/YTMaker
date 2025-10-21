@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { GeminiApiStep } from '@/components/setup/steps/GeminiApiStep'
+import { StabilityApiStep } from '@/components/setup/steps/StabilityApiStep'
 import { systemApi } from '@/services/api/systemApi'
 import { useAuthStore } from '@/store/useAuthStore'
 
@@ -13,7 +13,7 @@ const mockUseAuthStore = useAuthStore as jest.MockedFunction<
   typeof useAuthStore
 >
 
-describe('GeminiApiStep', () => {
+describe('StabilityApiStep', () => {
   const mockSetApiKey = jest.fn()
 
   beforeEach(() => {
@@ -29,9 +29,9 @@ describe('GeminiApiStep', () => {
   })
 
   it('should toggle API key visibility', () => {
-    render(<GeminiApiStep />)
+    render(<StabilityApiStep />)
 
-    const input = screen.getByPlaceholderText(/輸入.*Gemini.*API.*Key/i)
+    const input = screen.getByPlaceholderText(/輸入.*Stability.*AI.*API.*Key/i)
     const toggleButton = screen.getByLabelText('顯示/隱藏密碼')
 
     // 初始狀態為隱藏 (type="password")
@@ -47,27 +47,29 @@ describe('GeminiApiStep', () => {
   })
 
   it('should validate API key format', () => {
-    render(<GeminiApiStep />)
+    render(<StabilityApiStep />)
 
-    const input = screen.getByPlaceholderText(/輸入.*Gemini.*API.*Key/i)
+    const input = screen.getByPlaceholderText(/輸入.*Stability.*AI.*API.*Key/i)
 
     // 輸入空值
     fireEvent.change(input, { target: { value: '' } })
     fireEvent.blur(input)
 
     // 應該顯示錯誤訊息 - 使用更精確的選擇器 (text-red-500 text-sm mt-1)
-    const errorElements = screen.getAllByText(/請輸入.*Gemini.*API.*Key/i)
+    const errorElements = screen.getAllByText(
+      /請輸入.*Stability.*AI.*API.*Key/i
+    )
     const errorMessage = errorElements.find(
       (el) => el.className && el.className.includes('text-red-500')
     )
     expect(errorMessage).toBeInTheDocument()
 
     // 輸入有效值
-    fireEvent.change(input, { target: { value: 'AIza...' } })
+    fireEvent.change(input, { target: { value: 'sk-...' } })
 
     // 錯誤訊息應該消失
     const updatedErrorElements = screen.queryAllByText(
-      /請輸入.*Gemini.*API.*Key/i
+      /請輸入.*Stability.*AI.*API.*Key/i
     )
     const updatedErrorMessage = updatedErrorElements.find(
       (el) => el.className && el.className.includes('text-red-500')
@@ -82,9 +84,9 @@ describe('GeminiApiStep', () => {
       message: '連線成功',
     })
 
-    render(<GeminiApiStep />)
+    render(<StabilityApiStep />)
 
-    const input = screen.getByPlaceholderText(/輸入.*Gemini.*API.*Key/i)
+    const input = screen.getByPlaceholderText(/輸入.*Stability.*AI.*API.*Key/i)
     const testButton = screen.getByText('測試連線')
 
     // 輸入 API Key
@@ -105,12 +107,12 @@ describe('GeminiApiStep', () => {
 
     // 驗證 API 被正確調用
     expect(mockSystemApi.testApiKey).toHaveBeenCalledWith({
-      provider: 'gemini',
+      provider: 'stability',
       apiKey: 'test-key-123',
     })
 
     // 驗證 store 被更新
-    expect(mockSetApiKey).toHaveBeenCalledWith('gemini', 'test-key-123', true)
+    expect(mockSetApiKey).toHaveBeenCalledWith('stability', 'test-key-123', true)
   })
 
   it('should handle connection test failure', async () => {
@@ -119,9 +121,9 @@ describe('GeminiApiStep', () => {
       new Error('API Key 無效')
     )
 
-    render(<GeminiApiStep />)
+    render(<StabilityApiStep />)
 
-    const input = screen.getByPlaceholderText(/輸入.*Gemini.*API.*Key/i)
+    const input = screen.getByPlaceholderText(/輸入.*Stability.*AI.*API.*Key/i)
     const testButton = screen.getByText('測試連線')
 
     fireEvent.change(input, { target: { value: 'invalid-key' } })
@@ -134,7 +136,7 @@ describe('GeminiApiStep', () => {
   })
 
   it('should disable test button when API key is empty', () => {
-    render(<GeminiApiStep />)
+    render(<StabilityApiStep />)
 
     const testButton = screen.getByText('測試連線')
 
@@ -143,9 +145,9 @@ describe('GeminiApiStep', () => {
   })
 
   it('should enable test button when API key is provided', () => {
-    render(<GeminiApiStep />)
+    render(<StabilityApiStep />)
 
-    const input = screen.getByPlaceholderText(/輸入.*Gemini.*API.*Key/i)
+    const input = screen.getByPlaceholderText(/輸入.*Stability.*AI.*API.*Key/i)
     const testButton = screen.getByText('測試連線')
 
     // 輸入 API Key
