@@ -12,6 +12,9 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import ProgressPage from '@/app/project/[id]/progress/page'
 
+// Mock 環境變數
+process.env.NEXT_PUBLIC_WS_URL = 'ws://localhost:8000'
+
 // Mock @/lib/api/projects
 jest.mock('@/lib/api/projects', () => ({
   getProject: jest.fn(),
