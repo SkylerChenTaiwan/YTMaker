@@ -332,14 +332,13 @@ describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
 })
 
 describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
-
   const mockProject = {
     id: '123',
     project_name: '測試專案',
     status: 'ASSETS_GENERATING',
+    created_at: '2025-01-20T10:00:00Z',
+    updated_at: '2025-01-20T11:00:00Z',
+    error: null,
     progress: {
       overall: 45,
       stage: 'assets',
@@ -354,13 +353,55 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
     },
   }
 
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockProjectState.current = mockProject
+    mockProgress.overall = 45
+    mockProgress.stage = 'assets'
+    mockProgress.message = '素材生成中...'
+    mockProgress.stages = mockProject.progress.stages
+
+    // 設定初始日誌
+    mockLogs.length = 0
+    mockLogs.push(
+      {
+        id: '1',
+        projectId: '123',
+        timestamp: '2025-10-19T10:00:00Z',
+        level: 'info',
+        message: '開始腳本生成...',
+      },
+      {
+        id: '2',
+        projectId: '123',
+        timestamp: '2025-10-19T10:01:30Z',
+        level: 'info',
+        message: '腳本生成完成',
+      },
+      {
+        id: '3',
+        projectId: '123',
+        timestamp: '2025-10-19T10:15:00Z',
+        level: 'error',
+        message: '圖片生成失敗 (#7): 連線超時',
+      },
+      {
+        id: '4',
+        projectId: '123',
+        timestamp: '2025-10-19T10:15:10Z',
+        level: 'warning',
+        message: '正在重試 (1/3)...',
+      }
+    )
+  })
+
   it('應該正確顯示日誌並自動捲動到最新', async () => {
     (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
-      expect(screen.getByText('測試專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '測試專案', level: 1 })).toBeInTheDocument()
     })
 
     // 點擊展開日誌
@@ -371,31 +412,7 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
       expect(screen.getByTestId('log-viewer')).toBeInTheDocument()
     })
 
-    // 使用 useProgressStore 添加日誌
-    const { useProgressStore } = await import('@/store/useProgressStore')
-    const addLog = useProgressStore.getState().addLog
-
-    addLog({
-      timestamp: '2025-10-19T10:00:00Z',
-      level: 'info',
-      message: '開始腳本生成...',
-    })
-    addLog({
-      timestamp: '2025-10-19T10:01:30Z',
-      level: 'info',
-      message: '腳本生成完成',
-    })
-    addLog({
-      timestamp: '2025-10-19T10:15:00Z',
-      level: 'error',
-      message: '圖片生成失敗 (#7): 連線超時',
-    })
-    addLog({
-      timestamp: '2025-10-19T10:15:10Z',
-      level: 'warning',
-      message: '正在重試 (1/3)...',
-    })
-
+    // 驗證日誌顯示
     await waitFor(() => {
       expect(screen.getByText(/開始腳本生成/)).toBeInTheDocument()
     })
@@ -424,19 +441,7 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
 
     const logViewer = screen.getByTestId('log-viewer')
 
-    // 添加一些日誌
-    const { useProgressStore } = await import('@/store/useProgressStore')
-    const addLog = useProgressStore.getState().addLog
-
-    for (let i = 0; i < 5; i++) {
-      addLog({
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        message: `日誌訊息 ${i}`,
-      })
-    }
-
-    // 模擬用戶捲動到頂部
+    // 模擬用戶捲動到頂部（已有 4 條日誌從 beforeEach）
     Object.defineProperty(logViewer, 'scrollTop', { value: 0, writable: true })
     Object.defineProperty(logViewer, 'scrollHeight', { value: 1000, writable: true })
     Object.defineProperty(logViewer, 'clientHeight', { value: 264, writable: true })
@@ -451,14 +456,13 @@ describe('ProgressPage - 測試 3: 日誌顯示與自動捲動', () => {
 })
 
 describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
-
   const mockProject = {
     id: '123',
     project_name: '測試專案',
     status: 'ASSETS_GENERATING',
+    created_at: '2025-01-20T10:00:00Z',
+    updated_at: '2025-01-20T11:00:00Z',
+    error: null,
     progress: {
       overall: 45,
       stage: 'assets',
@@ -473,15 +477,24 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
     },
   }
 
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockProjectState.current = mockProject
+    mockProgress.overall = 45
+    mockProgress.stage = 'assets'
+    mockProgress.message = '素材生成中...'
+    mockProgress.stages = mockProject.progress.stages
+  })
+
   it('應該正確處理暫停與繼續', async () => {
-    const pauseMock = (projectApi.pauseGeneration as jest.Mock).mockResolvedValue({ success: true })
-    const resumeMock = (projectApi.resumeGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.pauseGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.resumeGeneration as jest.Mock).mockResolvedValue({ success: true })
     (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
-      expect(screen.getByText('測試專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '測試專案', level: 1 })).toBeInTheDocument()
     })
 
     // 點擊暫停按鈕
@@ -490,7 +503,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 
     // 驗證 API 調用
     await waitFor(() => {
-      expect(pauseMock).toHaveBeenCalledWith('123')
+      expect(projectApi.pauseGeneration).toHaveBeenCalledWith('123')
     })
 
     // 驗證按鈕變為「繼續」
@@ -504,7 +517,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 
     // 驗證 API 調用
     await waitFor(() => {
-      expect(resumeMock).toHaveBeenCalledWith('123')
+      expect(projectApi.resumeGeneration).toHaveBeenCalledWith('123')
     })
 
     // 驗證按鈕變回「暫停」
@@ -514,13 +527,13 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
   })
 
   it('應該正確處理取消', async () => {
-    const cancelMock = (projectApi.cancelGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.cancelGeneration as jest.Mock).mockResolvedValue({ success: true })
     (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
-      expect(screen.getByText('測試專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '測試專案', level: 1 })).toBeInTheDocument()
     })
 
     // 點擊取消按鈕
@@ -538,7 +551,7 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 
     // 驗證 API 調用
     await waitFor(() => {
-      expect(cancelMock).toHaveBeenCalledWith('123')
+      expect(projectApi.cancelGeneration).toHaveBeenCalledWith('123')
     })
 
     // 驗證跳轉
@@ -549,14 +562,12 @@ describe('ProgressPage - 測試 4: 暫停與取消功能', () => {
 })
 
 describe('ProgressPage - 測試 5: 錯誤處理', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
-
   const mockProjectFailed = {
     id: '123',
     project_name: '失敗的專案',
     status: 'FAILED',
+    created_at: '2025-01-20T10:00:00Z',
+    updated_at: '2025-01-20T11:00:00Z',
     error: {
       stage: 'assets',
       message: 'Stability AI API 錯誤: 圖片生成超時 (圖片 #7)',
@@ -577,6 +588,15 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
     },
   }
 
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockProjectState.current = mockProjectFailed
+    mockProgress.overall = 45
+    mockProgress.stage = 'assets'
+    mockProgress.message = '生成失敗'
+    mockProgress.stages = mockProjectFailed.progress.stages
+  })
+
   it('應該正確顯示失敗狀態和錯誤訊息', async () => {
     (projectApi.getProject as jest.Mock).mockResolvedValue(mockProjectFailed)
 
@@ -584,7 +604,7 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
 
     // 等待資料載入
     await waitFor(() => {
-      expect(screen.getByText('失敗的專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '失敗的專案', level: 1 })).toBeInTheDocument()
     })
 
     // 驗證失敗圖示
@@ -599,13 +619,13 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
   })
 
   it('應該正確處理重試', async () => {
-    const retryMock = (projectApi.retryGeneration as jest.Mock).mockResolvedValue({ success: true })
+    (projectApi.retryGeneration as jest.Mock).mockResolvedValue({ success: true })
     (projectApi.getProject as jest.Mock).mockResolvedValue(mockProjectFailed)
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
-      expect(screen.getByText('失敗的專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '失敗的專案', level: 1 })).toBeInTheDocument()
     })
 
     // 點擊重試按鈕
@@ -614,7 +634,7 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
 
     // 驗證 API 調用
     await waitFor(() => {
-      expect(retryMock).toHaveBeenCalledWith('123')
+      expect(projectApi.retryGeneration).toHaveBeenCalledWith('123')
     })
   })
 })
