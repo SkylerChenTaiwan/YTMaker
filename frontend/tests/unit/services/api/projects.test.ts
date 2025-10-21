@@ -30,6 +30,30 @@ describe('Projects API', () => {
     })
   })
 
+  describe('getProject', () => {
+    it('should fetch single project by id', async () => {
+      const mockProject = {
+        id: 'proj-001',
+        project_name: 'Test Project',
+        status: 'COMPLETED' as const,
+        created_at: '2025-01-15T10:30:00Z',
+        updated_at: '2025-01-15T11:45:00Z',
+        youtube_video_id: 'abc123'
+      }
+
+      const mockResponse = {
+        data: { data: mockProject }
+      }
+
+      ;(axiosInstance.get as jest.Mock).mockResolvedValue(mockResponse)
+
+      const result = await projectsApi.getProject('proj-001')
+
+      expect(axiosInstance.get).toHaveBeenCalledWith('/api/v1/projects/proj-001')
+      expect(result).toEqual(mockProject)
+    })
+  })
+
   describe('deleteProject', () => {
     it('should delete project by id', async () => {
       ;(axiosInstance.delete as jest.Mock).mockResolvedValue({})
