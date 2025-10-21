@@ -13,7 +13,7 @@ const customJestConfig = {
     '^uuid$': require.resolve('uuid'),
   },
   testPathIgnorePatterns: ['/node_modules/', '/.next/', '/tests/e2e/'],
-  testMatch: ['**/tests/unit/**/*.test.[jt]s?(x)'],
+  testMatch: ['**/tests/unit/**/*.test.[jt]s?(x)', '**/__tests__/**/*.test.[jt]s?(x)'],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',

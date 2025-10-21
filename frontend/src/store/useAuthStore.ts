@@ -1,14 +1,22 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { YouTubeAccount, UserPreferences } from '@/types/models'
+import type { Quotas, YouTubeChannel } from '@/types/system'
+import { systemApi } from '@/lib/api/system'
+import { youtubeApi } from '@/lib/api/youtube'
 
 interface AuthState {
   apiKeys: {
     gemini: string | null
     stabilityAI: string | null
     dId: string | null
+    geminiLastTested?: string
+    stabilityAILastTested?: string
+    didLastTested?: string
   }
+  quotas: Quotas
   youtubeAccounts: YouTubeAccount[]
+  youtubeChannels: YouTubeChannel[]
   preferences: UserPreferences
   ui: {
     sidebarCollapsed: boolean
@@ -23,6 +31,10 @@ interface AuthActions {
   updatePreferences: (preferences: Partial<UserPreferences>) => void
   toggleSidebar: () => void
   setTheme: (theme: 'light' | 'dark') => void
+  fetchAPIKeys: () => Promise<void>
+  fetchQuotas: () => Promise<void>
+  fetchYouTubeChannels: () => Promise<void>
+  setYouTubeChannels: (channels: YouTubeChannel[]) => void
 }
 
 const defaultPreferences: UserPreferences = {
@@ -42,7 +54,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         stabilityAI: null,
         dId: null,
       },
+      quotas: {},
       youtubeAccounts: [],
+      youtubeChannels: [],
       preferences: defaultPreferences,
       ui: {
         sidebarCollapsed: false,
@@ -98,6 +112,37 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             theme,
           },
         }))
+      },
+
+      fetchAPIKeys: async () => {
+        try {
+          const data = await systemApi.getAPIKeys()
+          set({ apiKeys: data })
+        } catch (error) {
+          console.error('Failed to fetch API keys', error)
+        }
+      },
+
+      fetchQuotas: async () => {
+        try {
+          const data = await systemApi.getQuotas()
+          set({ quotas: data })
+        } catch (error) {
+          console.error('Failed to fetch quotas', error)
+        }
+      },
+
+      fetchYouTubeChannels: async () => {
+        try {
+          const channels = await youtubeApi.getChannels()
+          set({ youtubeChannels: channels })
+        } catch (error) {
+          console.error('Failed to fetch YouTube channels', error)
+        }
+      },
+
+      setYouTubeChannels: (channels) => {
+        set({ youtubeChannels: channels })
       },
     }),
     {
