@@ -15,6 +15,11 @@ export const YouTubeAuthStep: React.FC = () => {
         return
       }
 
+      // 安全檢查: 驗證 data 存在
+      if (!event.data || typeof event.data !== 'object') {
+        return
+      }
+
       if (event.data.type === 'youtube-auth-success') {
         setYouTubeAuth({
           connected: true,
