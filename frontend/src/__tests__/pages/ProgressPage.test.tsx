@@ -28,9 +28,10 @@ jest.mock('@/lib/api/projects', () => ({
 import * as projectApi from '@/lib/api/projects'
 
 // Mock next/navigation
+const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     back: jest.fn(),
   }),
   usePathname: () => '/project/123/progress',
@@ -46,6 +47,90 @@ jest.mock('@/lib/toast', () => ({
   },
 }))
 
+// Mock @/store/useProjectStore
+const mockFetchProject = jest.fn()
+const mockProjectState = {
+  current: null as any,
+}
+
+jest.mock('@/store/useProjectStore', () => ({
+  useProjectStore: jest.fn(() => ({
+    projects: {
+      get current() {
+        return mockProjectState.current
+      },
+      loading: false,
+      error: null,
+      list: [],
+    },
+    // 提供 currentProject 作為快捷方式
+    get currentProject() {
+      return mockProjectState.current
+    },
+    fetchProject: mockFetchProject.mockImplementation(async (id: string) => {
+      // fetchProject 在真實場景會設定 current，測試中需要手動設定
+    }),
+    setCurrentProject: jest.fn((project: any) => {
+      mockProjectState.current = project
+    }),
+    setProjectsLoading: jest.fn(),
+    setProjectsError: jest.fn(),
+  })),
+}))
+
+// Mock @/store/useProgressStore
+let mockProgress: any = {
+  overall: 0,
+  stage: 'script',
+  message: '準備開始生成...',
+  stages: {
+    script: { status: 'pending', progress: 0 },
+    assets: { status: 'pending', progress: 0 },
+    render: { status: 'pending', progress: 0 },
+    thumbnail: { status: 'pending', progress: 0 },
+    upload: { status: 'pending', progress: 0 },
+  },
+}
+let mockLogs: any[] = []
+
+const mockUpdateProgress = jest.fn((update: any) => {
+  mockProgress = { ...mockProgress, ...update }
+})
+const mockAddLog = jest.fn((log: any) => {
+  mockLogs.push(log)
+})
+const mockClearLogs = jest.fn(() => {
+  mockLogs = []
+})
+const mockResetProgress = jest.fn()
+
+jest.mock('@/store/useProgressStore', () => ({
+  useProgressStore: jest.fn(() => ({
+    progress: mockProgress,
+    logs: mockLogs,
+    updateProgress: mockUpdateProgress,
+    addLog: mockAddLog,
+    clearLogs: mockClearLogs,
+    resetProgress: mockResetProgress,
+  })),
+}))
+
+// Mock @/hooks/useWebSocket
+const mockReconnect = jest.fn()
+const mockSend = jest.fn()
+let mockOnMessage: any = null
+
+jest.mock('@/hooks/useWebSocket', () => ({
+  useWebSocket: jest.fn((projectId: string, options: any) => {
+    mockOnMessage = options.onMessage
+    return {
+      isConnected: true,
+      reconnect: mockReconnect,
+      send: mockSend,
+    }
+  }),
+}))
+
 // 全局清理：每個測試後恢復所有 mocks
 afterEach(() => {
   jest.restoreAllMocks()
@@ -56,6 +141,17 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
     id: '123',
     project_name: '測試專案',
     status: 'ASSETS_GENERATING',
+    created_at: '2025-01-20T10:00:00Z',
+    updated_at: '2025-01-20T11:00:00Z',
+    video_title: '測試影片標題',
+    topic: '測試主題',
+    target_duration: 300,
+    target_audience: 'general',
+    video_style: 'educational',
+    voice_gender: 'female',
+    bgm_style: 'calm',
+    script_content: '測試腳本內容',
+    error: null,
     progress: {
       overall: 45,
       stage: 'assets',
@@ -80,6 +176,12 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    // 設定 mock 專案資料
+    mockProjectState.current = mockProject
+    mockProgress.overall = 45
+    mockProgress.stage = 'assets'
+    mockProgress.message = '素材生成中...'
+    mockProgress.stages = mockProject.progress.stages
   })
 
   it('應該正確顯示專案進度和階段狀態', async () => {
@@ -89,13 +191,13 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
     // 渲染頁面
     render(<ProgressPage params={{ id: '123' }} />)
 
-    // 等待資料載入
+    // 等待資料載入（使用 h1 確保是標題）
     await waitFor(() => {
-      expect(screen.getByText('測試專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '測試專案', level: 1 })).toBeInTheDocument()
     })
 
     // 驗證總進度條
-    const progressBar = screen.getByRole('progressbar')
+    const progressBar = screen.getByTestId('progress-bar')
     expect(progressBar).toHaveAttribute('aria-valuenow', '45')
 
     // 驗證當前階段
@@ -123,7 +225,7 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
-      expect(screen.getByText('測試專案')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '測試專案', level: 1 })).toBeInTheDocument()
     })
 
     // 驗證語音合成 (已完成)
