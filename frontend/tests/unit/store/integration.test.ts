@@ -13,7 +13,7 @@ describe('Store Integration Tests', () => {
   it('測試 5.1: localStorage 持久化測試', () => {
     // 設定 API Keys
     act(() => {
-      useAuthStore.getState().setApiKey('gemini', 'AIzaSy...')
+      useAuthStore.getState().setApiKey('gemini', 'AIzaSy...', true)
       useAuthStore.getState().setTheme('dark')
       useAuthStore.getState().updatePreferences({ voice_gender: 'male' })
     })
@@ -34,7 +34,8 @@ describe('Store Integration Tests', () => {
     })
 
     // 驗證狀態已設定
-    expect(useAuthStore.getState().apiKeys.gemini).toBe('AIzaSy...')
+    expect(useAuthStore.getState().apiKeys.gemini.value).toBe('AIzaSy...')
+    expect(useAuthStore.getState().apiKeys.gemini.tested).toBe(true)
     expect(useAuthStore.getState().ui.theme).toBe('dark')
     expect(useAuthStore.getState().preferences.voice_gender).toBe('male')
     expect(useProjectStore.getState().projects.list).toHaveLength(1)
@@ -44,14 +45,14 @@ describe('Store Integration Tests', () => {
     const storedData = localStorage.getItem('ytmaker-auth-storage')
     expect(storedData).toBeTruthy()
     const parsed = JSON.parse(storedData!)
-    expect(parsed.state.apiKeys.gemini).toBe('AIzaSy...')
+    expect(parsed.state.apiKeys.gemini.value).toBe('AIzaSy...')
 
     // 模擬頁面重新載入 - 重新創建 store 實例
     // 由於 Zustand persist 會自動從 localStorage 恢復，我們需要確認數據已保存
     const { result } = renderHook(() => useAuthStore())
 
     // 持久化狀態應該保持
-    expect(result.current.apiKeys.gemini).toBe('AIzaSy...')
+    expect(result.current.apiKeys.gemini.value).toBe('AIzaSy...')
     expect(result.current.ui.theme).toBe('dark')
     expect(result.current.preferences.voice_gender).toBe('male')
 
@@ -97,18 +98,18 @@ describe('Store Integration Tests', () => {
 
     // 更新 geminiKey → 應該只影響訂閱 geminiKey 的元件
     act(() => {
-      useAuthStore.getState().setApiKey('gemini', 'new-key')
+      useAuthStore.getState().setApiKey('gemini', 'new-key', true)
     })
 
-    expect(result1.current).toBe('new-key')
+    expect(result1.current.value).toBe('new-key')
     // geminiKey 訂閱者應該重新渲染（但 renderHook 的行為與實際元件略有不同）
 
     // 更新 stabilityAI → 不應該影響 geminiKey 訂閱者
     act(() => {
-      useAuthStore.getState().setApiKey('stabilityAI', 'another-key')
+      useAuthStore.getState().setApiKey('stabilityAI', 'another-key', true)
     })
 
-    expect(result1.current).toBe('new-key') // geminiKey 保持不變
+    expect(result1.current.value).toBe('new-key') // geminiKey 保持不變
 
     // 更新 projects → 不應該影響 geminiKey 訂閱者
     act(() => {
@@ -128,7 +129,7 @@ describe('Store Integration Tests', () => {
 
     // 驗證選擇性訂閱正常工作
     // （在實際應用中，未訂閱的狀態變更不會觸發組件重新渲染）
-    expect(result1.current).toBe('new-key')
+    expect(result1.current.value).toBe('new-key')
     expect(result2.current).toHaveLength(1)
   })
 })
