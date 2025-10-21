@@ -27,8 +27,9 @@ export const PreferencesTab = () => {
     try {
       const data = await systemApi.getPreferences()
       setPreferences(data)
-    } catch (error: any) {
-      message.error(error.message || '載入設定失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '載入設定失敗'
+      message.error(errorMessage)
     }
   }
 
@@ -37,8 +38,9 @@ export const PreferencesTab = () => {
     try {
       await systemApi.savePreferences(preferences)
       message.success('設定已儲存')
-    } catch (error: any) {
-      message.error(error.message || '儲存失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '儲存失敗'
+      message.error(errorMessage)
     } finally {
       setIsSaving(false)
     }
@@ -54,8 +56,9 @@ export const PreferencesTab = () => {
         try {
           await systemApi.clearCache()
           message.success('快取已清除')
-        } catch (error: any) {
-          message.error(error.message || '清除失敗')
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '清除失敗'
+          message.error(errorMessage)
         }
       },
     })
@@ -77,8 +80,9 @@ export const PreferencesTab = () => {
       URL.revokeObjectURL(url)
 
       message.success('資料已匯出')
-    } catch (error: any) {
-      message.error(error.message || '匯出失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '匯出失敗'
+      message.error(errorMessage)
     }
   }
 
@@ -97,8 +101,9 @@ export const PreferencesTab = () => {
 
       // 重新載入設定
       await loadPreferences()
-    } catch (error: any) {
-      message.error(error.message || '匯入失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '匯入失敗'
+      message.error(errorMessage)
     }
 
     // 重置 input
@@ -117,8 +122,9 @@ export const PreferencesTab = () => {
           await systemApi.resetSettings()
           message.success('設定已重置')
           await loadPreferences()
-        } catch (error: any) {
-          message.error(error.message || '重置失敗')
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '重置失敗'
+          message.error(errorMessage)
         }
       },
     })
@@ -135,8 +141,9 @@ export const PreferencesTab = () => {
       message.success('所有資料已清除')
       setShowClearDataModal(false)
       setConfirmText('')
-    } catch (error: any) {
-      message.error(error.message || '清除失敗')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '清除失敗'
+      message.error(errorMessage)
     }
   }
 

@@ -120,7 +120,7 @@ export const DIdApiStep: React.FC = () => {
 
       if (result.success) {
         setTestStatus('success')
-        saveApiKey('did', apiKey, true)
+        saveApiKey('dId', apiKey, true)
       }
     } catch (error) {
       setTestStatus('error')

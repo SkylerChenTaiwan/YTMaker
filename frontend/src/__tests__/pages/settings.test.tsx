@@ -330,12 +330,15 @@ describe('SettingsPage', () => {
       ;(youtubeApi.removeChannel as jest.Mock).mockResolvedValue({ success: true })
 
       // Mock Modal.confirm
-      const mockConfirm = jest.spyOn(Modal, 'confirm').mockImplementation((config: any) => {
+      const mockConfirm = jest.spyOn(Modal, 'confirm').mockImplementation((config: { onOk?: () => void }) => {
         // 立即執行 onOk
         if (config.onOk) {
           config.onOk()
         }
-        return {} as any
+        return {
+          destroy: jest.fn(),
+          update: jest.fn(),
+        }
       })
 
       render(<SettingsPage />)

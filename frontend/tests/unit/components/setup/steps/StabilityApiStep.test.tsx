@@ -112,7 +112,7 @@ describe('StabilityApiStep', () => {
     })
 
     // 驗證 store 被更新
-    expect(mockSetApiKey).toHaveBeenCalledWith('stability', 'test-key-123', true)
+    expect(mockSetApiKey).toHaveBeenCalledWith('stabilityAI', 'test-key-123', true)
   })
 
   it('should handle connection test failure', async () => {
@@ -284,7 +284,7 @@ describe('StabilityApiStep', () => {
 
     // 驗證 store 只在成功時被調用
     expect(mockSetApiKey).toHaveBeenCalledTimes(1)
-    expect(mockSetApiKey).toHaveBeenCalledWith('stability', 'key-2', true)
+    expect(mockSetApiKey).toHaveBeenCalledWith('stabilityAI', 'key-2', true)
   })
 
   it('should complete full user flow', async () => {
@@ -328,7 +328,7 @@ describe('StabilityApiStep', () => {
 
     // 驗證最終 store 狀態
     expect(mockSetApiKey).toHaveBeenCalledWith(
-      'stability',
+      'stabilityAI',
       'valid-key-123',
       true
     )
