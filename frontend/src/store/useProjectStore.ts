@@ -13,6 +13,7 @@ interface ProjectState {
 interface ProjectActions {
   setProjects: (projects: Project[]) => void
   setCurrentProject: (project: Project | null) => void
+  fetchProject: (id: string) => Promise<void>
   addProject: (project: Project) => void
   updateProject: (id: string, updates: Partial<Project>) => void
   deleteProject: (id: string) => void
@@ -46,6 +47,34 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set) => ({
         current: project,
       },
     }))
+  },
+
+  fetchProject: async (id) => {
+    set((state) => ({
+      projects: {
+        ...state.projects,
+        loading: true,
+      },
+    }))
+    try {
+      const { getProject } = await import('@/lib/api/projects')
+      const project = await getProject(id)
+      set((state) => ({
+        projects: {
+          ...state.projects,
+          current: project,
+          loading: false,
+        },
+      }))
+    } catch (error) {
+      set((state) => ({
+        projects: {
+          ...state.projects,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch project',
+        },
+      }))
+    }
   },
 
   addProject: (project) => {

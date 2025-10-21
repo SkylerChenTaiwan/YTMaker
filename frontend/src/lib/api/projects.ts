@@ -106,3 +106,35 @@ export async function updateYouTubeSettings(
 export async function startGeneration(projectId: string): Promise<void> {
   await apiClient.post(`/api/v1/projects/${projectId}/generate`)
 }
+
+/**
+ * 暫停專案生成
+ */
+export async function pauseGeneration(projectId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post(`/api/v1/projects/${projectId}/pause`)
+  return response.data
+}
+
+/**
+ * 繼續專案生成
+ */
+export async function resumeGeneration(projectId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post(`/api/v1/projects/${projectId}/resume`)
+  return response.data
+}
+
+/**
+ * 取消專案生成
+ */
+export async function cancelGeneration(projectId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post(`/api/v1/projects/${projectId}/cancel`)
+  return response.data
+}
+
+/**
+ * 重試專案生成 (從失敗點繼續)
+ */
+export async function retryGeneration(projectId: string): Promise<{ success: boolean }> {
+  const response = await apiClient.post(`/api/v1/projects/${projectId}/retry`)
+  return response.data
+}
