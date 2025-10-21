@@ -76,16 +76,28 @@ export const useProgressStore = create<ProgressState & ProgressActions>()(
 
       // ========== Actions ==========
       updateProgress: (update) =>
-        set((state) => ({
-          progress: {
-            ...state.progress,
-            ...update,
-            stages: {
-              ...state.progress.stages,
-              ...(update.stages || {}),
+        set((state) => {
+          // 防止進度回退: 只有當新進度 >= 當前進度時才更新
+          const newOverall = update.overall ?? state.progress.overall
+          if (newOverall < state.progress.overall) {
+            console.warn('Progress rollback prevented:', {
+              current: state.progress.overall,
+              attempted: newOverall,
+            })
+            return state
+          }
+
+          return {
+            progress: {
+              ...state.progress,
+              ...update,
+              stages: {
+                ...state.progress.stages,
+                ...(update.stages || {}),
+              },
             },
-          },
-        })),
+          }
+        }),
 
       addLog: (log) =>
         set((state) => ({

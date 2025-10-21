@@ -501,3 +501,201 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
     })
   })
 })
+
+describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('WebSocket 斷線重連後應恢復遺失的進度', async () => {
+    let wsInstance: any = null
+    let onOpenHandler: any = null
+    let onCloseHandler: any = null
+    let onMessageHandler: any = null
+
+    // Mock WebSocket 建構函數
+    global.WebSocket = vi.fn((url) => {
+      wsInstance = {
+        url,
+        readyState: WebSocket.CONNECTING,
+        send: vi.fn(),
+        close: vi.fn(() => {
+          wsInstance.readyState = WebSocket.CLOSED
+          if (onCloseHandler) onCloseHandler()
+        }),
+        addEventListener: vi.fn((event, handler) => {
+          if (event === 'open') onOpenHandler = handler
+          if (event === 'close') onCloseHandler = handler
+          if (event === 'message') onMessageHandler = handler
+        }),
+        removeEventListener: vi.fn(),
+      }
+
+      // 模擬連線成功
+      setTimeout(() => {
+        wsInstance.readyState = WebSocket.OPEN
+        if (onOpenHandler) onOpenHandler()
+      }, 10)
+
+      return wsInstance
+    }) as any
+
+    const mockProject = {
+      id: '123',
+      project_name: '測試專案',
+      status: 'SCRIPT_GENERATING',
+      progress: {
+        overall: 0,
+        stage: 'script',
+        message: '準備開始生成...',
+        stages: {
+          script: { status: 'pending', progress: 0 },
+          assets: { status: 'pending', progress: 0 },
+          render: { status: 'pending', progress: 0 },
+          thumbnail: { status: 'pending', progress: 0 },
+          upload: { status: 'pending', progress: 0 },
+        },
+      },
+    }
+
+    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+
+    render(<ProgressPage params={{ id: '123' }} />)
+
+    // 等待初始連線
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    })
+
+    // 模擬進度從 0% 到 30%
+    if (onMessageHandler) {
+      onMessageHandler({
+        data: JSON.stringify({
+          type: 'progress',
+          data: { overall: 30, stage: 'script', message: '腳本生成中...' },
+        }),
+      })
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30')
+    })
+
+    // 模擬斷線
+    wsInstance.close()
+
+    await waitFor(() => {
+      expect(screen.getByText('連線中斷,正在重新連線...')).toBeInTheDocument()
+    })
+
+    // 在斷線期間，後端進度從 30% 到 70%（這些訊息前端沒收到）
+    // 重新連線
+    await waitFor(
+      () => {
+        expect(global.WebSocket).toHaveBeenCalledTimes(2) // 初始連線 + 重連
+      },
+      { timeout: 5000 }
+    )
+
+    // 重連成功後，發送最新進度
+    if (onMessageHandler) {
+      onMessageHandler({
+        data: JSON.stringify({
+          type: 'progress',
+          data: { overall: 70, stage: 'assets', message: '素材生成中...' },
+        }),
+      })
+    }
+
+    // 驗證進度直接跳到 70%
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '70')
+    })
+  })
+})
+
+describe('ProgressPage - 測試 7: 訊息順序測試', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('亂序到達的 WebSocket 訊息應正確處理', async () => {
+    let onMessageHandler: any = null
+
+    global.WebSocket = vi.fn(() => ({
+      readyState: WebSocket.OPEN,
+      send: vi.fn(),
+      close: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === 'open') setTimeout(handler, 10)
+        if (event === 'message') onMessageHandler = handler
+      }),
+      removeEventListener: vi.fn(),
+    })) as any
+
+    const mockProject = {
+      id: '123',
+      project_name: '測試專案',
+      status: 'SCRIPT_GENERATING',
+      progress: {
+        overall: 0,
+        stage: 'script',
+        message: '準備開始...',
+        stages: {
+          script: { status: 'pending', progress: 0 },
+          assets: { status: 'pending', progress: 0 },
+          render: { status: 'pending', progress: 0 },
+          thumbnail: { status: 'pending', progress: 0 },
+          upload: { status: 'pending', progress: 0 },
+        },
+      },
+    }
+
+    vi.spyOn(projectApi, 'getProject').mockResolvedValue(mockProject)
+
+    render(<ProgressPage params={{ id: '123' }} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    })
+
+    // 模擬訊息亂序到達（第二個訊息先到）
+    if (onMessageHandler) {
+      // 第二個訊息先到 (50%)
+      onMessageHandler({
+        data: JSON.stringify({
+          type: 'progress',
+          data: { overall: 50, stage: 'script', message: '腳本生成中 50%...' },
+        }),
+      })
+
+      await waitFor(() => {
+        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+      })
+
+      // 第一個訊息後到 (30%) - 應該被忽略，不會導致進度回退
+      onMessageHandler({
+        data: JSON.stringify({
+          type: 'progress',
+          data: { overall: 30, stage: 'script', message: '腳本生成中 30%...' },
+        }),
+      })
+
+      // 進度應該保持在 50%，不會倒退到 30%
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+
+      // 第三個訊息 (70%) - 應該正常更新
+      onMessageHandler({
+        data: JSON.stringify({
+          type: 'progress',
+          data: { overall: 70, stage: 'assets', message: '素材生成中...' },
+        }),
+      })
+
+      await waitFor(() => {
+        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '70')
+      })
+    }
+  })
+})
