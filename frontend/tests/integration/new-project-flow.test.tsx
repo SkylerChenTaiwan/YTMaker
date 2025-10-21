@@ -1,44 +1,75 @@
 // tests/integration/new-project-flow.test.tsx
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import NewProjectPage from '@/app/project/new/page'
+import { projectsApi, type Project } from '@/services/api/projects'
+import { useRouter } from 'next/navigation'
+
+// Note: Next.js navigation is globally mocked in jest.setup.js
+// We'll use the global mock and spy on it
 
 /**
  * 測試 7：完整新增專案流程（整合測試）
  *
  * 目的：驗證從新增專案到視覺配置的完整流程
+ *
+ * 策略：
+ * - 使用真實的 QueryClient
+ * - 使用 jest.spyOn 來 mock API 服務層
+ * - 使用全局 mock 的 Next.js router
  */
 describe('測試 7：完整新增專案流程', () => {
-  const mockPush = jest.fn()
+  let queryClient: QueryClient
+  let createProjectSpy: jest.SpyInstance
+  let mockRouterPush: jest.Mock
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    // 創建新的 QueryClient（使用真實實作）
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
 
-    // Mock Next.js router
-    jest.mock('next/navigation', () => ({
-      useRouter: () => ({
-        push: mockPush,
-      }),
-    }))
+    // 取得全局 mock 的 router
+    mockRouterPush = (useRouter as jest.Mock)().push as jest.Mock
 
-    // Mock API
-    jest.mock('@tanstack/react-query', () => ({
-      useMutation: () => ({
-        mutate: jest.fn((data) => {
-          // 模擬成功創建專案
-          setTimeout(() => {
-            mockPush('/project/test-id/configure/visual')
-          }, 100)
-        }),
-        isPending: false,
-      }),
-    }))
+    // Spy on projectsApi.createProject
+    createProjectSpy = jest.spyOn(projectsApi, 'createProject')
   })
+
+  afterEach(() => {
+    // 清理
+    jest.clearAllMocks()
+    createProjectSpy.mockRestore()
+  })
+
+  // Helper function to render with QueryClient
+  const renderWithQueryClient = (component: React.ReactElement) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {component}
+      </QueryClientProvider>
+    )
+  }
 
   it('7.1 完整流程：輸入專案名稱 -> 貼上文字 -> 創建成功 -> 跳轉', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+
+    // Mock API 成功回應
+    const mockProject: Project = {
+      id: 'test-uuid-123',
+      project_name: '測試專案',
+      status: 'INITIALIZED',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    createProjectSpy.mockResolvedValue(mockProject)
+
+    renderWithQueryClient(<NewProjectPage />)
 
     // Step 1: 輸入專案名稱
     const nameInput = screen.getByLabelText('專案名稱')
@@ -48,7 +79,8 @@ describe('測試 7：完整新增專案流程', () => {
     expect(nameInput).toHaveValue('測試專案')
 
     // Step 2: 確認預設為貼上模式
-    expect(screen.getByLabelText('貼上文字')).toBeInTheDocument()
+    const pasteOption = screen.getByDisplayValue('paste')
+    expect(pasteOption).toBeInTheDocument()
 
     // Step 3: 貼上文字內容（1000 字）
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
@@ -67,35 +99,53 @@ describe('測試 7：完整新增專案流程', () => {
     // Step 6: 點擊下一步
     await user.click(nextButton)
 
-    // Step 7: 應該調用 API（通過 mutation）並跳轉
-    await waitFor(
-      () => {
-        expect(mockPush).toHaveBeenCalledWith(
-          expect.stringContaining('/configure/visual')
-        )
-      },
-      { timeout: 3000 }
-    )
+    // Step 7: 應該調用 API
+    await waitFor(() => {
+      expect(createProjectSpy).toHaveBeenCalledWith({
+        project_name: '測試專案',
+        content_text: testContent,
+        content_source: 'paste',
+      })
+    })
+
+    // Step 8: 應該跳轉到視覺配置頁面
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        '/project/test-uuid-123/configure/visual'
+      )
+    })
   })
 
   it('7.2 完整流程：上傳檔案模式', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+
+    // Mock API 成功回應
+    const mockProject: Project = {
+      id: 'test-uuid-456',
+      project_name: '測試專案（檔案上傳）',
+      status: 'INITIALIZED',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    createProjectSpy.mockResolvedValue(mockProject)
+
+    renderWithQueryClient(<NewProjectPage />)
 
     // Step 1: 輸入專案名稱
     const nameInput = screen.getByLabelText('專案名稱')
     await user.type(nameInput, '測試專案（檔案上傳）')
 
     // Step 2: 切換到上傳檔案
-    const uploadRadio = screen.getByLabelText('上傳檔案')
-    await user.click(uploadRadio)
+    const sourceSelect = screen.getByLabelText('文字來源')
+    await user.click(sourceSelect)
+    await user.selectOptions(sourceSelect, 'upload')
 
     // Step 3: 上傳檔案
     const content = '測試文字。'.repeat(125) // 625 字
     const file = new File([content], 'test.txt', { type: 'text/plain' })
 
-    const fileInput = screen.getByLabelText('上傳檔案')
-    await user.upload(fileInput as HTMLInputElement, file)
+    const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
+    await user.upload(fileInput, file)
 
     // Step 4: 等待檔案處理完成
     await waitFor(() => {
@@ -107,18 +157,16 @@ describe('測試 7：完整新增專案流程', () => {
     const nextButton = screen.getByRole('button', { name: '下一步' })
     await user.click(nextButton)
 
-    // Step 6: 應該跳轉
-    await waitFor(
-      () => {
-        expect(mockPush).toHaveBeenCalled()
-      },
-      { timeout: 3000 }
-    )
+    // Step 6: 應該調用 API 並跳轉
+    await waitFor(() => {
+      expect(createProjectSpy).toHaveBeenCalled()
+      expect(mockRouterPush).toHaveBeenCalled()
+    })
   })
 
   it('7.3 錯誤處理：專案名稱為空', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     // 不輸入專案名稱，直接貼上文字
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
@@ -134,13 +182,14 @@ describe('測試 7：完整新增專案流程', () => {
       expect(screen.getByText('專案名稱不能為空')).toBeInTheDocument()
     })
 
-    // 不應該跳轉
-    expect(mockPush).not.toHaveBeenCalled()
+    // 不應該調用 API 或跳轉
+    expect(createProjectSpy).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
   it('7.4 錯誤處理：文字長度不足', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     // 輸入專案名稱
     const nameInput = screen.getByLabelText('專案名稱')
@@ -162,7 +211,7 @@ describe('測試 7：完整新增專案流程', () => {
 
   it('7.5 錯誤處理：文字長度超過限制', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     // 輸入專案名稱
     const nameInput = screen.getByLabelText('專案名稱')
@@ -185,7 +234,7 @@ describe('測試 7：完整新增專案流程', () => {
 
   it('7.6 UI 互動：字數即時更新', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
 
@@ -207,15 +256,42 @@ describe('測試 7：完整新增專案流程', () => {
 
   it('7.7 UI 互動：取消按鈕應返回主控台', async () => {
     const user = userEvent.setup()
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     const cancelButton = screen.getByRole('button', { name: '取消' })
     await user.click(cancelButton)
 
     // 應該跳轉到主控台
+    expect(mockRouterPush).toHaveBeenCalledWith('/')
+  })
+
+  it('7.8 API 錯誤處理：創建失敗', async () => {
+    const user = userEvent.setup()
+
+    // Mock API 失敗
+    createProjectSpy.mockRejectedValue(new Error('伺服器錯誤'))
+
+    renderWithQueryClient(<NewProjectPage />)
+
+    // 輸入有效資料
+    const nameInput = screen.getByLabelText('專案名稱')
+    await user.type(nameInput, '測試專案')
+
+    const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
+    const testContent = '測試文字。'.repeat(125) // 625 字
+    await user.type(contentTextarea, testContent)
+
+    // 點擊下一步
+    const nextButton = screen.getByRole('button', { name: '下一步' })
+    await user.click(nextButton)
+
+    // 應該調用 API
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/')
+      expect(createProjectSpy).toHaveBeenCalled()
     })
+
+    // 不應該跳轉（因為失敗了）
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 })
 
@@ -223,16 +299,35 @@ describe('測試 7：完整新增專案流程', () => {
  * 測試 8：響應式設計
  */
 describe('測試 8：響應式設計', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+  })
+
+  const renderWithQueryClient = (component: React.ReactElement) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {component}
+      </QueryClientProvider>
+    )
+  }
+
   it('8.1 頁面應該有正確的響應式類名', () => {
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     // 主容器應該有最大寬度限制
-    const container = screen.getByRole('main') || document.querySelector('.max-w-2xl')
+    const container = document.querySelector('.max-w-2xl')
     expect(container).toBeInTheDocument()
   })
 
   it('8.2 文字輸入區應該有合適的高度', () => {
-    render(<NewProjectPage />)
+    renderWithQueryClient(<NewProjectPage />)
 
     const textarea = screen.getByPlaceholderText(/貼上文字內容/)
     expect(textarea).toHaveClass('h-64')
