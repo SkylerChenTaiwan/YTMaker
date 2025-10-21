@@ -29,6 +29,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragActive, setIsDragActive] = React.useState(false)
+  // Generate unique ID for accessibility
+  const inputId = React.useId()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -72,7 +74,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block mb-2 text-sm font-medium text-gray-700">
+        <label
+          htmlFor={inputId}
+          className="block mb-2 text-sm font-medium text-gray-700"
+        >
           {label}
         </label>
       )}
@@ -92,6 +97,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         onClick={handleClick}
       >
         <input
+          id={inputId}
           ref={inputRef}
           type="file"
           accept={accept}
