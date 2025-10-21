@@ -26,6 +26,12 @@ export interface GetProjectsResponse {
   }
 }
 
+export interface CreateProjectRequest {
+  project_name: string
+  content_text: string
+  content_source: 'paste' | 'upload'
+}
+
 export const projectsApi = {
   async getProjects(params: GetProjectsParams = {}): Promise<GetProjectsResponse> {
     const { data } = await axiosInstance.get('/api/v1/projects', { params })
@@ -34,6 +40,11 @@ export const projectsApi = {
 
   async getProject(projectId: string): Promise<Project> {
     const { data } = await axiosInstance.get(`/api/v1/projects/${projectId}`)
+    return data.data
+  },
+
+  async createProject(request: CreateProjectRequest): Promise<Project> {
+    const { data } = await axiosInstance.post('/api/v1/projects', request)
     return data.data
   },
 
