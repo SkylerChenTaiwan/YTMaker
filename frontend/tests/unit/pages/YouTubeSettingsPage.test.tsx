@@ -1,5 +1,5 @@
 // tests/unit/pages/YouTubeSettingsPage.test.tsx
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import YouTubeConfigPage from '@/app/project/[id]/configure/youtube/page'
@@ -11,6 +11,7 @@ const mockRouter = { push: mockPush }
 
 jest.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
+  usePathname: jest.fn(() => '/project/project-123/configure/youtube'),
   notFound: jest.fn(),
 }))
 
@@ -78,8 +79,8 @@ describe('YouTubeSettingsPage - 測試 6: YouTube 設定表單渲染', () => {
       expect(screen.queryByText('載入中...')).not.toBeInTheDocument()
     })
 
-    // Verify page title
-    expect(screen.getByText('YouTube 設定')).toBeInTheDocument()
+    // Verify page title (use getByRole to be specific)
+    expect(screen.getByRole('heading', { name: 'YouTube 設定', level: 1 })).toBeInTheDocument()
 
     // Verify form fields
     expect(screen.getByLabelText(/影片標題/)).toBeInTheDocument()
@@ -163,9 +164,10 @@ describe('YouTubeSettingsPage - 測試 7: YouTube 資訊表單驗證', () => {
       expect(screen.queryByText('載入中...')).not.toBeInTheDocument()
     })
 
-    const descInput = screen.getByTestId('youtube-description')
-    await user.clear(descInput)
-    await user.type(descInput, 'x'.repeat(5001))
+    const descInput = screen.getByTestId('youtube-description') as HTMLTextAreaElement
+
+    // Use fireEvent.change for large text instead of typing
+    fireEvent.change(descInput, { target: { value: 'x'.repeat(5001) } })
 
     const submitButton = screen.getByText('開始生成')
     await user.click(submitButton)
@@ -198,19 +200,28 @@ describe('YouTubeSettingsPage - 測試 8: 標籤輸入功能', () => {
       expect(screen.queryByText('載入中...')).not.toBeInTheDocument()
     })
 
-    const tagInput = screen.getByTestId('youtube-tags-input')
+    const tagInput = screen.getByTestId('youtube-tags-input') as HTMLInputElement
 
     // Add first tag
-    await user.type(tagInput, '科技{Enter}')
-    expect(screen.getByText('科技')).toBeInTheDocument()
+    fireEvent.change(tagInput, { target: { value: '科技' } })
+    fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
+    await waitFor(() => {
+      expect(screen.getByText('科技')).toBeInTheDocument()
+    })
 
     // Add second tag
-    await user.type(tagInput, '教學{Enter}')
-    expect(screen.getByText('教學')).toBeInTheDocument()
+    fireEvent.change(tagInput, { target: { value: '教學' } })
+    fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
+    await waitFor(() => {
+      expect(screen.getByText('教學')).toBeInTheDocument()
+    })
 
     // Add third tag
-    await user.type(tagInput, 'AI{Enter}')
-    expect(screen.getByText('AI')).toBeInTheDocument()
+    fireEvent.change(tagInput, { target: { value: 'AI' } })
+    fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
+    await waitFor(() => {
+      expect(screen.getByText('AI')).toBeInTheDocument()
+    })
 
     // Remove second tag
     const removeButtons = screen.getAllByLabelText('移除標籤')
@@ -218,9 +229,9 @@ describe('YouTubeSettingsPage - 測試 8: 標籤輸入功能', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('教學')).not.toBeInTheDocument()
+      expect(screen.getByText('科技')).toBeInTheDocument()
+      expect(screen.getByText('AI')).toBeInTheDocument()
     })
-    expect(screen.getByText('科技')).toBeInTheDocument()
-    expect(screen.getByText('AI')).toBeInTheDocument()
   })
 
   it('標籤數量不應超過 30 個', async () => {
@@ -230,15 +241,17 @@ describe('YouTubeSettingsPage - 測試 8: 標籤輸入功能', () => {
       expect(screen.queryByText('載入中...')).not.toBeInTheDocument()
     })
 
-    const tagInput = screen.getByTestId('youtube-tags-input')
+    const tagInput = screen.getByTestId('youtube-tags-input') as HTMLInputElement
 
     // Add 30 tags
     for (let i = 1; i <= 30; i++) {
-      await user.type(tagInput, `標籤${i}{Enter}`)
+      fireEvent.change(tagInput, { target: { value: `標籤${i}` } })
+      fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
     }
 
     // Try to add 31st tag
-    await user.type(tagInput, '標籤31{Enter}')
+    fireEvent.change(tagInput, { target: { value: '標籤31' } })
+    fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' })
 
     await waitFor(() => {
       expect(screen.getByText('標籤數量不能超過 30 個')).toBeInTheDocument()
@@ -298,16 +311,17 @@ describe('YouTubeSettingsPage - 測試 9: 排程發布功能', () => {
       expect(screen.getByLabelText('排程日期')).toBeInTheDocument()
     })
 
-    // Mock current time as 2025-10-19 12:00
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2025-10-19T12:00:00'))
+    // Calculate future date (tomorrow)
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const futureDate = tomorrow.toISOString().split('T')[0]
 
-    // Select future date and time
-    const dateInput = screen.getByLabelText('排程日期')
-    const timeInput = screen.getByLabelText('排程時間')
+    // Select future date and time using fireEvent for date/time inputs
+    const dateInput = screen.getByLabelText('排程日期') as HTMLInputElement
+    const timeInput = screen.getByLabelText('排程時間') as HTMLInputElement
 
-    await user.type(dateInput, '2025-10-25')
-    await user.type(timeInput, '10:00')
+    fireEvent.change(dateInput, { target: { value: futureDate } })
+    fireEvent.change(timeInput, { target: { value: '10:00' } })
 
     ;(projectsApi.updateYouTubeSettings as jest.Mock).mockResolvedValue({})
     ;(projectsApi.startGeneration as jest.Mock).mockResolvedValue({})
@@ -319,8 +333,6 @@ describe('YouTubeSettingsPage - 測試 9: 排程發布功能', () => {
     await waitFor(() => {
       expect(screen.queryByText(/排程日期必須為未來時間/)).not.toBeInTheDocument()
     })
-
-    jest.useRealTimers()
   })
 
   it('選擇過去時間應該顯示錯誤', async () => {
@@ -337,14 +349,12 @@ describe('YouTubeSettingsPage - 測試 9: 排程發布功能', () => {
       expect(screen.getByLabelText('排程日期')).toBeInTheDocument()
     })
 
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2025-10-19T12:00:00'))
+    const dateInput = screen.getByLabelText('排程日期') as HTMLInputElement
+    const timeInput = screen.getByLabelText('排程時間') as HTMLInputElement
 
-    const dateInput = screen.getByLabelText('排程日期')
-    const timeInput = screen.getByLabelText('排程時間')
-
-    await user.type(dateInput, '2020-01-01')
-    await user.type(timeInput, '10:00')
+    // Use a clearly past date with fireEvent for date/time inputs
+    fireEvent.change(dateInput, { target: { value: '2020-01-01' } })
+    fireEvent.change(timeInput, { target: { value: '10:00' } })
 
     const submitButton = screen.getByText('開始生成')
     await user.click(submitButton)
@@ -352,7 +362,5 @@ describe('YouTubeSettingsPage - 測試 9: 排程發布功能', () => {
     await waitFor(() => {
       expect(screen.getByText('排程日期必須為未來時間')).toBeInTheDocument()
     })
-
-    jest.useRealTimers()
   })
 })

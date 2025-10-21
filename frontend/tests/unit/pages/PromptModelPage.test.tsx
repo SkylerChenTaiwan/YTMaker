@@ -11,6 +11,7 @@ const mockRouter = { push: mockPush }
 
 jest.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
+  usePathname: jest.fn(() => '/project/project-123/configure/prompt-model'),
   notFound: jest.fn(),
 }))
 
@@ -143,8 +144,8 @@ describe('PromptModelPage - 測試 2: Prompt 範本選擇與載入', () => {
       expect(promptEditor.value).toContain('自訂內容')
     })
 
-    // Verify character count updated
-    expect(screen.getByText(/目前字數: 200/)).toBeInTheDocument()
+    // Verify character count updated (自訂內容... = 7 chars + 188 x's = 195 chars)
+    expect(screen.getByText(/目前字數: 195/)).toBeInTheDocument()
   })
 })
 

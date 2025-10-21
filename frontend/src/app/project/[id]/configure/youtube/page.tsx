@@ -230,30 +230,25 @@ export default function YouTubeConfigPage({
             </p>
 
             <div className="mb-4">
-              <label className="block mb-2 font-medium text-gray-700">
-                影片標題 *
-              </label>
               <Input
+                label="影片標題 *"
                 value={formData.youtube_title}
                 onChange={(e) =>
                   setFormData({ ...formData, youtube_title: e.target.value })
                 }
                 placeholder="輸入影片標題"
-                error={errors.youtube_title}
+                error={!!errors.youtube_title}
+                errorMessage={errors.youtube_title}
                 data-testid="youtube-title"
               />
-              {errors.youtube_title && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.youtube_title}
-                </p>
-              )}
             </div>
 
             <div className="mb-4">
-              <label className="block mb-2 font-medium text-gray-700">
+              <label htmlFor="youtube-description" className="block mb-2 font-medium text-gray-700">
                 影片描述
               </label>
               <textarea
+                id="youtube-description"
                 className={cn(
                   'w-full h-32 border rounded-lg p-3',
                   'focus:outline-none focus:ring-2 focus:ring-blue-500',
@@ -269,6 +264,7 @@ export default function YouTubeConfigPage({
                   })
                 }
                 placeholder="輸入影片描述"
+                aria-label="影片描述"
                 data-testid="youtube-description"
               />
               {errors.youtube_description && (
