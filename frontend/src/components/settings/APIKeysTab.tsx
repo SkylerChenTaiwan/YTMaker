@@ -41,7 +41,7 @@ export const APIKeysTab = () => {
   }
 
   const handleTest = async (provider: APIProvider) => {
-    const key = apiKeys[provider]
+    const key = apiKeys[provider]?.value
     if (!key) {
       message.error('請先設定 API Key')
       return
@@ -75,22 +75,22 @@ export const APIKeysTab = () => {
       key: 'gemini',
       service: 'Google Gemini API',
       provider: 'gemini',
-      status: apiKeys.gemini ? '✓ 已設定' : '✗ 未設定',
-      lastTested: apiKeys.geminiLastTested || '-',
+      status: apiKeys.gemini?.value ? '✓ 已設定' : '✗ 未設定',
+      lastTested: apiKeys.gemini?.tested ? '已測試' : '-',
     },
     {
       key: 'stability_ai',
       service: 'Stability AI API',
       provider: 'stability_ai',
-      status: apiKeys.stabilityAI ? '✓ 已設定' : '✗ 未設定',
-      lastTested: apiKeys.stabilityAILastTested || '-',
+      status: apiKeys.stabilityAI?.value ? '✓ 已設定' : '✗ 未設定',
+      lastTested: apiKeys.stabilityAI?.tested ? '已測試' : '-',
     },
     {
       key: 'did',
       service: 'D-ID API',
       provider: 'did',
-      status: apiKeys.dId ? '✓ 已設定' : '✗ 未設定',
-      lastTested: apiKeys.didLastTested || '-',
+      status: apiKeys.dId?.value ? '✓ 已設定' : '✗ 未設定',
+      lastTested: apiKeys.dId?.tested ? '已測試' : '-',
     },
   ]
 
@@ -126,7 +126,7 @@ export const APIKeysTab = () => {
           <Button size="small" onClick={() => handleTest(record.provider)}>
             測試連線
           </Button>
-          {apiKeys[record.provider] && (
+          {apiKeys[record.provider]?.value && (
             <Button
               size="small"
               danger
@@ -221,7 +221,7 @@ export const APIKeysTab = () => {
       {isEditModalOpen && editingProvider && (
         <EditAPIKeyModal
           provider={editingProvider}
-          currentKey={apiKeys[editingProvider]}
+          currentKey={apiKeys[editingProvider]?.value || null}
           onClose={() => {
             setIsEditModalOpen(false)
             setEditingProvider(null)
