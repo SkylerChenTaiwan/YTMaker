@@ -447,4 +447,156 @@ describe('ResultPage', () => {
       expect(mockPush).toHaveBeenCalledWith('/')
     })
   })
+
+  describe('測試 9: 完整結果頁面流程 (整合測試)', () => {
+    it('應該能從進度監控頁查看結果', async () => {
+      const { user } = setup()
+
+      // Mock initial progress state (simulating from progress page)
+      const mockResult = {
+        id: 'project-123',
+        project_name: '整合測試專案',
+        youtube_video_id: 'test-video-id',
+        youtube_url: 'https://youtube.com/watch?v=test-video-id',
+        youtube_title: '整合測試影片',
+        youtube_description: '這是整合測試的描述',
+        youtube_tags: ['整合', '測試', 'E2E'],
+        privacy: 'public',
+        publish_type: 'immediate',
+        published_at: '2025-10-22T10:00:00Z',
+        status: 'completed',
+      }
+
+      mockGetProjectResult.mockResolvedValue(mockResult)
+
+      // Simulate navigation from progress page (project just completed)
+      // In real scenario, user would click "查看結果" from progress page
+      render(<ResultPage params={{ id: 'project-123' }} />)
+
+      // Wait for result to load
+      await waitFor(() => {
+        expect(mockGetProjectResult).toHaveBeenCalledWith('project-123')
+      })
+
+      // Verify success message displayed
+      await waitFor(() => {
+        expect(
+          screen.getByText('影片已成功生成並上傳到 YouTube！')
+        ).toBeInTheDocument()
+      })
+
+      // Verify project name displayed
+      expect(screen.getByText('整合測試專案')).toBeInTheDocument()
+
+      // Verify video info section
+      expect(screen.getByText('整合測試影片')).toBeInTheDocument()
+      expect(screen.getByText('這是整合測試的描述')).toBeInTheDocument()
+      expect(screen.getByText('整合')).toBeInTheDocument()
+      expect(screen.getByText('測試')).toBeInTheDocument()
+
+      // Verify YouTube player is rendered
+      const youtubePlayer = screen.getByTestId('youtube-player')
+      expect(youtubePlayer).toBeInTheDocument()
+      expect(youtubePlayer).toHaveAttribute(
+        'src',
+        expect.stringContaining('test-video-id')
+      )
+
+      // Verify download buttons are present
+      expect(screen.getByRole('button', { name: /下載影片/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /下載封面/i })).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /下載所有素材/i })
+      ).toBeInTheDocument()
+
+      // Verify action buttons
+      expect(
+        screen.getByRole('button', { name: /編輯 YouTube 資訊/i })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /生成新影片/i })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /返回主控台/i })
+      ).toBeInTheDocument()
+
+      // Test complete workflow: download a file
+      global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
+      global.URL.revokeObjectURL = jest.fn()
+      const mockClick = jest.fn()
+      const originalCreateElement = document.createElement.bind(document)
+      document.createElement = jest.fn((tagName: string) => {
+        if (tagName === 'a') {
+          const mockLink = originalCreateElement('a')
+          mockLink.click = mockClick
+          return mockLink
+        }
+        return originalCreateElement(tagName)
+      })
+
+      mockDownloadFile.mockResolvedValue({ data: new Blob(['test']) })
+
+      const downloadVideoBtn = screen.getByRole('button', { name: /下載影片/i })
+      await user.click(downloadVideoBtn)
+
+      await waitFor(() => {
+        expect(mockDownloadFile).toHaveBeenCalled()
+        expect(mockClick).toHaveBeenCalled()
+      })
+
+      // Test navigation: return to dashboard
+      const backBtn = screen.getByRole('button', { name: /返回主控台/i })
+      await user.click(backBtn)
+
+      expect(mockPush).toHaveBeenCalledWith('/')
+    })
+
+    it('應該正確顯示私人影片和公開影片的不同播放器', async () => {
+      // Test 1: Private video should show local player
+      const privateResult = {
+        id: 'project-private',
+        project_name: '私人影片測試',
+        privacy: 'private',
+        local_video_url: '/api/v1/projects/project-private/video',
+        status: 'completed',
+      }
+
+      mockGetProjectResult.mockResolvedValue(privateResult)
+
+      const { unmount } = render(<ResultPage params={{ id: 'project-private' }} />)
+
+      // Verify local player shown for private video
+      await waitFor(() => {
+        expect(screen.getByTestId('local-video-player')).toBeInTheDocument()
+      })
+
+      // Verify YouTube player NOT shown
+      expect(screen.queryByTestId('youtube-player')).not.toBeInTheDocument()
+
+      // Clean up first render
+      unmount()
+
+      // Test 2: Public video should show YouTube player
+      const publicResult = {
+        id: 'project-public',
+        project_name: '公開影片測試',
+        privacy: 'public',
+        youtube_video_id: 'public-video-id',
+        youtube_url: 'https://youtube.com/watch?v=public-video-id',
+        status: 'completed',
+      }
+
+      mockGetProjectResult.mockResolvedValue(publicResult)
+
+      render(<ResultPage params={{ id: 'project-public' }} />)
+
+      // Verify YouTube player shown for public video
+      await waitFor(() => {
+        expect(screen.getByTestId('youtube-player')).toBeInTheDocument()
+      })
+
+      // Verify local player NOT shown
+      expect(screen.queryByTestId('local-video-player')).not.toBeInTheDocument()
+    })
+  })
 })
