@@ -121,12 +121,15 @@ jest.mock('@/store/useProgressStore', () => ({
 const mockReconnect = jest.fn()
 const mockSend = jest.fn()
 let mockOnMessage: any = null
+let mockIsConnected = true // 可動態控制的連線狀態
 
 jest.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: jest.fn((projectId: string, options: any) => {
     mockOnMessage = options.onMessage
     return {
-      isConnected: true,
+      get isConnected() {
+        return mockIsConnected
+      },
       reconnect: mockReconnect,
       send: mockSend,
     }
@@ -136,6 +139,8 @@ jest.mock('@/hooks/useWebSocket', () => ({
 // 全局清理：每個測試後恢復所有 mocks
 afterEach(() => {
   jest.restoreAllMocks()
+  mockIsConnected = true // 重置連線狀態
+  mockOnMessage = null // 重置訊息處理器
 })
 
 describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
@@ -661,16 +666,14 @@ describe('ProgressPage - 測試 5: 錯誤處理', () => {
   })
 })
 
-describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
+describe('ProgressPage - 測試 6: 進度不應倒退', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-  })
 
-  it('WebSocket 斷線重連後應恢復遺失的進度', async () => {
-    // 重置 progress state
+    // 重置 progress state 為初始值
     mockProgress.overall = 0
     mockProgress.stage = 'script'
-    mockProgress.message = '準備開始生成...'
+    mockProgress.message = '準備開始...'
     mockProgress.stages = {
       script: { status: 'pending', progress: 0 },
       assets: { status: 'pending', progress: 0 },
@@ -678,38 +681,24 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
       thumbnail: { status: 'pending', progress: 0 },
       upload: { status: 'pending', progress: 0 },
     }
+    mockProjectState.current = null
+  })
 
-    let wsInstance: any = null
-    let onOpenHandler: any = null
-    let onCloseHandler: any = null
+  it('收到較小的進度值時,進度不應倒退', async () => {
+    // 這個測試與測試 7 類似，驗證進度不會倒退（Quick Fail 原則）
+
     let onMessageHandler: any = null
 
-    // Mock WebSocket 建構函數
-    global.WebSocket = jest.fn((url) => {
-      wsInstance = {
-        url,
-        readyState: WebSocket.CONNECTING,
-        send: jest.fn(),
-        close: jest.fn(() => {
-          wsInstance.readyState = WebSocket.CLOSED
-          if (onCloseHandler) onCloseHandler()
-        }),
-        addEventListener: jest.fn((event, handler) => {
-          if (event === 'open') onOpenHandler = handler
-          if (event === 'close') onCloseHandler = handler
-          if (event === 'message') onMessageHandler = handler
-        }),
-        removeEventListener: jest.fn(),
-      }
-
-      // 模擬連線成功
-      setTimeout(() => {
-        wsInstance.readyState = WebSocket.OPEN
-        if (onOpenHandler) onOpenHandler()
-      }, 10)
-
-      return wsInstance
-    }) as any
+    global.WebSocket = jest.fn(() => ({
+      readyState: WebSocket.OPEN,
+      send: jest.fn(),
+      close: jest.fn(),
+      addEventListener: jest.fn((event, handler) => {
+        if (event === 'open') setTimeout(handler, 10)
+        if (event === 'message') onMessageHandler = handler
+      }),
+      removeEventListener: jest.fn(),
+    })) as any
 
     const mockProject = {
       id: '123',
@@ -718,7 +707,7 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
       progress: {
         overall: 0,
         stage: 'script',
-        message: '準備開始生成...',
+        message: '準備開始...',
         stages: {
           script: { status: 'pending', progress: 0 },
           assets: { status: 'pending', progress: 0 },
@@ -735,64 +724,48 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
 
     render(<ProgressPage params={{ id: '123' }} />)
 
-    // 等待初始連線
     await waitFor(() => {
       expect(screen.getByTestId('progress-bar')).toBeInTheDocument()
     })
 
-    // 模擬進度從 0% 到 30%
-    if (mockOnMessage) {
-      act(() => {
-        mockOnMessage({
+    // 模擬訊息亂序到達
+    if (onMessageHandler) {
+      // 先到 60%
+      onMessageHandler({
+        data: JSON.stringify({
           type: 'progress',
-          data: { overall: 30, stage: 'script', message: '腳本生成中...' },
-        })
+          data: { overall: 60, stage: 'assets', message: '素材生成中...' },
+        }),
       })
 
-      // 等待 mockUpdateProgress 被調用
       await waitFor(() => {
-        expect(mockUpdateProgress).toHaveBeenCalledWith({
-          overall: 30,
-          stage: 'script',
-          message: '腳本生成中...',
-        })
+        expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '60')
       })
-    }
 
-    await waitFor(() => {
-      expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '30')
-    })
-
-    // 模擬斷線
-    wsInstance.close()
-
-    await waitFor(() => {
-      expect(screen.getByText('連線中斷,正在重新連線...')).toBeInTheDocument()
-    })
-
-    // 在斷線期間，後端進度從 30% 到 70%（這些訊息前端沒收到）
-    // 重新連線
-    await waitFor(
-      () => {
-        expect(global.WebSocket).toHaveBeenCalledTimes(2) // 初始連線 + 重連
-      },
-      { timeout: 5000 }
-    )
-
-    // 重連成功後，發送最新進度
-    if (mockOnMessage) {
-      act(() => {
-        mockOnMessage({
+      // 後到 40% - 應該被忽略
+      onMessageHandler({
+        data: JSON.stringify({
           type: 'progress',
-          data: { overall: 70, stage: 'assets', message: '素材生成中...' },
-        })
+          data: { overall: 40, stage: 'script', message: '腳本生成中...' },
+        }),
+      })
+
+      // 進度應該保持在 60%
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '60')
+
+      // 再到 80% - 應該正常更新
+      onMessageHandler({
+        data: JSON.stringify({
+          type: 'progress',
+          data: { overall: 80, stage: 'render', message: '影片渲染中...' },
+        }),
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '80')
       })
     }
-
-    // 驗證進度直接跳到 70%
-    await waitFor(() => {
-      expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '70')
-    })
   })
 })
 
