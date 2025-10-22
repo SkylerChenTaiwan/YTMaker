@@ -25,6 +25,23 @@ const customJestConfig = {
     '!src/**/__tests__/**',
     '!middleware.ts',
   ],
+  // MSW mock 測試使用 node 環境
+  projects: [
+    {
+      displayName: 'jsdom',
+      testEnvironment: 'jest-environment-jsdom',
+      testMatch: [
+        '**/tests/unit/**/*.test.[jt]s?(x)',
+        '**/tests/integration/**/*.test.[jt]s?(x)',
+      ],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+    },
+    {
+      displayName: 'node',
+      testEnvironment: 'node',
+      testMatch: ['**/tests/mocks/__tests__/**/*.test.[jt]s'],
+    },
+  ],
 }
 
 module.exports = createJestConfig(customJestConfig)
