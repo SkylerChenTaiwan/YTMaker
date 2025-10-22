@@ -10,6 +10,7 @@ class APIKeyRequest(BaseModel):
 
 class APIKeyTestRequest(BaseModel):
     provider: Literal["gemini", "stability_ai", "did"]
+    api_key: str = Field(..., min_length=10, description="要測試的 API Key")
 
 
 class InitStatusResponse(BaseModel):
