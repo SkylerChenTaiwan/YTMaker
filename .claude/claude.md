@@ -243,22 +243,75 @@ tech-specs/
 
 ## 任務標記規範
 
-### 未完成
+### 檔名標記
+
+**重要：完成的任務或問題必須在檔名上標記 ✓ 符號**
+
+#### Task 檔案
+
+**未完成：**
+```
+task-001.md
+task-002.md
+```
+
+**已完成：**
+```
+✓ task-001.md
+✓ task-002.md
+```
+
+#### Issue 檔案
+
+**未解決：**
+```
+issue-001.md
+issue-002.md
+```
+
+**已解決：**
+```
+✓ issue-001.md
+✓ issue-002.md
+```
+
+**規則：**
+- ✅ 完成任務或解決問題後，必須在檔名前加上 `✓` 符號
+- ✅ `✓` 與原檔名之間保留一個空格
+- ✅ 這樣可以在檔案列表中一目了然看出哪些已完成
+- ✅ 使用 `git mv` 命令重新命名檔案以保留 Git 歷史
+
+**重新命名命令：**
+```bash
+# Task 完成後
+git mv development/phase-X/task-XXX.md "development/phase-X/✓ task-XXX.md"
+
+# Issue 解決後
+git mv issues/issue-XXX.md "issues/✓ issue-XXX.md"
+```
+
+---
+
+### 文件內容標記
+
+除了檔名標記，文件內部的標題也需要相應標記：
+
+#### 未完成
 ```markdown
 # Task-001: 用戶認證功能
 ```
 
-### 已完成
+#### 已完成
 ```markdown
 # [v] Task-001: 用戶認證功能
 ```
 
-### 問題未解決
+#### 問題未解決
 ```markdown
 # Issue-001: 登入失敗問題
 ```
 
-### 問題已解決
+#### 問題已解決
 ```markdown
 # [已解決] Issue-001: 登入失敗問題
 ```
