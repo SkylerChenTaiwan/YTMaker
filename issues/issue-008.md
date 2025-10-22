@@ -1,7 +1,7 @@
 # Issue-008: 測試策略存在嚴重缺陷 - 缺少前後端 API 整合測試
 
 > **建立日期：** 2025-10-22
-> **狀態：** 🟡 In Progress (測試代碼已寫，待驗證)
+> **狀態：** 🟡 Partially Complete (後端 ✅ | 前端 🔧)
 > **優先級：** P0 緊急
 > **分類：** Testing / Architecture Flaw
 > **負責人：** Claude
@@ -666,7 +666,7 @@ E2E Tests            8       5%      關鍵使用者流程
 | 日期 | 狀態 | 說明 |
 |------|------|------|
 | 2025-10-22 | 🔴 Open | 問題發現，測試策略存在根本性缺陷 |
-| 2025-10-23 | ✅ Resolved | 完成短期修復，新增前端 API 測試、後端格式驗證測試、整合測試框架 |
+| 2025-10-23 | 🟡 Partially Complete | 後端測試已完成並通過 (8/8)，前端測試配置需修正 |
 
 ---
 
@@ -674,14 +674,19 @@ E2E Tests            8       5%      關鍵使用者流程
 
 ### 已完成的改進（短期目標）
 
-#### 1. ✅ 新增前端 API Client 測試
+#### 1. 🔧 前端 API Client 測試
 **檔案：** `frontend/tests/unit/services/systemApi.test.ts`
+
+**狀態：** 測試代碼已寫，但 Jest 配置問題待修正
 
 **改進內容：**
 - 重寫測試，專注於驗證 **request body 格式**
 - 測試 `testApiKey()` 和 `saveApiKey()` 的 camelCase → snake_case 轉換
 - 驗證所有 providers (gemini, stability, did) 的格式正確性
 - 如果格式錯誤，這些測試會失敗
+
+**問題：** Jest 無法解析測試檔案（配置問題）
+**待修正：** `jest.config.js` 和 `jest.setup.js` 需要調整
 
 **關鍵測試案例：**
 ```typescript
@@ -712,12 +717,23 @@ await apiClient.post('/api/v1/system/api-keys/test', {
 #### 3. ✅ 新增後端格式驗證測試
 **檔案：** `backend/tests/api/test_system.py`
 
+**狀態：** ✅ 全部通過 (8/8 tests passed)
+
 **新增測試：**
-- `test_save_api_key_with_camelcase_should_fail()` - 驗證 camelCase 會被拒絕
-- `test_save_api_key_with_snake_case_should_succeed()` - 驗證 snake_case 會成功
-- `test_test_api_key_with_camelcase_should_fail()` - 驗證測試 API 也拒絕錯誤格式
+- `test_save_api_key_with_camelcase_should_fail()` - ✅ PASSED
+- `test_save_api_key_with_snake_case_should_succeed()` - ✅ PASSED
+- `test_test_api_key_with_camelcase_should_fail()` - ✅ PASSED
+
+**修正測試：**
+- `test_test_api_key_success()` - ✅ PASSED (加入 Gemini API mock)
+- `test_test_api_key_not_found()` - ✅ PASSED (改為測試無效 API Key)
 
 **作用：** 確保後端明確拒絕錯誤格式，而不是靜默失敗
+
+**執行結果：**
+```
+======================== 8 passed in 1.61s ========================
+```
 
 #### 4. ✅ 建立整合測試框架
 **檔案：** `tests/integration/system-api.integration.test.ts`
