@@ -106,16 +106,20 @@ def test_test_api_key_success(mock_db, mock_keychain):
     """測試 4：成功測試 Gemini API 連線"""
     mock_keychain.get_api_key = Mock(return_value="valid_api_key")
 
-    response = client.post("/api/v1/system/api-keys/test", json={
-        "provider": "gemini",
-        "api_key": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # ✅ 正確格式
-    })
+    # Mock Gemini API 呼叫
+    with patch('app.integrations.gemini_client.GeminiClient.list_models') as mock_list_models:
+        mock_list_models.return_value = ['gemini-pro', 'gemini-pro-vision']  # 模擬成功回應
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["data"]["is_valid"] is True
-    assert "message" in data["data"]
+        response = client.post("/api/v1/system/api-keys/test", json={
+            "provider": "gemini",
+            "api_key": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # ✅ 正確格式
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["is_valid"] is True
+        assert "message" in data["data"]
 
 
 def test_test_api_key_with_camelcase_should_fail(mock_db, mock_keychain):
@@ -135,17 +139,25 @@ def test_test_api_key_with_camelcase_should_fail(mock_db, mock_keychain):
 
 
 def test_test_api_key_not_found(mock_db, mock_keychain):
-    """測試 5：API Key 不存在時測試連線"""
-    mock_keychain.get_api_key = Mock(return_value=None)
+    """測試 5：提供 API Key 進行測試（不依賴 keychain）
 
-    response = client.post("/api/v1/system/api-keys/test", json={
-        "provider": "stability_ai"
-    })
+    注意：test API endpoint 期待前端傳入 api_key，
+    不是從 keychain 讀取，所以這個測試應該測試無效的 API Key。
+    """
+    # Mock Gemini API 呼叫失敗
+    with patch('app.integrations.gemini_client.GeminiClient.list_models') as mock_list_models:
+        mock_list_models.side_effect = Exception("Invalid API Key")
 
-    assert response.status_code == 404
-    data = response.json()
-    assert data["error"]["code"] == "NOT_FOUND"
-    assert "尚未設定" in data["error"]["message"]
+        response = client.post("/api/v1/system/api-keys/test", json={
+            "provider": "gemini",
+            "api_key": "invalid-key-123456"  # 無效的 API Key
+        })
+
+        assert response.status_code == 200  # API 正常回應
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["is_valid"] is False  # 但驗證失敗
+        assert "連線失敗" in data["data"]["message"]
 
 
 # 註：資料庫相關的測試（init-status 和 quota）需要更複雜的 mock 設置

@@ -4,7 +4,7 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
 class ApiClient {
-  private client: AxiosInstance
+  public client: AxiosInstance  // 改為 public 以便測試
 
   constructor() {
     this.client = axios.create({
