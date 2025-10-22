@@ -172,4 +172,34 @@ describe('ConfigurationsPage', () => {
     // 不應該顯示表格
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
+
+  it('應顯示配置預覽 Modal', async () => {
+    jest.spyOn(api, 'getConfigurations').mockResolvedValue({
+      success: true,
+      data: { configurations: mockConfigurations },
+    })
+
+    const { user } = renderWithProviders(<ConfigurationsPage />)
+
+    // 等待配置列表載入
+    await waitFor(() => {
+      expect(screen.getByText('預設配置')).toBeInTheDocument()
+    })
+
+    // 點擊預覽按鈕
+    const previewButtons = screen.getAllByRole('button', { name: /預覽/ })
+    await user.click(previewButtons[0])
+
+    // 確認預覽 Modal 出現
+    await waitFor(
+      () => {
+        expect(screen.getByText(/預覽配置:/)).toBeInTheDocument()
+        expect(screen.getByText(/預設配置/)).toBeInTheDocument()
+      },
+      { timeout: 3000 }
+    )
+
+    // 驗證字幕設定顯示
+    expect(screen.getByText(/字幕設定/)).toBeInTheDocument()
+  })
 })

@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Breadcrumb } from '@/components/layout/Breadcrumb'
+import ConfigurationPreviewModal from '@/components/configurations/ConfigurationPreviewModal'
 import { toast } from 'sonner'
 import * as api from '@/lib/api/configurationsApi'
 import type { Configuration } from '@/types/models'
@@ -194,6 +195,13 @@ export default function ConfigurationsPage() {
             }}
           />
         )}
+
+        {/* 預覽 Modal */}
+        <ConfigurationPreviewModal
+          configuration={previewConfig}
+          visible={previewConfig !== null}
+          onClose={() => setPreviewConfig(null)}
+        />
 
         {/* 刪除確認 Modal */}
         <Modal
