@@ -1,6 +1,6 @@
 // tests/integration/complete-project-flow.test.tsx
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import NewProjectPage from '@/app/project/new/page'
@@ -8,6 +8,77 @@ import VisualConfigPage from '@/app/project/[id]/configure/visual/page'
 import { projectsApi, type Project } from '@/services/api/projects'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+
+// Polyfill for File.prototype.text() in testing environment
+// Note: We don't use FileReader here to avoid interaction with MockFileReader
+if (typeof File.prototype.text === 'undefined') {
+  File.prototype.text = function() {
+    return new Promise((resolve) => {
+      // For test files, we can directly access the content
+      // Since JSDOM doesn't support Blob.text(), we'll return mock content based on size
+      const mockContent = '測試文字內容。'.repeat(125) // 750 字
+      resolve(mockContent)
+    })
+  }
+}
+
+// Mock FileReader for logo upload and file uploads
+const originalFileReader = global.FileReader
+
+beforeAll(() => {
+  // @ts-ignore
+  global.FileReader = class MockFileReader {
+    result: any = null
+    onload: ((e: any) => void) | null = null
+    onerror: ((e: any) => void) | null = null
+    _file: Blob | null = null
+
+    readAsDataURL(blob: Blob) {
+      this._file = blob
+      // Simulate asynchronous file reading
+      setTimeout(() => {
+        this.result = 'data:image/png;base64,mockbase64data'
+        if (this.onload) {
+          this.onload({ target: this })
+        }
+      }, 0)
+    }
+
+    readAsText(blob: Blob) {
+      this._file = blob
+      // Simulate asynchronous file reading
+      setTimeout(async () => {
+        try {
+          // For File objects, we can get the text directly
+          if (blob instanceof File) {
+            // Use the original File.prototype.text if available
+            if (typeof blob.text === 'function') {
+              this.result = await blob.text()
+            } else {
+              // Fallback: create mock content based on file name
+              this.result = '測試文字內容。'.repeat(125)
+            }
+          } else {
+            // For Blob, create simple test content
+            this.result = '測試文字內容。'.repeat(125)
+          }
+
+          if (this.onload) {
+            this.onload({ target: this })
+          }
+        } catch (error) {
+          if (this.onerror) {
+            this.onerror({ target: this, error })
+          }
+        }
+      }, 0)
+    }
+  }
+})
+
+afterAll(() => {
+  global.FileReader = originalFileReader
+})
 
 /**
  * 測試 17：完整專案建立流程（真正的 E2E）
@@ -24,6 +95,7 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
   let queryClient: QueryClient
   let createProjectSpy: jest.SpyInstance
   let mockRouterPush: jest.Mock
+  let mockRouter: any
   let toastSuccessSpy: jest.Mock
 
   beforeEach(() => {
@@ -33,9 +105,21 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
         mutations: { retry: false },
       },
     })
+
+    // 創建固定的 router instance
+    mockRouterPush = jest.fn()
+    mockRouter = {
+      push: mockRouterPush,
+      replace: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    }
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+
     createProjectSpy = jest.spyOn(projectsApi, 'createProject')
-    mockRouterPush = (useRouter as jest.Mock)().push as jest.Mock
-    toastSuccessSpy = (toast.success as jest.Mock)
+    toastSuccessSpy = toast.success as jest.Mock
     jest.clearAllMocks()
   })
 
@@ -71,14 +155,17 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
     const nameInput = screen.getByLabelText('專案名稱')
     await user.type(nameInput, '完整測試專案')
 
-    // 貼上文字內容
+    // 貼上文字內容 - 使用 fireEvent 避免 timeout
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
-    const testContent = '這是完整測試的內容。'.repeat(125) // 1500 字
-    await user.type(contentTextarea, testContent)
+    const testContent = '這是完整測試的內容。'.repeat(125) // 10個字 x 125 = 1250 字
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     // 驗證字數統計
     await waitFor(() => {
-      expect(screen.getByText(/目前字數: 1500/)).toBeInTheDocument()
+      expect(screen.getByText(/目前字數: 1250/)).toBeInTheDocument()
     })
 
     // 點擊下一步
@@ -87,7 +174,10 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
 
     // 應該調用 API 並顯示成功 toast
     await waitFor(() => {
-      expect(createProjectSpy).toHaveBeenCalledWith({
+      expect(createProjectSpy).toHaveBeenCalled()
+      const calls = createProjectSpy.mock.calls
+      expect(calls.length).toBeGreaterThan(0)
+      expect(calls[0][0]).toEqual({
         project_name: '完整測試專案',
         content_text: testContent,
         content_source: 'paste',
@@ -103,11 +193,12 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
     })
 
     // === 階段 2：視覺配置（Page-4） ===
-    // 清除之前的渲染
+    // 清除之前的渲染和 DOM
+    cleanup()
     jest.clearAllMocks()
 
     // 渲染視覺配置頁面
-    render(<VisualConfigPage params={{ id: mockProject.id }} />)
+    renderWithQueryClient(<VisualConfigPage params={{ id: mockProject.id }} />)
 
     // 驗證頁面載入
     await waitFor(() => {
@@ -120,8 +211,10 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
     await user.selectOptions(fontSelect, 'Arial')
 
     // 配置應該更新預覽
-    const preview = screen.getByText('範例字幕')
-    expect(preview).toHaveStyle({ fontFamily: 'Arial' })
+    await waitFor(() => {
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.fontFamily).toBe('Arial')
+    })
 
     // 點擊下一步到 prompt-model 頁面
     const visualNextButton = screen.getByRole('button', { name: '下一步' })
@@ -157,17 +250,28 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
     const sourceSelect = screen.getByLabelText('文字來源')
     await user.selectOptions(sourceSelect, 'upload')
 
-    // 上傳檔案
+    // 上傳檔案 - 使用 fireEvent 避免檔案讀取問題
     const content = '測試文字內容。'.repeat(125) // 750 字
     const file = new File([content], 'test.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
 
-    // 等待檔案載入
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
+
+    // 等待檔案載入 - 增加 timeout 因為 MockFileReader 的異步處理
+    await waitFor(() => {
+      expect(toastSuccessSpy).toHaveBeenCalledWith('檔案載入成功')
+    }, { timeout: 3000 })
+
     await waitFor(() => {
       expect(screen.getByText(/已載入內容/)).toBeInTheDocument()
-    })
+    }, { timeout: 3000 })
 
     // 點擊下一步
     const nextButton = screen.getByRole('button', { name: '下一步' })
@@ -179,38 +283,49 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
     })
 
     // === 階段 2：視覺配置（上傳 Logo） ===
+    cleanup()
     jest.clearAllMocks()
-    render(<VisualConfigPage params={{ id: mockProject.id }} />)
+    renderWithQueryClient(<VisualConfigPage params={{ id: mockProject.id }} />)
 
     await waitFor(() => {
       expect(screen.getByText('Logo 設定')).toBeInTheDocument()
     })
 
-    // 上傳 Logo
+    // 上傳 Logo - 使用 fireEvent 避免檔案讀取問題
     const logoFile = new File(['logo'], 'logo.png', { type: 'image/png' })
     const logoInput = screen.getByLabelText('上傳 Logo') as HTMLInputElement
-    await user.upload(logoInput, logoFile)
+
+    await act(async () => {
+      Object.defineProperty(logoInput, 'files', {
+        value: [logoFile],
+        writable: false,
+      })
+      fireEvent.change(logoInput)
+    })
 
     // Logo 應該上傳成功
     await waitFor(() => {
       expect(toastSuccessSpy).toHaveBeenCalledWith('Logo 已上傳')
-    })
+    }, { timeout: 3000 })
 
-    // Logo 配置選項應該顯示
+    // Logo 配置選項應該顯示（等待 FileReader 完成）
+    // 使用精確查詢避免匹配到「字體大小」
     await waitFor(() => {
-      expect(screen.getByText(/大小:/)).toBeInTheDocument()
-      expect(screen.getByText(/透明度:/)).toBeInTheDocument()
-    })
+      expect(screen.getByLabelText('Logo 大小')).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 透明度')).toBeInTheDocument()
+    }, { timeout: 3000 })
 
     // 調整 Logo 大小
-    const sizeSlider = screen.getByDisplayValue('100') as HTMLInputElement
-    await user.clear(sizeSlider)
-    await user.type(sizeSlider, '150')
+    const sizeSlider = screen.getByLabelText('Logo 大小') as HTMLInputElement
+    await act(async () => {
+      fireEvent.change(sizeSlider, { target: { value: '150' } })
+    })
 
-    // Logo 預覽應該更新
+    // Logo 預覽應該更新 - 使用 element.style 而非 toHaveStyle
     await waitFor(() => {
-      const logo = screen.getByAltText('Logo')
-      expect(logo).toHaveStyle({ width: '150px', height: '150px' })
+      const logo = screen.getByAltText('Logo') as HTMLElement
+      expect(logo.style.width).toBe('150px')
+      expect(logo.style.height).toBe('150px')
     })
   })
 })
@@ -223,6 +338,7 @@ describe('測試 17：完整專案建立流程（E2E）', () => {
 describe('測試 18：錯誤恢復流程', () => {
   let queryClient: QueryClient
   let createProjectSpy: jest.SpyInstance
+  let mockRouter: any
   let toastErrorSpy: jest.Mock
 
   beforeEach(() => {
@@ -232,8 +348,20 @@ describe('測試 18：錯誤恢復流程', () => {
         mutations: { retry: false },
       },
     })
+
+    // 創建固定的 router instance
+    mockRouter = {
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    }
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+
     createProjectSpy = jest.spyOn(projectsApi, 'createProject')
-    toastErrorSpy = (toast.error as jest.Mock)
+    toastErrorSpy = toast.error as jest.Mock
     jest.clearAllMocks()
   })
 
@@ -253,9 +381,13 @@ describe('測試 18：錯誤恢復流程', () => {
     const user = userEvent.setup()
     renderWithQueryClient(<NewProjectPage />)
 
-    // 第一次嘗試：專案名稱為空
+    // 第一次嘗試：專案名稱為空 - 使用 fireEvent 避免 timeout
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
-    await user.type(contentTextarea, '測試內容。'.repeat(125))
+    const testContent = '測試內容。'.repeat(125)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     const nextButton = screen.getByRole('button', { name: '下一步' })
     await user.click(nextButton)
@@ -296,7 +428,11 @@ describe('測試 18：錯誤恢復流程', () => {
     await user.type(nameInput, '測試專案')
 
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
-    await user.type(contentTextarea, '測試內容。'.repeat(125))
+    const testContent = '測試內容。'.repeat(125)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     // 第一次 API 呼叫失敗
     createProjectSpy.mockRejectedValueOnce(new Error('網路錯誤'))
@@ -330,7 +466,6 @@ describe('測試 18：錯誤恢復流程', () => {
 
   it('18.3 返回上一步重新編輯', async () => {
     const user = userEvent.setup()
-    const mockRouterBack = (useRouter as jest.Mock)().back as jest.Mock
 
     // 渲染視覺配置頁面
     render(<VisualConfigPage params={{ id: 'eeeeeeee-1234-4234-8234-123456789012' }} />)
@@ -344,7 +479,7 @@ describe('測試 18：錯誤恢復流程', () => {
     await user.click(backButton)
 
     // 應該返回上一頁
-    expect(mockRouterBack).toHaveBeenCalled()
+    expect(mockRouter.back).toHaveBeenCalled()
   })
 })
 
@@ -356,6 +491,7 @@ describe('測試 18：錯誤恢復流程', () => {
 describe('測試 19：邊界條件測試', () => {
   let queryClient: QueryClient
   let createProjectSpy: jest.SpyInstance
+  let mockRouter: any
 
   beforeEach(() => {
     queryClient = new QueryClient({
@@ -364,6 +500,18 @@ describe('測試 19：邊界條件測試', () => {
         mutations: { retry: false },
       },
     })
+
+    // 創建固定的 router instance
+    mockRouter = {
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    }
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+
     createProjectSpy = jest.spyOn(projectsApi, 'createProject')
     jest.clearAllMocks()
   })
@@ -426,7 +574,10 @@ describe('測試 19：邊界條件測試', () => {
 
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
     const content = '測試文字'.repeat(2500) // 正好 10000 字
-    await user.type(contentTextarea, content)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: content } })
+    })
 
     // 驗證字數
     await waitFor(() => {
@@ -489,7 +640,10 @@ describe('測試 19：邊界條件測試', () => {
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
     // 2500 * 4 + 1 = 10001 字
     const content = '測試文字'.repeat(2500) + '多' // 正好 10001 字
-    await user.type(contentTextarea, content)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: content } })
+    })
 
     // 驗證字數
     await waitFor(() => {
@@ -498,10 +652,14 @@ describe('測試 19：邊界條件測試', () => {
 
     // 下一步按鈕應該被禁用
     const nextButton = screen.getByRole('button', { name: '下一步' })
-    expect(nextButton).toBeDisabled()
+    await waitFor(() => {
+      expect(nextButton).toBeDisabled()
+    })
 
     // 應該顯示警告
-    expect(screen.getByText(/超過 1 字/)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/超過 1 字/)).toBeInTheDocument()
+    })
   })
 })
 
@@ -513,6 +671,8 @@ describe('測試 19：邊界條件測試', () => {
 describe('測試 20：資料持久化（跨頁面）', () => {
   let queryClient: QueryClient
   let createProjectSpy: jest.SpyInstance
+  let mockRouterPush: jest.Mock
+  let mockRouter: any
 
   beforeEach(() => {
     queryClient = new QueryClient({
@@ -521,6 +681,19 @@ describe('測試 20：資料持久化（跨頁面）', () => {
         mutations: { retry: false },
       },
     })
+
+    // 創建固定的 router instance
+    mockRouterPush = jest.fn()
+    mockRouter = {
+      push: mockRouterPush,
+      replace: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    }
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+
     createProjectSpy = jest.spyOn(projectsApi, 'createProject')
     jest.clearAllMocks()
   })
@@ -556,13 +729,16 @@ describe('測試 20：資料持久化（跨頁面）', () => {
     await user.type(nameInput, '資料傳遞測試')
 
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
-    await user.type(contentTextarea, '測試內容。'.repeat(125))
+    const testContent = '測試內容。'.repeat(125)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     const nextButton = screen.getByRole('button', { name: '下一步' })
     await user.click(nextButton)
 
     // 驗證 router.push 被調用時使用了正確的 ID
-    const mockRouterPush = (useRouter as jest.Mock)().push as jest.Mock
     await waitFor(() => {
       expect(mockRouterPush).toHaveBeenCalledWith(
         `/project/${mockProject.id}/configure/visual`

@@ -1,6 +1,6 @@
 // tests/unit/pages/project/new-ui-interactions.test.tsx
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import NewProjectPage from '@/app/project/new/page'
@@ -9,6 +9,19 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 // Note: toast is globally mocked in jest.setup.js
+
+// Polyfill for File.prototype.text()
+if (typeof File.prototype.text === 'undefined') {
+  File.prototype.text = function() {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        resolve(reader.result as string)
+      }
+      reader.readAsText(this)
+    })
+  }
+}
 
 /**
  * 測試 9：UI 互動與狀態管理
@@ -38,12 +51,14 @@ describe('測試 9：UI 互動與狀態管理', () => {
     )
   }
 
-  it('9.1 初始狀態：預設為貼上模式，下一步按鈕禁用', () => {
+  it('9.1 初始狀態：預設為貼上模式，下一步按鈕禁用', async () => {
     renderWithQueryClient(<NewProjectPage />)
 
-    // 檢查預設為貼上模式
-    const pasteOption = screen.getByDisplayValue('paste')
-    expect(pasteOption).toBeInTheDocument()
+    // 等待組件渲染完成並檢查預設為貼上模式
+    await waitFor(() => {
+      // 檢查文字輸入區是否顯示（預設為貼上模式）
+      expect(screen.getByPlaceholderText(/貼上文字內容/)).toBeInTheDocument()
+    })
 
     // 下一步按鈕應該被禁用（因為沒有內容）
     const nextButton = screen.getByRole('button', { name: '下一步' })
@@ -158,12 +173,15 @@ describe('測試 9：UI 互動與狀態管理', () => {
   })
 
   it('9.7 字數警告：超過 10000 字', async () => {
-    const user = userEvent.setup()
     renderWithQueryClient(<NewProjectPage />)
 
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
-    const longContent = '測試文字。'.repeat(2501) // 超過 10000 字
-    await user.type(contentTextarea, longContent)
+    const longContent = '測試文字。'.repeat(2501) // 超過 10000 字（12505 字）
+
+    // 使用 fireEvent 直接設置值以避免 timeout
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: longContent } })
+    })
 
     // 應該顯示超過多少字
     await waitFor(() => {
@@ -309,7 +327,14 @@ describe('測試 10：Toast 訊息驗證', () => {
     const file = new File([content], 'test.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該顯示成功 toast
     await waitFor(() => {
@@ -329,7 +354,14 @@ describe('測試 10：Toast 訊息驗證', () => {
     const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該顯示錯誤 toast
     await waitFor(() => {
@@ -350,7 +382,14 @@ describe('測試 10：Toast 訊息驗證', () => {
     const file = new File([largeContent], 'large.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該顯示錯誤 toast
     await waitFor(() => {
@@ -371,7 +410,14 @@ describe('測試 10：Toast 訊息驗證', () => {
     const file = new File([shortContent], 'short.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該顯示錯誤 toast
     await waitFor(() => {
@@ -419,7 +465,14 @@ describe('測試 11：檔案上傳邊界條件', () => {
     const file2 = new File(['其他內容。'.repeat(125)], 'file2.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, [file1, file2])
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file1, file2],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該只載入第一個檔案的內容
     await waitFor(() => {
@@ -442,7 +495,14 @@ describe('測試 11：檔案上傳邊界條件', () => {
     const file = new File([content], 'test.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該成功載入
     await waitFor(() => {
@@ -464,7 +524,14 @@ describe('測試 11：檔案上傳邊界條件', () => {
     const file = new File([content], 'test.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該成功載入
     await waitFor(() => {
@@ -486,7 +553,14 @@ describe('測試 11：檔案上傳邊界條件', () => {
     const file = new File([content], 'test.md', { type: '' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // 應該成功載入（因為副檔名是 .md）
     await waitFor(() => {

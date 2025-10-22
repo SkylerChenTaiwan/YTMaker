@@ -1,6 +1,6 @@
 // tests/unit/pages/project/visual-config-extended.test.tsx
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import VisualConfigPage from '@/app/project/[id]/configure/visual/page'
 import { useRouter, notFound } from 'next/navigation'
@@ -36,18 +36,14 @@ describe('測試 12：UUID 驗證', () => {
   it('12.2 無效的 UUID 應該呼叫 notFound()', () => {
     const invalidUuid = 'not-a-valid-uuid'
 
-    // notFound 會拋出錯誤，所以需要 catch
-    expect(() => {
-      render(<VisualConfigPage params={{ id: invalidUuid }} />)
-    }).toThrow()
+    // 在 Jest 環境中，notFound 被 mock 了，不會真的 throw
+    render(<VisualConfigPage params={{ id: invalidUuid }} />)
 
     expect(mockNotFound).toHaveBeenCalled()
   })
 
   it('12.3 空字串應該呼叫 notFound()', () => {
-    expect(() => {
-      render(<VisualConfigPage params={{ id: '' }} />)
-    }).toThrow()
+    render(<VisualConfigPage params={{ id: '' }} />)
 
     expect(mockNotFound).toHaveBeenCalled()
   })
@@ -56,9 +52,7 @@ describe('測試 12：UUID 驗證', () => {
     // UUID v1: 第 3 組以 1 開頭
     const uuidV1 = '12345678-1234-1234-8234-123456789012'
 
-    expect(() => {
-      render(<VisualConfigPage params={{ id: uuidV1 }} />)
-    }).toThrow()
+    render(<VisualConfigPage params={{ id: uuidV1 }} />)
 
     expect(mockNotFound).toHaveBeenCalled()
   })
@@ -67,9 +61,7 @@ describe('測試 12：UUID 驗證', () => {
     // UUID v3: 第 3 組以 3 開頭
     const uuidV3 = '12345678-1234-3234-8234-123456789012'
 
-    expect(() => {
-      render(<VisualConfigPage params={{ id: uuidV3 }} />)
-    }).toThrow()
+    render(<VisualConfigPage params={{ id: uuidV3 }} />)
 
     expect(mockNotFound).toHaveBeenCalled()
   })
@@ -78,9 +70,7 @@ describe('測試 12：UUID 驗證', () => {
     // UUID v4 但 variant 不對（第 4 組應該以 8,9,a,b 開頭）
     const invalidVariant = '12345678-1234-4234-c234-123456789012'
 
-    expect(() => {
-      render(<VisualConfigPage params={{ id: invalidVariant }} />)
-    }).toThrow()
+    render(<VisualConfigPage params={{ id: invalidVariant }} />)
 
     expect(mockNotFound).toHaveBeenCalled()
   })
@@ -117,25 +107,29 @@ describe('測試 13：字幕配置完整測試', () => {
     const fontSelect = screen.getByLabelText('字型')
     await user.selectOptions(fontSelect, 'Arial')
 
-    // 預覽應該更新字型
-    const preview = screen.getByText('範例字幕')
-    expect(preview).toHaveStyle({ fontFamily: 'Arial' })
+    // 預覽應該更新字型（檢查內聯 style 屬性）
+    await waitFor(() => {
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.fontFamily).toBe('Arial')
+    })
   })
 
   it('13.3 字體大小變更應該即時反映', async () => {
-    const user = userEvent.setup()
     render(<VisualConfigPage params={{ id: validProjectId }} />)
 
     // 找到字體大小滑桿
     const sizeSlider = screen.getByDisplayValue('48') as HTMLInputElement
 
     // 變更大小
-    await user.clear(sizeSlider)
-    await user.type(sizeSlider, '72')
+    act(() => {
+      fireEvent.change(sizeSlider, { target: { value: '72' } })
+    })
 
-    // 預覽應該更新
-    const preview = screen.getByText('範例字幕')
-    expect(preview).toHaveStyle({ fontSize: '72px' })
+    // 預覽應該更新（檢查內聯 style 屬性）
+    await waitFor(() => {
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.fontSize).toBe('72px')
+    })
   })
 
   it('13.4 陰影展開/收起邏輯', async () => {
@@ -164,19 +158,21 @@ describe('測試 13：字幕配置完整測試', () => {
   })
 
   it('13.5 陰影顏色變更應該即時反映', async () => {
-    const user = userEvent.setup()
     render(<VisualConfigPage params={{ id: validProjectId }} />)
 
     // 找到陰影顏色輸入
     const shadowColorInput = screen.getAllByDisplayValue('#000000')[0] as HTMLInputElement
 
     // 變更顏色
-    await user.clear(shadowColorInput)
-    await user.type(shadowColorInput, '#FF0000')
+    act(() => {
+      fireEvent.change(shadowColorInput, { target: { value: '#FF0000' } })
+    })
 
-    // 預覽應該更新陰影顏色
-    const preview = screen.getByText('範例字幕')
-    expect(preview.style.textShadow).toContain('#FF0000')
+    // 預覽應該更新陰影顏色（檢查內聯 style 屬性）
+    await waitFor(() => {
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.textShadow).toContain('#ff0000')
+    })
   })
 })
 
@@ -202,9 +198,9 @@ describe('測試 14：Logo 配置完整測試', () => {
     // Logo 設定區應該存在
     expect(screen.getByText('Logo 設定')).toBeInTheDocument()
 
-    // 但大小和透明度選項不應該顯示
-    expect(screen.queryByText(/大小:/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/透明度:/)).not.toBeInTheDocument()
+    // 但 Logo 大小和透明度選項不應該顯示（使用精確查詢）
+    expect(screen.queryByLabelText('Logo 大小')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Logo 透明度')).not.toBeInTheDocument()
   })
 
   it('14.2 上傳 PNG Logo 應該成功', async () => {
@@ -222,10 +218,10 @@ describe('測試 14：Logo 配置完整測試', () => {
       expect(toastSuccessSpy).toHaveBeenCalledWith('Logo 已上傳')
     })
 
-    // 配置選項應該顯示
+    // 配置選項應該顯示（使用精確的 aria-label 查詢）
     await waitFor(() => {
-      expect(screen.getByText(/大小:/)).toBeInTheDocument()
-      expect(screen.getByText(/透明度:/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 大小')).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 透明度')).toBeInTheDocument()
     })
   })
 
@@ -258,21 +254,26 @@ describe('測試 14：Logo 配置完整測試', () => {
   })
 
   it('14.5 上傳不支援的格式應該顯示錯誤', async () => {
-    const user = userEvent.setup()
     render(<VisualConfigPage params={{ id: validProjectId }} />)
 
     const file = new File(['content'], 'file.pdf', { type: 'application/pdf' })
-
     const fileInput = screen.getByLabelText('上傳 Logo') as HTMLInputElement
-    await user.upload(fileInput, file)
 
-    // 應該顯示錯誤 toast
-    await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith('檔案必須為 PNG, JPG 或 SVG 格式')
+    // 使用 fireEvent 直接觸發檔案上傳（同步）
+    Object.defineProperty(fileInput, 'files', {
+      value: [file],
+      writable: false,
     })
 
+    act(() => {
+      fireEvent.change(fileInput)
+    })
+
+    // toast.error 應該立即被呼叫（同步）
+    expect(toastErrorSpy).toHaveBeenCalledWith('檔案必須為 PNG, JPG 或 SVG 格式')
+
     // 配置選項不應該顯示
-    expect(screen.queryByText(/大小:/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Logo 大小')).not.toBeInTheDocument()
   })
 
   it('14.6 Logo 大小調整應該即時反映', async () => {
@@ -285,18 +286,20 @@ describe('測試 14：Logo 配置完整測試', () => {
     await user.upload(fileInput, file)
 
     await waitFor(() => {
-      expect(screen.getByText(/大小:/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 大小')).toBeInTheDocument()
     })
 
     // 調整大小
-    const sizeSlider = screen.getByDisplayValue('100') as HTMLInputElement
-    await user.clear(sizeSlider)
-    await user.type(sizeSlider, '150')
+    const sizeSlider = screen.getByLabelText('Logo 大小') as HTMLInputElement
+    act(() => {
+      fireEvent.change(sizeSlider, { target: { value: '150' } })
+    })
 
-    // Logo 應該更新大小
+    // Logo 應該更新大小（檢查內聯 style 屬性）
     await waitFor(() => {
-      const logo = screen.getByAltText('Logo')
-      expect(logo).toHaveStyle({ width: '150px', height: '150px' })
+      const logo = screen.getByAltText('Logo') as HTMLElement
+      expect(logo.style.width).toBe('150px')
+      expect(logo.style.height).toBe('150px')
     })
   })
 
@@ -318,13 +321,14 @@ describe('測試 14：Logo 配置完整測試', () => {
       (el) => el.parentElement?.textContent?.includes('透明度')
     ) as HTMLInputElement
 
-    await user.clear(opacitySlider)
-    await user.type(opacitySlider, '50')
+    act(() => {
+      fireEvent.change(opacitySlider, { target: { value: '50' } })
+    })
 
-    // Logo 透明度應該更新
+    // Logo 透明度應該更新（檢查內聯 style 屬性）
     await waitFor(() => {
-      const logo = screen.getByAltText('Logo')
-      expect(logo).toHaveStyle({ opacity: '0.5' })
+      const logo = screen.getByAltText('Logo') as HTMLElement
+      expect(logo.style.opacity).toBe('0.5')
     })
   })
 })
@@ -338,10 +342,24 @@ describe('測試 15：導航與儲存', () => {
   const validProjectId = '12345678-1234-4234-8234-123456789012'
   let mockRouterPush: jest.Mock
   let mockRouterBack: jest.Mock
+  let mockRouter: any
 
   beforeEach(() => {
-    mockRouterPush = (useRouter as jest.Mock)().push as jest.Mock
-    mockRouterBack = (useRouter as jest.Mock)().back as jest.Mock
+    // 創建固定的 router instance
+    mockRouterPush = jest.fn()
+    mockRouterBack = jest.fn()
+    mockRouter = {
+      push: mockRouterPush,
+      replace: jest.fn(),
+      back: mockRouterBack,
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    }
+
+    // 讓 useRouter 總是回傳這個固定的 instance
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
+
     jest.clearAllMocks()
     jest.useFakeTimers()
   })
@@ -355,7 +373,10 @@ describe('測試 15：導航與儲存', () => {
     render(<VisualConfigPage params={{ id: validProjectId }} />)
 
     const backButton = screen.getByRole('button', { name: '上一步' })
-    await user.click(backButton)
+
+    await act(async () => {
+      await user.click(backButton)
+    })
 
     expect(mockRouterBack).toHaveBeenCalled()
   })
@@ -365,7 +386,10 @@ describe('測試 15：導航與儲存', () => {
     render(<VisualConfigPage params={{ id: validProjectId }} />)
 
     const nextButton = screen.getByRole('button', { name: '下一步' })
-    await user.click(nextButton)
+
+    await act(async () => {
+      await user.click(nextButton)
+    })
 
     expect(mockRouterPush).toHaveBeenCalledWith(
       `/project/${validProjectId}/configure/prompt-model`
@@ -460,7 +484,9 @@ describe('測試 15：導航與儲存', () => {
     expect(nextButton).not.toBeDisabled()
 
     // 可以點擊下一步
-    await user.click(nextButton)
+    await act(async () => {
+      await user.click(nextButton)
+    })
     expect(mockRouterPush).toHaveBeenCalled()
   })
 })

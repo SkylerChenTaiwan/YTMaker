@@ -1,14 +1,28 @@
 // tests/integration/new-project-flow.test.tsx
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import NewProjectPage from '@/app/project/new/page'
 import { projectsApi, type Project } from '@/services/api/projects'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 // Note: Next.js navigation is globally mocked in jest.setup.js
 // We'll use the global mock and spy on it
+
+// Polyfill for File.prototype.text() in testing environment
+if (typeof File.prototype.text === 'undefined') {
+  File.prototype.text = function() {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        resolve(reader.result as string)
+      }
+      reader.readAsText(this)
+    })
+  }
+}
 
 /**
  * 測試 7：完整新增專案流程（整合測試）
@@ -24,6 +38,9 @@ describe('測試 7：完整新增專案流程', () => {
   let queryClient: QueryClient
   let createProjectSpy: jest.SpyInstance
   let mockRouterPush: jest.Mock
+  let mockRouterBack: jest.Mock
+  let mockRouter: any
+  let toastSuccessSpy: jest.Mock
 
   beforeEach(() => {
     // 創建新的 QueryClient（使用真實實作）
@@ -34,11 +51,22 @@ describe('測試 7：完整新增專案流程', () => {
       },
     })
 
-    // 取得全局 mock 的 router
-    mockRouterPush = (useRouter as jest.Mock)().push as jest.Mock
+    // 創建固定的 router instance
+    mockRouterPush = jest.fn()
+    mockRouterBack = jest.fn()
+    mockRouter = {
+      push: mockRouterPush,
+      replace: jest.fn(),
+      back: mockRouterBack,
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      prefetch: jest.fn(),
+    }
+    ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
 
-    // Spy on projectsApi.createProject
+    // Spy on projectsApi.createProject and toast
     createProjectSpy = jest.spyOn(projectsApi, 'createProject')
+    toastSuccessSpy = toast.success as jest.Mock
   })
 
   afterEach(() => {
@@ -79,17 +107,20 @@ describe('測試 7：完整新增專案流程', () => {
     expect(nameInput).toHaveValue('測試專案')
 
     // Step 2: 確認預設為貼上模式
-    const pasteOption = screen.getByDisplayValue('paste')
-    expect(pasteOption).toBeInTheDocument()
+    const sourceSelect = screen.getByLabelText('文字來源') as HTMLSelectElement
+    expect(sourceSelect).toHaveValue('paste')
 
-    // Step 3: 貼上文字內容（1000 字）
+    // Step 3: 貼上文字內容（1400 字）- 使用 fireEvent 避免 timeout
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
-    const testContent = '這是測試內容。'.repeat(200) // 1200 字
-    await user.type(contentTextarea, testContent)
+    const testContent = '這是測試內容。'.repeat(200) // 7個字 x 200 = 1400 字
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     // Step 4: 驗證字數統計
     await waitFor(() => {
-      expect(screen.getByText(/目前字數: 1200/)).toBeInTheDocument()
+      expect(screen.getByText(/目前字數: 1400/)).toBeInTheDocument()
     })
 
     // Step 5: 下一步按鈕應該啟用
@@ -101,7 +132,10 @@ describe('測試 7：完整新增專案流程', () => {
 
     // Step 7: 應該調用 API
     await waitFor(() => {
-      expect(createProjectSpy).toHaveBeenCalledWith({
+      expect(createProjectSpy).toHaveBeenCalled()
+      const calls = createProjectSpy.mock.calls
+      expect(calls.length).toBeGreaterThan(0)
+      expect(calls[0][0]).toEqual({
         project_name: '測試專案',
         content_text: testContent,
         content_source: 'paste',
@@ -137,17 +171,27 @@ describe('測試 7：完整新增專案流程', () => {
 
     // Step 2: 切換到上傳檔案
     const sourceSelect = screen.getByLabelText('文字來源')
-    await user.click(sourceSelect)
     await user.selectOptions(sourceSelect, 'upload')
 
-    // Step 3: 上傳檔案
+    // Step 3: 上傳檔案 - 使用 fireEvent 避免檔案讀取問題
     const content = '測試文字。'.repeat(125) // 625 字
     const file = new File([content], 'test.txt', { type: 'text/plain' })
 
     const fileInput = screen.getByLabelText('上傳檔案') as HTMLInputElement
-    await user.upload(fileInput, file)
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        writable: false,
+      })
+      fireEvent.change(fileInput)
+    })
 
     // Step 4: 等待檔案處理完成
+    await waitFor(() => {
+      expect(toastSuccessSpy).toHaveBeenCalledWith('檔案載入成功')
+    })
+
     await waitFor(() => {
       expect(screen.getByText(/已載入內容/)).toBeInTheDocument()
       expect(screen.getByText(/625 字/)).toBeInTheDocument()
@@ -168,10 +212,13 @@ describe('測試 7：完整新增專案流程', () => {
     const user = userEvent.setup()
     renderWithQueryClient(<NewProjectPage />)
 
-    // 不輸入專案名稱，直接貼上文字
+    // 不輸入專案名稱，直接貼上文字 - 使用 fireEvent 避免 timeout
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
     const testContent = '這是測試內容。'.repeat(200)
-    await user.type(contentTextarea, testContent)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     // 點擊下一步
     const nextButton = screen.getByRole('button', { name: '下一步' })
@@ -217,14 +264,19 @@ describe('測試 7：完整新增專案流程', () => {
     const nameInput = screen.getByLabelText('專案名稱')
     await user.type(nameInput, '測試專案')
 
-    // 貼上超過 10000 字的內容
+    // 貼上超過 10000 字的內容 - 使用 fireEvent 避免 timeout
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
     const longContent = '測試文字。'.repeat(2501) // 超過 10000 字
-    await user.type(contentTextarea, longContent)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: longContent } })
+    })
 
     // 下一步按鈕應該被禁用
     const nextButton = screen.getByRole('button', { name: '下一步' })
-    expect(nextButton).toBeDisabled()
+    await waitFor(() => {
+      expect(nextButton).toBeDisabled()
+    })
 
     // 應該顯示字數警告
     await waitFor(() => {
@@ -279,7 +331,10 @@ describe('測試 7：完整新增專案流程', () => {
 
     const contentTextarea = screen.getByPlaceholderText(/貼上文字內容/)
     const testContent = '測試文字。'.repeat(125) // 625 字
-    await user.type(contentTextarea, testContent)
+
+    await act(async () => {
+      fireEvent.change(contentTextarea, { target: { value: testContent } })
+    })
 
     // 點擊下一步
     const nextButton = screen.getByRole('button', { name: '下一步' })
