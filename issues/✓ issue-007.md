@@ -1,10 +1,11 @@
-# Issue-007: Gemini API Key 測試連線失敗
+# [已解決] Issue-007: Gemini API Key 測試連線失敗
 
 > **建立日期：** 2025-10-22
-> **狀態：** 🔴 Open
+> **狀態：** 🟢 Resolved
 > **優先級：** P0 緊急
 > **分類：** Bug / Integration
 > **負責人：** Claude
+> **解決日期：** 2025-10-22
 
 ---
 
@@ -482,6 +483,7 @@ const handleTestConnection = async () => {
 | 日期 | 狀態 | 說明 |
 |------|------|------|
 | 2025-10-22 | 🔴 Open | 問題發現，用戶無法完成 API Key 設定 |
+| 2025-10-22 | 🟢 Resolved | 問題已修復，前後端介面對齊並實作真正的測試邏輯 |
 
 ---
 
