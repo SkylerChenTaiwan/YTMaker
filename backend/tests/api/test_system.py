@@ -56,6 +56,41 @@ def test_save_api_key_too_short(mock_db, mock_keychain):
     assert "detail" in data
 
 
+def test_save_api_key_with_camelcase_should_fail(mock_db, mock_keychain):
+    """測試：前端錯誤傳送 camelCase (apiKey) 時應該回傳 422
+
+    這個測試確保前後端 API 格式不一致時會被捕捉。
+    這是 Issue-007 的根本問題：前端傳送 apiKey，後端期待 api_key。
+    """
+    response = client.post("/api/v1/system/api-keys", json={
+        "provider": "gemini",
+        "apiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # ❌ 錯誤：使用 camelCase
+    })
+
+    # Pydantic 驗證失敗，因為缺少必要欄位 api_key
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+    # 驗證錯誤訊息包含缺少 api_key 的資訊
+    assert any("api_key" in str(error) for error in data["detail"])
+
+
+def test_save_api_key_with_snake_case_should_succeed(mock_db, mock_keychain):
+    """測試：使用正確的 snake_case (api_key) 格式應該成功
+
+    確保正確的格式能夠通過驗證。
+    """
+    response = client.post("/api/v1/system/api-keys", json={
+        "provider": "gemini",
+        "api_key": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # ✅ 正確：使用 snake_case
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    mock_keychain.save_api_key.assert_called_once()
+
+
 def test_save_api_key_invalid_provider(mock_db, mock_keychain):
     """測試 3：無效的服務提供者"""
     response = client.post("/api/v1/system/api-keys", json={
@@ -72,7 +107,8 @@ def test_test_api_key_success(mock_db, mock_keychain):
     mock_keychain.get_api_key = Mock(return_value="valid_api_key")
 
     response = client.post("/api/v1/system/api-keys/test", json={
-        "provider": "gemini"
+        "provider": "gemini",
+        "api_key": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # ✅ 正確格式
     })
 
     assert response.status_code == 200
@@ -80,6 +116,22 @@ def test_test_api_key_success(mock_db, mock_keychain):
     assert data["success"] is True
     assert data["data"]["is_valid"] is True
     assert "message" in data["data"]
+
+
+def test_test_api_key_with_camelcase_should_fail(mock_db, mock_keychain):
+    """測試：測試 API Key 時傳送 camelCase (apiKey) 應該回傳 422
+
+    確保前端格式錯誤時會被 Pydantic 驗證捕捉。
+    """
+    response = client.post("/api/v1/system/api-keys/test", json={
+        "provider": "gemini",
+        "apiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # ❌ 錯誤：使用 camelCase
+    })
+
+    # Pydantic 驗證失敗
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
 
 
 def test_test_api_key_not_found(mock_db, mock_keychain):
