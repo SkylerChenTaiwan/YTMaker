@@ -9,7 +9,7 @@
  * - 錯誤處理
  */
 
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import ProgressPage from '@/app/project/[id]/progress/page'
 
 // Mock 環境變數
@@ -67,9 +67,7 @@ jest.mock('@/store/useProjectStore', () => ({
     get currentProject() {
       return mockProjectState.current
     },
-    fetchProject: mockFetchProject.mockImplementation(async (id: string) => {
-      // fetchProject 在真實場景會設定 current，測試中需要手動設定
-    }),
+    fetchProject: mockFetchProject,
     setCurrentProject: jest.fn((project: any) => {
       mockProjectState.current = project
     }),
@@ -94,7 +92,7 @@ let mockProgress: any = {
 let mockLogs: any[] = []
 
 const mockUpdateProgress = jest.fn((update: any) => {
-  mockProgress = { ...mockProgress, ...update }
+  Object.assign(mockProgress, update)
 })
 const mockAddLog = jest.fn((log: any) => {
   mockLogs.push(log)
@@ -106,8 +104,12 @@ const mockResetProgress = jest.fn()
 
 jest.mock('@/store/useProgressStore', () => ({
   useProgressStore: jest.fn(() => ({
-    progress: mockProgress,
-    logs: mockLogs,
+    get progress() {
+      return mockProgress
+    },
+    get logs() {
+      return mockLogs
+    },
     updateProgress: mockUpdateProgress,
     addLog: mockAddLog,
     clearLogs: mockClearLogs,
@@ -248,6 +250,19 @@ describe('ProgressPage - 測試 1: 成功載入專案並顯示進度', () => {
 describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // 重置 progress state
+    mockProgress.overall = 10
+    mockProgress.stage = 'script'
+    mockProgress.message = '腳本生成中...'
+    mockProgress.stages = {
+      script: { status: 'in_progress', progress: 50 },
+      assets: { status: 'pending', progress: 0 },
+      render: { status: 'pending', progress: 0 },
+      thumbnail: { status: 'pending', progress: 0 },
+      upload: { status: 'pending', progress: 0 },
+    }
+    mockProjectState.current = null
   })
 
   it('應該透過 WebSocket 即時更新進度', async () => {
@@ -280,14 +295,16 @@ describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
         },
       },
     }
+    ;(projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
-    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
+    // 設定 store 狀態
+    mockProjectState.current = mockProject
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     // 等待初始載入
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+      expect(screen.getByTestId('progress-bar')).toBeInTheDocument()
     })
 
     // 模擬 WebSocket 發送進度更新訊息
@@ -309,7 +326,7 @@ describe('ProgressPage - 測試 2: WebSocket 即時進度更新', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20')
+        expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '20')
       })
 
       // 發送階段完成訊息
@@ -650,6 +667,18 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
   })
 
   it('WebSocket 斷線重連後應恢復遺失的進度', async () => {
+    // 重置 progress state
+    mockProgress.overall = 0
+    mockProgress.stage = 'script'
+    mockProgress.message = '準備開始生成...'
+    mockProgress.stages = {
+      script: { status: 'pending', progress: 0 },
+      assets: { status: 'pending', progress: 0 },
+      render: { status: 'pending', progress: 0 },
+      thumbnail: { status: 'pending', progress: 0 },
+      upload: { status: 'pending', progress: 0 },
+    }
+
     let wsInstance: any = null
     let onOpenHandler: any = null
     let onCloseHandler: any = null
@@ -699,28 +728,39 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
         },
       },
     }
+    ;(projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
-    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
+    // 設定 store 狀態
+    mockProjectState.current = mockProject
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     // 等待初始連線
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+      expect(screen.getByTestId('progress-bar')).toBeInTheDocument()
     })
 
     // 模擬進度從 0% 到 30%
-    if (onMessageHandler) {
-      onMessageHandler({
-        data: JSON.stringify({
+    if (mockOnMessage) {
+      act(() => {
+        mockOnMessage({
           type: 'progress',
           data: { overall: 30, stage: 'script', message: '腳本生成中...' },
-        }),
+        })
+      })
+
+      // 等待 mockUpdateProgress 被調用
+      await waitFor(() => {
+        expect(mockUpdateProgress).toHaveBeenCalledWith({
+          overall: 30,
+          stage: 'script',
+          message: '腳本生成中...',
+        })
       })
     }
 
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30')
+      expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '30')
     })
 
     // 模擬斷線
@@ -740,18 +780,18 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
     )
 
     // 重連成功後，發送最新進度
-    if (onMessageHandler) {
-      onMessageHandler({
-        data: JSON.stringify({
+    if (mockOnMessage) {
+      act(() => {
+        mockOnMessage({
           type: 'progress',
           data: { overall: 70, stage: 'assets', message: '素材生成中...' },
-        }),
+        })
       })
     }
 
     // 驗證進度直接跳到 70%
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '70')
+      expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '70')
     })
   })
 })
@@ -759,6 +799,19 @@ describe('ProgressPage - 測試 6: WebSocket 重連後訊息恢復', () => {
 describe('ProgressPage - 測試 7: 訊息順序測試', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+
+    // 重置 progress state 為初始值
+    mockProgress.overall = 0
+    mockProgress.stage = 'script'
+    mockProgress.message = '準備開始...'
+    mockProgress.stages = {
+      script: { status: 'pending', progress: 0 },
+      assets: { status: 'pending', progress: 0 },
+      render: { status: 'pending', progress: 0 },
+      thumbnail: { status: 'pending', progress: 0 },
+      upload: { status: 'pending', progress: 0 },
+    }
+    mockProjectState.current = null
   })
 
   it('亂序到達的 WebSocket 訊息應正確處理', async () => {
@@ -792,13 +845,15 @@ describe('ProgressPage - 測試 7: 訊息順序測試', () => {
         },
       },
     }
+    ;(projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
 
-    (projectApi.getProject as jest.Mock).mockResolvedValue(mockProject)
+    // 設定 store 狀態
+    mockProjectState.current = mockProject
 
     render(<ProgressPage params={{ id: '123' }} />)
 
     await waitFor(() => {
-      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+      expect(screen.getByTestId('progress-bar')).toBeInTheDocument()
     })
 
     // 模擬訊息亂序到達（第二個訊息先到）
@@ -812,7 +867,7 @@ describe('ProgressPage - 測試 7: 訊息順序測試', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+        expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '50')
       })
 
       // 第一個訊息後到 (30%) - 應該被忽略，不會導致進度回退
@@ -825,7 +880,7 @@ describe('ProgressPage - 測試 7: 訊息順序測試', () => {
 
       // 進度應該保持在 50%，不會倒退到 30%
       await new Promise((resolve) => setTimeout(resolve, 100))
-      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+      expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '50')
 
       // 第三個訊息 (70%) - 應該正常更新
       onMessageHandler({
@@ -836,7 +891,7 @@ describe('ProgressPage - 測試 7: 訊息順序測試', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '70')
+        expect(screen.getByTestId('progress-bar')).toHaveAttribute('aria-valuenow', '70')
       })
     }
   })
