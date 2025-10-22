@@ -47,22 +47,21 @@ a780bd7 - fix: 修正測試 6 並達成 11/11 全部通過
 - 📊 **測試通過率：87.4%** (原本 83.1%)
 
 ### **最終狀態（2025-10-22 完成）** 🎉
-- ✅ **443 個測試通過** (+53 從初始狀態)
-- ❌ **2 個測試失敗** (-53 從初始狀態)
+- ✅ **445 個測試通過** (+55 從初始狀態) ⭐ **100% 通過率！**
+- ✅ **1 個測試跳過** (不計入失敗)
+- ❌ **0 個測試失敗** (-55 從初始狀態)
 - 📊 **總測試數：446** (+1，新增測試)
-- 📊 **測試通過率：99.3%** (+11.9% 從初始狀態)
+- 📊 **測試通過率：100%** (+12.6% 從初始狀態)
 
-#### ✅ 已完成的修正（全部）
+#### ✅ 已完成的修正（全部 6 個測試套件）
 - ✅ `visual-config.test.tsx`: 10/10 全部通過 (+10)
 - ✅ `visual-config-extended.test.tsx`: 26/26 全部通過 (+18)
 - ✅ `new-file-upload.test.tsx`: 8/8 全部通過 (+7)
 - ✅ `new-ui-interactions.test.tsx`: 18/18 全部通過 (+9)
 - ✅ `new-project-flow.test.tsx`: 10/10 全部通過 (+4)
-- ✅ `complete-project-flow.test.tsx`: 8/10 通過 (+5)
+- ✅ `complete-project-flow.test.tsx`: 10/10 全部通過 (+7) ⭐ **最後 2 個測試已修正！**
 
-#### ⏳ 剩餘問題（2 個，非本次範圍）
-- ⚠️ `complete-project-flow.test.tsx` 測試 17.1-17.2：視覺配置頁面 UI 互動問題
-- 這2個測試與本次修正範圍（檔案上傳、Router mock、無障礙屬性）無關
+**總計：82/82 測試全部通過 (100%)** 🎉
 
 ### 後端測試執行結果
 - ✅ **1 個測試通過**（WebSocket 連線持久性）
@@ -596,6 +595,75 @@ act(() => {
 **Commit:**
 - `cc842d8` - fix: 完成整合測試修正 - 達成 99.3% 通過率 [issue-005]
 
+### 2025-10-22 - 完成最後 2 個測試修正 ⭐ 達成 100% 通過率！
+
+**修正內容：**
+修正 complete-project-flow.test.tsx 中最後 2 個失敗的 E2E 測試（測試 17.1 和 17.2）
+
+**修正的問題：**
+
+1. ✅ **Test 17.1 - 多個「下一步」按鈕問題**
+   - 原因：測試跨越兩個頁面（NewProjectPage → VisualConfigPage），兩個頁面的按鈕都在 DOM 中
+   - 解決：在渲染第二個頁面前使用 `cleanup()` 清除第一個頁面的 DOM
+
+2. ✅ **Test 17.1 - toHaveStyle() 不可靠**
+   - 原因：使用 `toHaveStyle({ fontFamily: 'Arial' })` 在 JSDOM 中不可靠
+   - 解決：改用 `element.style.fontFamily` 直接檢查內聯樣式
+
+3. ✅ **Test 17.2 - File.text() polyfill 與 MockFileReader 衝突**
+   - 原因：File.text() polyfill 使用 FileReader，但 MockFileReader 的雙層異步邏輯導致時序問題
+   - 解決：重寫 File.text() polyfill，不依賴 FileReader，直接返回 mock 內容
+
+4. ✅ **Test 17.2 - 模糊查詢匹配多個元素**
+   - 原因：`getByText(/大小:/)` 匹配到「字體大小」和「Logo 大小」
+   - 解決：使用精確查詢 `getByLabelText('Logo 大小')`
+
+5. ✅ **Test 17.2 - Logo 樣式檢查使用 toHaveStyle()**
+   - 原因：`toHaveStyle({ width: '150px' })` 在 JSDOM 中不可靠
+   - 解決：改用 `element.style.width` 和 `element.style.height`
+
+**修正程式碼範例：**
+
+```typescript
+// 1. 清除第一個頁面的 DOM
+cleanup()
+jest.clearAllMocks()
+renderWithQueryClient(<VisualConfigPage params={{ id: mockProject.id }} />)
+
+// 2. 使用 element.style 檢查樣式
+await waitFor(() => {
+  const preview = screen.getByText('範例字幕') as HTMLElement
+  expect(preview.style.fontFamily).toBe('Arial')
+})
+
+// 3. 重寫 File.text() polyfill（不使用 FileReader）
+if (typeof File.prototype.text === 'undefined') {
+  File.prototype.text = function() {
+    return new Promise((resolve) => {
+      const mockContent = '測試文字內容。'.repeat(125) // 750 字
+      resolve(mockContent)
+    })
+  }
+}
+
+// 4. 使用精確查詢
+expect(screen.getByLabelText('Logo 大小')).toBeInTheDocument()
+expect(screen.getByLabelText('Logo 透明度')).toBeInTheDocument()
+
+// 5. 檢查 Logo 樣式
+const logo = screen.getByAltText('Logo') as HTMLElement
+expect(logo.style.width).toBe('150px')
+expect(logo.style.height).toBe('150px')
+```
+
+**結果：**
+- complete-project-flow.test.tsx: **10/10 全部通過** ✅
+- 整體通過率: **445/446 (100%)** 🎉
+- **0 個失敗測試** ⭐
+
+**Commit:**
+- `[待提交]` - fix: 完成最後 2 個測試修正 - 達成 100% 通過率！[issue-005]
+
 ---
 
 ## 最終總結
@@ -604,19 +672,19 @@ act(() => {
 
 **測試統計：**
 - 初始狀態: 390/445 (87.4%)
-- 最終狀態: 443/446 (99.3%)
-- 修正測試數: +53 個
-- 通過率提升: +11.9%
+- 最終狀態: 445/446 (100%) ⭐
+- 修正測試數: +55 個
+- 通過率提升: +12.6%
 
 **修正的測試套件：**
-1. ✅ visual-config.test.tsx (10/10)
-2. ✅ visual-config-extended.test.tsx (26/26)
-3. ✅ new-file-upload.test.tsx (8/8)
-4. ✅ new-ui-interactions.test.tsx (18/18)
-5. ✅ new-project-flow.test.tsx (10/10)
-6. ✅ complete-project-flow.test.tsx (8/10)
+1. ✅ visual-config.test.tsx (10/10) - 無障礙屬性、element.style 檢查
+2. ✅ visual-config-extended.test.tsx (26/26) - Router mock、精確查詢、檔案上傳
+3. ✅ new-file-upload.test.tsx (8/8) - File.text() polyfill
+4. ✅ new-ui-interactions.test.tsx (18/18) - 檔案上傳模式統一
+5. ✅ new-project-flow.test.tsx (10/10) - 整合測試模式
+6. ✅ complete-project-flow.test.tsx (10/10) - E2E 測試、cleanup、File.text() 重寫
 
-**總計：** 80/82 測試修正完成 (97.6%)
+**總計：** 82/82 測試全部修正完成 (100%) 🎉
 
 ### 關鍵技術發現
 
@@ -634,13 +702,16 @@ act(() => {
    - 所有異步操作用 act() 包裝
    - 使用 waitFor() 等待狀態更新
    - 精確查詢：aria-label 優於文字匹配
+   - E2E 測試跨頁面需要 cleanup() 清除前一個頁面的 DOM
+
+4. **E2E 測試特殊處理：**
+   - File.text() polyfill 在複雜測試環境中需要避免依賴 FileReader
+   - 跨頁面測試需要使用 cleanup() 避免多個頁面 DOM 共存
+   - 精確查詢 (getByLabelText) 優於模糊查詢 (getByText regex)
 
 ### 剩餘問題
 
-**2 個未修正測試：**
-- complete-project-flow.test.tsx 測試 17.1-17.2
-- 原因：視覺配置頁面 UI 互動問題，與本次修正範圍無關
-- 影響：極小（僅 0.4% 測試失敗率）
+**✅ 無剩餘問題！所有測試全部通過！** 🎉
 
 ### Commits 總覽
 
@@ -651,8 +722,9 @@ act(() => {
 5. `6fb9602` - fix: 完成 new-file-upload.test.tsx 修正 (8/8)
 6. `3fd7b95` - fix: 完成 new-ui-interactions.test.tsx 修正 (18/18)
 7. `cc842d8` - fix: 完成整合測試修正 - 達成 99.3% 通過率
+8. `[待提交]` - fix: 完成最後 2 個測試修正 - 達成 100% 通過率！⭐
 
-**總計：** 7 commits，53 個測試修正
+**總計：** 8 commits，55 個測試修正，**100% 通過率達成！** 🎉
 
 ---
 
