@@ -27,17 +27,8 @@ apiClient.interceptors.response.use(
     return response
   },
   (error) => {
-    // 統一錯誤處理
-    if (error.response) {
-      // 伺服器回應錯誤
-      const message = error.response.data?.error?.message || '請求失敗'
-      throw new Error(message)
-    } else if (error.request) {
-      // 請求發送但沒有收到回應
-      throw new Error('伺服器無回應')
-    } else {
-      // 其他錯誤
-      throw new Error(error.message || '未知錯誤')
-    }
+    // Preserve original error with response status for proper error handling
+    // Reject with original axios error to keep error.response.status accessible
+    return Promise.reject(error)
   }
 )

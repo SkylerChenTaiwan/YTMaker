@@ -46,6 +46,22 @@ export interface Project {
   updated_at: string
 }
 
+export interface ProjectResult {
+  id: string
+  project_name: string
+  youtube_video_id?: string
+  youtube_url?: string
+  youtube_title?: string
+  youtube_description?: string
+  youtube_tags?: string[]
+  privacy?: 'public' | 'unlisted' | 'private'
+  publish_type?: 'immediate' | 'scheduled'
+  published_at?: string
+  scheduled_date?: string
+  status: string
+  local_video_url?: string
+}
+
 /**
  * 獲取單個專案
  */
@@ -137,4 +153,51 @@ export async function cancelGeneration(projectId: string): Promise<{ success: bo
 export async function retryGeneration(projectId: string): Promise<{ success: boolean }> {
   const response = await apiClient.post(`/api/v1/projects/${projectId}/retry`)
   return response.data
+}
+
+/**
+ * 獲取專案結果
+ */
+export async function getProjectResult(projectId: string): Promise<ProjectResult> {
+  const response = await apiClient.get(`/api/v1/projects/${projectId}/result`)
+  return response.data.data
+}
+
+/**
+ * 下載影片
+ */
+export async function downloadVideo(
+  projectId: string,
+  onDownloadProgress?: (progressEvent: any) => void
+): Promise<any> {
+  return await apiClient.get(`/api/v1/projects/${projectId}/download/video`, {
+    responseType: 'blob',
+    onDownloadProgress,
+  })
+}
+
+/**
+ * 下載封面
+ */
+export async function downloadThumbnail(
+  projectId: string,
+  onDownloadProgress?: (progressEvent: any) => void
+): Promise<any> {
+  return await apiClient.get(`/api/v1/projects/${projectId}/download/thumbnail`, {
+    responseType: 'blob',
+    onDownloadProgress,
+  })
+}
+
+/**
+ * 下載所有素材
+ */
+export async function downloadAssets(
+  projectId: string,
+  onDownloadProgress?: (progressEvent: any) => void
+): Promise<any> {
+  return await apiClient.get(`/api/v1/projects/${projectId}/download/assets`, {
+    responseType: 'blob',
+    onDownloadProgress,
+  })
 }
