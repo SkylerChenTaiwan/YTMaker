@@ -1,4 +1,7 @@
 from datetime import datetime, timedelta
+import json
+import os
+from pathlib import Path
 
 import requests
 from cryptography.fernet import Fernet
@@ -18,8 +21,75 @@ class YouTubeAuthService:
     SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
     def __init__(self) -> None:
-        """初始化 YouTube 授權服務"""
-        self.client_config = {
+        """
+        初始化 YouTube 授權服務
+
+        優先讀取 client_secrets.json，若不存在則使用環境變數
+        """
+        self.client_config = self._load_client_config()
+
+        # 初始化加密器（用於加密 Token）
+        self.cipher = Fernet(settings.ENCRYPTION_KEY.encode())
+
+    def _load_client_config(self) -> dict:
+        """
+        載入 Google OAuth 客戶端設定
+
+        優先順序：
+        1. client_secrets.json 檔案（從 Google Cloud Console 下載）
+        2. 環境變數（GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET）
+
+        Returns:
+            dict: 客戶端設定
+
+        Raises:
+            FileNotFoundError: 找不到設定檔且環境變數未設定
+        """
+        # 嘗試讀取 client_secrets.json
+        secrets_file = Path(settings.GOOGLE_CLIENT_SECRETS_FILE)
+
+        if secrets_file.exists():
+            try:
+                with open(secrets_file, 'r', encoding='utf-8') as f:
+                    client_secrets = json.load(f)
+
+                # Google 下載的格式可能是 "web" 或 "installed"
+                if "web" in client_secrets:
+                    config = client_secrets["web"]
+                elif "installed" in client_secrets:
+                    config = client_secrets["installed"]
+                else:
+                    raise ValueError("client_secrets.json 格式錯誤")
+
+                # 確保 redirect_uris 包含我們的 callback URL
+                redirect_uris = config.get("redirect_uris", [])
+                if settings.GOOGLE_REDIRECT_URI not in redirect_uris:
+                    redirect_uris.append(settings.GOOGLE_REDIRECT_URI)
+
+                return {
+                    "web": {
+                        "client_id": config["client_id"],
+                        "client_secret": config["client_secret"],
+                        "redirect_uris": redirect_uris,
+                        "auth_uri": config.get("auth_uri", "https://accounts.google.com/o/oauth2/auth"),
+                        "token_uri": config.get("token_uri", "https://oauth2.googleapis.com/token"),
+                    }
+                }
+            except Exception as e:
+                print(f"警告：讀取 client_secrets.json 失敗: {e}")
+                print("將使用環境變數設定")
+
+        # 使用環境變數
+        if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+            raise FileNotFoundError(
+                f"找不到 {secrets_file} 且環境變數 GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET 未設定\n"
+                "請：\n"
+                "1. 從 Google Cloud Console 下載 client_secrets.json 並放在 backend/ 目錄\n"
+                "   或\n"
+                "2. 在 .env 檔案中設定 GOOGLE_CLIENT_ID 和 GOOGLE_CLIENT_SECRET"
+            )
+
+        return {
             "web": {
                 "client_id": settings.GOOGLE_CLIENT_ID,
                 "client_secret": settings.GOOGLE_CLIENT_SECRET,
@@ -28,9 +98,6 @@ class YouTubeAuthService:
                 "token_uri": "https://oauth2.googleapis.com/token",
             }
         }
-
-        # 初始化加密器（用於加密 Token）
-        self.cipher = Fernet(settings.ENCRYPTION_KEY.encode())
 
     def get_authorization_url(self) -> str:
         """
