@@ -18,7 +18,8 @@ class YouTubeAuthService:
     """YouTube OAuth 授權服務"""
 
     # OAuth 配置
-    SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+    # 使用完整的 YouTube 權限（包含讀取頻道資訊和上傳影片）
+    SCOPES = ["https://www.googleapis.com/auth/youtube"]
 
     def __init__(self) -> None:
         """
@@ -161,6 +162,13 @@ class YouTubeAuthService:
         channel_id = channel["id"]
         channel_name = channel["snippet"]["title"]
         subscriber_count = int(channel["statistics"].get("subscriberCount", 0))
+        # 取得頻道縮圖 (優先使用高解析度)
+        thumbnails = channel["snippet"].get("thumbnails", {})
+        thumbnail_url = (
+            thumbnails.get("high", {}).get("url")
+            or thumbnails.get("default", {}).get("url")
+            or ""
+        )
 
         # 3. 檢查頻道是否已連結
         existing = db.query(YouTubeAccount).filter(YouTubeAccount.channel_id == channel_id).first()
@@ -183,6 +191,7 @@ class YouTubeAuthService:
         account = YouTubeAccount(
             channel_id=channel_id,
             channel_name=channel_name,
+            thumbnail_url=thumbnail_url,
             subscriber_count=subscriber_count,
             access_token=encrypted_access_token,
             refresh_token=encrypted_refresh_token,
@@ -200,6 +209,7 @@ class YouTubeAuthService:
             "id": str(account.id),
             "channel_name": account.channel_name,
             "channel_id": account.channel_id,
+            "thumbnail_url": account.thumbnail_url,
             "subscriber_count": account.subscriber_count,
             "is_authorized": account.is_authorized,
             "authorized_at": account.authorized_at.isoformat(),
@@ -222,6 +232,7 @@ class YouTubeAuthService:
                 "id": str(account.id),
                 "channel_name": account.channel_name,
                 "channel_id": account.channel_id,
+                "thumbnail_url": account.thumbnail_url,
                 "subscriber_count": account.subscriber_count,
                 "is_authorized": account.is_authorized,
                 "authorized_at": account.authorized_at.isoformat(),

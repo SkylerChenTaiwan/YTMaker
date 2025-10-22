@@ -22,6 +22,7 @@ class YouTubeAccount(Base, TimestampMixin):
     channel_id: Mapped[str] = mapped_column(
         String(100), nullable=False, unique=True, index=True
     )
+    thumbnail_url: Mapped[str] = mapped_column(String(500), nullable=True)
 
     # OAuth Tokens (encrypted in production)
     access_token: Mapped[str] = mapped_column(Text, nullable=False)
