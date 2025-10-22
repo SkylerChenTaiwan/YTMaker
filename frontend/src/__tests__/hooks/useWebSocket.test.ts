@@ -34,16 +34,25 @@ describe('useWebSocket', () => {
     // Make readyState writable
     Object.defineProperty(mockWs, 'readyState', {
       writable: true,
-      value: WebSocket.OPEN,
+      value: 1, // WebSocket.OPEN
     })
 
-    global.WebSocket = jest.fn(() => {
+    // Define WebSocket mock with constants
+    const WebSocketMock = jest.fn(() => {
       setTimeout(() => {
         if (onOpenHandler) onOpenHandler()
       }, 10)
 
       return mockWs
     }) as any
+
+    // Add WebSocket constants
+    WebSocketMock.CONNECTING = 0
+    WebSocketMock.OPEN = 1
+    WebSocketMock.CLOSING = 2
+    WebSocketMock.CLOSED = 3
+
+    global.WebSocket = WebSocketMock
 
     // 捕獲事件處理器
     mockWs.addEventListener = jest.fn((event: string, handler: any) => {
@@ -323,9 +332,7 @@ describe('useWebSocket', () => {
     )
   })
 
-  it.skip('應該在未連線時拒絕發送訊息', async () => {
-    jest.useFakeTimers()
-
+  it('應該在未連線時拒絕發送訊息', async () => {
     const onMessage = jest.fn()
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -340,19 +347,25 @@ describe('useWebSocket', () => {
       if (onOpenHandler) onOpenHandler()
     })
 
-    // 觸發 onclose 來關閉連線
+    // 先清除 send 調用記錄（onopen 時可能有心跳）
+    mockWs.send.mockClear()
+
+    // 關閉連線並更新 readyState
     await act(async () => {
-      mockWs.readyState = WebSocket.CLOSED
+      mockWs.readyState = 3 // WebSocket.CLOSED
       if (onCloseHandler) onCloseHandler()
     })
 
-    // 清除之前的 send 調用記錄
-    mockWs.send.mockClear()
+    // 等待一下確保狀態更新
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    })
+
+    // 再次確認 readyState 是 CLOSED
+    mockWs.readyState = 3 // WebSocket.CLOSED
 
     // 嘗試發送訊息
-    await act(async () => {
-      result.current.send({ type: 'test' })
-    })
+    result.current.send({ type: 'test' })
 
     // 不應該發送
     expect(mockWs.send).not.toHaveBeenCalled()
@@ -361,7 +374,6 @@ describe('useWebSocket', () => {
     expect(consoleWarnSpy).toHaveBeenCalledWith('WebSocket 未連線,無法發送訊息')
 
     consoleWarnSpy.mockRestore()
-    jest.useRealTimers()
   })
 
   it('應該在錯誤發生時調用 onError', async () => {
