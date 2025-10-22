@@ -106,12 +106,14 @@ async def oauth_callback(
             </div>
             <script>
                 if (window.opener) {{
+                    // 使用 opener 的 origin 以確保 postMessage 可以被接收
+                    const targetOrigin = window.opener.location.origin;
                     window.opener.postMessage({{
                         type: 'youtube-auth-success',
                         channel_name: '{account['channel_name']}',
                         channel_id: '{account['channel_id']}',
                         thumbnail_url: '{account.get('thumbnail_url', '')}'
-                    }}, window.location.origin);
+                    }}, targetOrigin);
                 }}
                 setTimeout(() => {{
                     window.close();
