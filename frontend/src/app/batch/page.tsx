@@ -7,6 +7,7 @@ import { Breadcrumb } from '@/components/layout/Breadcrumb'
 import { useBatchStore } from '@/store/useBatchStore'
 import * as batchApi from '@/services/batchApi'
 import { BatchStatusTag } from '@/components/batch/BatchStatusTag'
+import { CreateBatchModal } from '@/components/batch/CreateBatchModal'
 import { FolderOpenIcon, PlusIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
 import type { BatchTask } from '@/types/api'
@@ -94,6 +95,15 @@ export default function BatchPage() {
             </button>
           </div>
         </div>
+
+        {/* 新增批次任務 Modal */}
+        <CreateBatchModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            loadBatches()
+          }}
+        />
       </AppLayout>
     )
   }
@@ -232,6 +242,15 @@ export default function BatchPage() {
           </div>
         )}
       </div>
+
+      {/* 新增批次任務 Modal */}
+      <CreateBatchModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          loadBatches()
+        }}
+      />
     </AppLayout>
   )
 }
