@@ -10,7 +10,6 @@
  */
 
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
 import { StageProgress } from '@/components/feature/StageProgress/StageProgress'
 
 describe('StageProgress', () => {

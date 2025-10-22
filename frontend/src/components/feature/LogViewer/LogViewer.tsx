@@ -55,6 +55,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ logs }) => {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      hour12: false,
     })
   }
 

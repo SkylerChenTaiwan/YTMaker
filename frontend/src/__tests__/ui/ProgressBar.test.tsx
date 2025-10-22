@@ -10,7 +10,6 @@
  */
 
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 
 describe('ProgressBar', () => {
@@ -83,7 +82,7 @@ describe('ProgressBar', () => {
     const progressBar = screen.getByTestId('progress-bar')
     const innerBar = progressBar.querySelector('div')
 
-    expect(innerBar).toHaveStyle({ width: '65%' })
+    expect(innerBar).toHaveAttribute('style', expect.stringContaining('width: 65%'))
   })
 
   it('應該有正確的 ARIA role', () => {
@@ -107,7 +106,7 @@ describe('ProgressBar', () => {
     const innerBar = progressBar.querySelector('div')
 
     expect(progressBar).toHaveAttribute('aria-valuenow', '0')
-    expect(innerBar).toHaveStyle({ width: '0%' })
+    expect(innerBar).toHaveAttribute('style', expect.stringContaining('width: 0%'))
     expect(screen.getByText('0%')).toBeInTheDocument()
   })
 
@@ -118,7 +117,7 @@ describe('ProgressBar', () => {
     const innerBar = progressBar.querySelector('div')
 
     expect(progressBar).toHaveAttribute('aria-valuenow', '100')
-    expect(innerBar).toHaveStyle({ width: '100%' })
+    expect(innerBar).toHaveAttribute('style', expect.stringContaining('width: 100%'))
     expect(screen.getByText('100%')).toBeInTheDocument()
   })
 
