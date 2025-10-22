@@ -41,7 +41,10 @@ export const systemApi = {
   async saveApiKey(data: SaveApiKeyRequest): Promise<{ success: boolean }> {
     const response = await apiClient.post<{ success: boolean }>(
       '/api/v1/system/api-keys',
-      data
+      {
+        provider: data.provider,
+        api_key: data.apiKey, // 轉換為 snake_case
+      }
     )
     return response.data
   },
