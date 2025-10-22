@@ -159,7 +159,7 @@ export interface Configuration {
       type: 'text' | 'shape' | 'image'
       x: number
       y: number
-      [key: string]: any
+      [key: string]: unknown
     }>
   }
   created_at: string
@@ -172,7 +172,7 @@ export interface VisualTemplate {
   name: string
   description: string
   thumbnail_url: string | null
-  configuration_data: any
+  configuration_data: Record<string, unknown>
   created_at: string
   usage_count: number
 }

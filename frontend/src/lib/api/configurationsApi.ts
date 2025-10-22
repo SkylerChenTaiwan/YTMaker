@@ -18,14 +18,14 @@ export async function getConfigurations(): Promise<ApiResponse<{ configurations:
 // 建立配置
 export async function createConfiguration(data: {
   name: string
-  configuration_data: any
+  configuration_data: Record<string, unknown>
 }): Promise<ApiResponse<{ id: string; name: string }>> {
   const response = await apiClient.post<ApiResponse<{ id: string; name: string }>>('/api/v1/configurations', data)
   return response.data
 }
 
 // 更新配置
-export async function updateConfiguration(id: string, data: any): Promise<ApiResponse<{ id: string }>> {
+export async function updateConfiguration(id: string, data: Record<string, unknown>): Promise<ApiResponse<{ id: string }>> {
   const response = await apiClient.put<ApiResponse<{ id: string }>>(`/api/v1/configurations/${id}`, data)
   return response.data
 }

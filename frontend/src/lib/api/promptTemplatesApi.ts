@@ -25,7 +25,7 @@ export async function createPromptTemplate(data: {
 }
 
 // 更新 Prompt 範本
-export async function updatePromptTemplate(id: string, data: any): Promise<ApiResponse<{ id: string }>> {
+export async function updatePromptTemplate(id: string, data: Record<string, unknown>): Promise<ApiResponse<{ id: string }>> {
   const response = await apiClient.put<ApiResponse<{ id: string }>>(`/api/v1/prompt-templates/${id}`, data)
   return response.data
 }
