@@ -662,7 +662,7 @@ expect(logo.style.height).toBe('150px')
 - **0 個失敗測試** ⭐
 
 **Commit:**
-- `[待提交]` - fix: 完成最後 2 個測試修正 - 達成 100% 通過率！[issue-005]
+- `3a5f5bd` - fix: 完成最後 2 個測試修正 - 達成 100% 通過率！[issue-005]
 
 ---
 
@@ -722,7 +722,7 @@ expect(logo.style.height).toBe('150px')
 5. `6fb9602` - fix: 完成 new-file-upload.test.tsx 修正 (8/8)
 6. `3fd7b95` - fix: 完成 new-ui-interactions.test.tsx 修正 (18/18)
 7. `cc842d8` - fix: 完成整合測試修正 - 達成 99.3% 通過率
-8. `[待提交]` - fix: 完成最後 2 個測試修正 - 達成 100% 通過率！⭐
+8. `3a5f5bd` - fix: 完成最後 2 個測試修正 - 達成 100% 通過率！⭐
 
 **總計：** 8 commits，55 個測試修正，**100% 通過率達成！** 🎉
 
