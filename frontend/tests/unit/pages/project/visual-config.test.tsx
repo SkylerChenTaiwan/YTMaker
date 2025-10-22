@@ -31,15 +31,15 @@ describe('測試 4：視覺配置即時預覽', () => {
     // 找到顏色選擇器
     const colorInput = screen.getByLabelText('顏色') as HTMLInputElement
 
-    // 變更顏色（直接使用 userEvent.click 和 change）
-    await user.click(colorInput)
-    fireEvent.input(colorInput, { target: { value: '#FF0000' } })
-    fireEvent.change(colorInput, { target: { value: '#FF0000' } })
+    // 變更顏色
+    act(() => {
+      fireEvent.change(colorInput, { target: { value: '#FF0000' } })
+    })
 
-    // 預覽應該更新（檢查樣式）
-    const preview = screen.getByText('範例字幕')
+    // 預覽應該更新（檢查內聯 style 屬性）
     await waitFor(() => {
-      expect(preview).toHaveStyle({ color: 'rgb(255, 0, 0)' })
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.color).toBe('rgb(255, 0, 0)')
     })
   })
 
@@ -54,15 +54,15 @@ describe('測試 4：視覺配置即時預覽', () => {
     // 找到字體大小滑桿
     const sizeSlider = screen.getByRole('slider', { name: /字體大小/ }) as HTMLInputElement
 
-    // 變更大小（觸發 input 和 change 事件）
-    await user.click(sizeSlider)
-    fireEvent.input(sizeSlider, { target: { value: '72' } })
-    fireEvent.change(sizeSlider, { target: { value: '72' } })
+    // 變更大小
+    act(() => {
+      fireEvent.change(sizeSlider, { target: { value: '72' } })
+    })
 
-    // 預覽應該更新
-    const preview = screen.getByText('範例字幕')
+    // 預覽應該更新（檢查內聯 style 屬性）
     await waitFor(() => {
-      expect(preview).toHaveStyle({ fontSize: '72px' })
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.fontSize).toBe('72px')
     })
   })
 
@@ -78,12 +78,14 @@ describe('測試 4：視覺配置即時預覽', () => {
     const fontSelect = screen.getByLabelText('字型') as HTMLSelectElement
 
     // 變更字型
-    await user.selectOptions(fontSelect, 'Arial')
+    await act(async () => {
+      await user.selectOptions(fontSelect, 'Arial')
+    })
 
-    // 預覽應該更新
-    const preview = screen.getByText('範例字幕')
+    // 預覽應該更新（檢查內聯 style 屬性）
     await waitFor(() => {
-      expect(preview).toHaveStyle({ fontFamily: 'Arial' })
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.fontFamily).toBe('Arial')
     })
   })
 
@@ -96,20 +98,21 @@ describe('測試 4：視覺配置即時預覽', () => {
     })
 
     // 預設陰影應該已啟用
-    const preview = screen.getByText('範例字幕')
     await waitFor(() => {
-      expect(preview).toHaveStyle({
-        textShadow: expect.stringContaining('2px 2px 4px'),
-      })
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.textShadow).toContain('2px 2px 4px')
     })
 
     // 關閉陰影
     const shadowCheckbox = screen.getByLabelText('啟用陰影') as HTMLInputElement
-    await user.click(shadowCheckbox)
+    await act(async () => {
+      await user.click(shadowCheckbox)
+    })
 
-    // 陰影應該消失
+    // 陰影應該消失（檢查內聯 style 屬性）
     await waitFor(() => {
-      expect(preview).toHaveStyle({ textShadow: 'none' })
+      const preview = screen.getByText('範例字幕') as HTMLElement
+      expect(preview.style.textShadow).toBe('none')
     })
   })
 })
@@ -191,8 +194,8 @@ describe('測試 5：自動儲存機制', () => {
     })
 
     // 應該只儲存一次（最後的值）
-    const preview = screen.getByText('範例字幕')
-    expect(preview).toHaveStyle({ fontSize: '60px' })
+    const preview = screen.getByText('範例字幕') as HTMLElement
+    expect(preview.style.fontSize).toBe('60px')
   })
 })
 
@@ -222,8 +225,8 @@ describe('測試 6：Logo 上傳與配置', () => {
 
     // 應該顯示 Logo 配置選項
     await waitFor(() => {
-      expect(screen.getByLabelText(/大小:/)).toBeInTheDocument()
-      expect(screen.getByLabelText(/透明度:/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 大小')).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 透明度')).toBeInTheDocument()
     })
   })
 
@@ -241,17 +244,20 @@ describe('測試 6：Logo 上傳與配置', () => {
     await user.upload(fileInput, file)
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/大小:/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 大小')).toBeInTheDocument()
     })
 
-    // 變更大小（range input 使用 fireEvent.change）
-    const sizeSlider = screen.getByLabelText(/大小:/) as HTMLInputElement
-    fireEvent.change(sizeSlider, { target: { value: '150' } })
+    // 變更大小
+    const sizeSlider = screen.getByLabelText('Logo 大小') as HTMLInputElement
+    act(() => {
+      fireEvent.change(sizeSlider, { target: { value: '150' } })
+    })
 
-    // Logo 應該更新大小
+    // Logo 應該更新大小（檢查內聯 style 屬性）
     await waitFor(() => {
-      const logo = screen.getByAltText('Logo')
-      expect(logo).toHaveStyle({ width: '150px', height: '150px' })
+      const logo = screen.getByAltText('Logo') as HTMLElement
+      expect(logo.style.width).toBe('150px')
+      expect(logo.style.height).toBe('150px')
     })
   })
 
@@ -269,17 +275,19 @@ describe('測試 6：Logo 上傳與配置', () => {
     await user.upload(fileInput, file)
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/透明度:/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Logo 透明度')).toBeInTheDocument()
     })
 
-    // 變更透明度（range input 使用 fireEvent.change）
-    const opacitySlider = screen.getByLabelText(/透明度:/) as HTMLInputElement
-    fireEvent.change(opacitySlider, { target: { value: '50' } })
+    // 變更透明度
+    const opacitySlider = screen.getByLabelText('Logo 透明度') as HTMLInputElement
+    act(() => {
+      fireEvent.change(opacitySlider, { target: { value: '50' } })
+    })
 
-    // Logo 透明度應該更新
+    // Logo 透明度應該更新（檢查內聯 style 屬性）
     await waitFor(() => {
-      const logo = screen.getByAltText('Logo')
-      expect(logo).toHaveStyle({ opacity: 0.5 })
+      const logo = screen.getByAltText('Logo') as HTMLElement
+      expect(logo.style.opacity).toBe('0.5')
     })
   })
 
@@ -296,9 +304,9 @@ describe('測試 6：Logo 上傳與配置', () => {
     const fileInput = screen.getByLabelText('上傳 Logo') as HTMLInputElement
     await user.upload(fileInput, file)
 
-    // 不應該顯示配置選項
+    // 不應該顯示 Logo 配置選項（因為格式錯誤）
     await waitFor(() => {
-      expect(screen.queryByLabelText(/大小:/)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Logo 大小')).not.toBeInTheDocument()
     })
   })
 })
