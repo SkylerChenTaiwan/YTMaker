@@ -3,18 +3,16 @@ import type { YouTubeChannel } from '@/types/system'
 
 export const youtubeApi = {
   // ========== YouTube Authorization ==========
-  async startAuth() {
-    const res = await apiClient.post('/api/v1/youtube/auth/start')
-    return res.data.data
-  },
+  // 注意：OAuth 授權流程現在直接在前端組件中處理
+  // 不再需要呼叫 startAuth API，直接開啟 /api/v1/youtube/auth
 
   async getChannels(): Promise<YouTubeChannel[]> {
-    const res = await apiClient.get('/api/v1/youtube/channels')
-    return res.data.data.channels || []
+    const res = await apiClient.get('/api/v1/youtube/accounts')
+    return res.data.data.accounts || []
   },
 
   async removeChannel(channelId: string) {
-    const res = await apiClient.delete(`/api/v1/youtube/channels/${channelId}`)
+    const res = await apiClient.delete(`/api/v1/youtube/accounts/${channelId}`)
     return res.data
   },
 }

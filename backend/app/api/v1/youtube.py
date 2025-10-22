@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -16,6 +17,216 @@ router = APIRouter(prefix="/youtube", tags=["youtube"])
 def get_youtube_service() -> YouTubeAuthService:
     """依賴注入：取得 YouTube 授權服務實例"""
     return YouTubeAuthService()
+
+
+@router.get("/auth")
+async def start_auth(
+    youtube_service: YouTubeAuthService = Depends(get_youtube_service),
+) -> RedirectResponse:
+    """
+    啟動 YouTube OAuth 授權流程
+    直接重新導向到 Google OAuth 頁面
+
+    Returns:
+        RedirectResponse: 重新導向到 Google OAuth 授權頁面
+    """
+    auth_url = youtube_service.get_authorization_url()
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/callback")
+async def oauth_callback(
+    code: str,
+    db: Session = Depends(get_db),
+    youtube_service: YouTubeAuthService = Depends(get_youtube_service),
+) -> HTMLResponse:
+    """
+    處理 Google OAuth callback
+    儲存 token 後關閉視窗並通知 opener
+
+    Args:
+        code: Google OAuth 授權碼
+        db: 資料庫 session
+        youtube_service: YouTube 授權服務
+
+    Returns:
+        HTMLResponse: HTML 頁面，會通知 opener 並自動關閉視窗
+    """
+    try:
+        account = await youtube_service.handle_oauth_callback(code, db)
+
+        # 回傳 HTML 頁面，通知 opener 並關閉視窗
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>授權成功</title>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }}
+                .container {{
+                    text-align: center;
+                    background: white;
+                    padding: 40px;
+                    border-radius: 10px;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                }}
+                h1 {{
+                    color: #4CAF50;
+                    margin-bottom: 10px;
+                }}
+                p {{
+                    color: #666;
+                    margin: 10px 0;
+                }}
+                .channel {{
+                    margin: 20px 0;
+                    padding: 15px;
+                    background: #f5f5f5;
+                    border-radius: 5px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>✓ 授權成功！</h1>
+                <div class="channel">
+                    <p><strong>{account.channel_name}</strong></p>
+                    <p style="font-size: 0.9em; color: #888;">頻道 ID: {account.channel_id}</p>
+                </div>
+                <p>視窗將在 2 秒後自動關閉...</p>
+            </div>
+            <script>
+                if (window.opener) {{
+                    window.opener.postMessage({{
+                        type: 'youtube-auth-success',
+                        channel_name: '{account.channel_name}',
+                        channel_id: '{account.channel_id}',
+                        thumbnail_url: '{account.thumbnail_url or ''}'
+                    }}, window.location.origin);
+                }}
+                setTimeout(() => {{
+                    window.close();
+                }}, 2000);
+            </script>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content)
+
+    except ValueError as e:
+        # OAuth 授權碼交換失敗
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>授權失敗</title>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: #f5f5f5;
+                }}
+                .container {{
+                    text-align: center;
+                    background: white;
+                    padding: 40px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+                }}
+                h1 {{
+                    color: #f44336;
+                }}
+                button {{
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background: #2196F3;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                }}
+                button:hover {{
+                    background: #1976D2;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>✗ 授權失敗</h1>
+                <p>{str(e)}</p>
+                <button onclick="window.close()">關閉視窗</button>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html, status_code=400)
+
+    except Exception as e:
+        # 其他錯誤（例如頻道已連結）
+        error_message = "此 YouTube 頻道已經連結" if "already linked" in str(e).lower() else str(e)
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>授權失敗</title>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: #f5f5f5;
+                }}
+                .container {{
+                    text-align: center;
+                    background: white;
+                    padding: 40px;
+                    border-radius: 10px;
+                    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+                }}
+                h1 {{
+                    color: #ff9800;
+                }}
+                button {{
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background: #2196F3;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                }}
+                button:hover {{
+                    background: #1976D2;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>⚠ {error_message}</h1>
+                <button onclick="window.close()">關閉視窗</button>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html, status_code=409 if "already linked" in str(e).lower() else 500)
 
 
 @router.get("/auth-url", response_model=AuthUrlResponse)
