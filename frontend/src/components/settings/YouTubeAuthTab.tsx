@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button, message } from 'antd'
 import { YouTubeChannelCard } from './YouTubeChannelCard'
 import { useAuthStore } from '@/store/useAuthStore'
-import { youtubeApi } from '@/lib/api/youtube'
+import { youtubeApi } from '@/lib/api/youtube' // 保留用於 removeChannel
 
 export const YouTubeAuthTab = () => {
   const { youtubeChannels, fetchYouTubeChannels } = useAuthStore()
@@ -26,23 +26,35 @@ export const YouTubeAuthTab = () => {
   const handleConnect = async () => {
     setIsConnecting(true)
     try {
-      const { auth_url } = await youtubeApi.startAuth()
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-      // 開啟 OAuth 視窗
+      // 直接開啟 OAuth 視窗
       const authWindow = window.open(
-        auth_url,
+        `${backendUrl}/api/v1/youtube/auth`,
         'YouTube Authorization',
         'width=600,height=700'
       )
 
-      // 輪詢檢查授權是否完成
-      const checkAuth = setInterval(async () => {
+      // 監聽授權成功訊息
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return
+
+        if (event.data.type === 'youtube-auth-success') {
+          setIsConnecting(false)
+          message.success('YouTube 帳號已連結')
+          loadChannels()
+          window.removeEventListener('message', handleMessage)
+        }
+      }
+
+      window.addEventListener('message', handleMessage)
+
+      // 輪詢檢查視窗是否關閉
+      const checkAuth = setInterval(() => {
         if (authWindow?.closed) {
           clearInterval(checkAuth)
           setIsConnecting(false)
-          // 重新取得頻道列表
-          await loadChannels()
-          message.success('YouTube 帳號已連結')
+          window.removeEventListener('message', handleMessage)
         }
       }, 1000)
     } catch (error) {
