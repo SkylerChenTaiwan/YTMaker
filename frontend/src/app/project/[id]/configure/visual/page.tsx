@@ -203,6 +203,7 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                     updateSubtitle({ font_size: parseInt(e.target.value) })
                   }
                   className="w-full"
+                  aria-label="字體大小"
                 />
               </div>
 
@@ -291,6 +292,7 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                         updateLogo({ logo_size: parseInt(e.target.value) })
                       }
                       className="w-full"
+                      aria-label="Logo 大小"
                     />
                   </div>
 
@@ -308,6 +310,7 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                         updateLogo({ logo_opacity: parseInt(e.target.value) })
                       }
                       className="w-full"
+                      aria-label="Logo 透明度"
                     />
                   </div>
                 </>
