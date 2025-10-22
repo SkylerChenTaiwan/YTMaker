@@ -32,9 +32,11 @@ class Settings(BaseSettings):
     LOG_FILE: str = "logs/app.log"
 
     # Google OAuth 配置
+    # 優先使用 client_secrets.json，若不存在則使用環境變數
+    GOOGLE_CLIENT_SECRETS_FILE: str = "client_secrets.json"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:3000/oauth/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/youtube/callback"
 
     # Token 加密金鑰 (Fernet key)
     ENCRYPTION_KEY: str = ""

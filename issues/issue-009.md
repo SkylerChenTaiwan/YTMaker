@@ -519,15 +519,201 @@ test('complete YouTube OAuth flow', async ({ page, context }) => {
 
 ---
 
-## 10. 時間記錄
+## 10. 實際執行過程中發現的問題
 
-- **2025-10-23：** Issue 建立，根因分析完成
-- **預計修復時間：** 3-4 小時
+### 問題 A: OAuth Scope 權限不足
+
+**檔案：** `backend/app/services/youtube_auth_service.py:21`
+
+**問題描述：**
+```python
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]  # ❌ 只有上傳權限
+```
+
+原本的 scope 只請求了 `youtube.upload` 權限，但在 OAuth callback 時需要呼叫 `youtube.channels().list()` 來取得頻道資訊，這個 API 需要讀取權限。
+
+**錯誤訊息：**
+```
+取得 YouTube 頻道資訊失敗: 400 Bad Request
+```
+
+**解決方案：**
+```python
+SCOPES = ["https://www.googleapis.com/auth/youtube"]  # ✅ 完整的 YouTube 權限
+```
+
+### 問題 B: 缺少 thumbnail_url 欄位
+
+**檔案：** `backend/app/models/youtube_account.py`
+
+**問題描述：**
+在 OAuth callback 的 HTML 模板中嘗試訪問 `account.thumbnail_url`，但 Model 中沒有這個欄位。
+
+**錯誤訊息：**
+```
+AttributeError: 'dict' object has no attribute 'thumbnail_url'
+```
+
+**解決方案：**
+1. 在 Model 添加欄位：
+```python
+thumbnail_url: Mapped[str] = mapped_column(String(500), nullable=True)
+```
+
+2. 在資料庫添加欄位：
+```sql
+ALTER TABLE youtube_accounts ADD COLUMN thumbnail_url VARCHAR(500);
+```
+
+3. 從 YouTube API 取得並儲存縮圖：
+```python
+thumbnails = channel["snippet"].get("thumbnails", {})
+thumbnail_url = (
+    thumbnails.get("high", {}).get("url")
+    or thumbnails.get("default", {}).get("url")
+    or ""
+)
+```
+
+### 問題 C: Dict vs Object 訪問方式錯誤
+
+**檔案：** `backend/app/api/v1/youtube.py:102-113`
+
+**問題描述：**
+`handle_oauth_callback()` 回傳的是 `dict`，但在 HTML f-string 中當成 object 使用。
+
+**錯誤訊息：**
+```
+'dict' object has no attribute 'channel_name'
+```
+
+**原始錯誤代碼：**
+```python
+<p><strong>{account.channel_name}</strong></p>  # ❌ 錯誤
+```
+
+**解決方案：**
+```python
+<p><strong>{account['channel_name']}</strong></p>  # ✅ 正確
+```
+
+### 問題 D: client_secrets.json 配置不完整
+
+**問題描述：**
+雖然 `YouTubeAuthService` 有讀取 `client_secrets.json` 的程式碼，但：
+1. 沒有範例檔案 (`client_secrets.json.example`)
+2. `.env.example` 中沒有說明如何配置 OAuth
+3. `.gitignore` 沒有排除 `client_secrets.json`
+
+**解決方案：**
+
+1. 新增 `.gitignore` 規則：
+```
+client_secrets.json
+```
+
+2. 新增 `backend/client_secrets.json.example`：
+```json
+{
+  "web": {
+    "client_id": "YOUR_CLIENT_ID_HERE.apps.googleusercontent.com",
+    "project_id": "your-project-id",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_secret": "YOUR_CLIENT_SECRET_HERE",
+    "redirect_uris": [
+      "http://localhost:8000/api/v1/youtube/callback"
+    ]
+  }
+}
+```
+
+3. 更新 `.env.example` 添加詳細的 OAuth 配置說明
+
+### 問題 E: 資料庫初始化問題
+
+**問題描述：**
+在 worktree 中執行時，資料庫檔案 (`ytmaker.db`) 存在但 `thumbnail_url` 欄位不存在。
+
+**解決方案：**
+手動執行 SQL 添加欄位（因為 Alembic migration 在 SQLite 中有限制）。
 
 ---
 
-## 變更歷史
+## 11. 最終解決方案總結
+
+### 修改的檔案清單
+
+| 檔案 | 修改內容 | Commit |
+|------|---------|--------|
+| `backend/app/services/youtube_auth_service.py` | 修正 OAuth scope；添加 thumbnail_url 取得邏輯 | 0b6ff0f |
+| `backend/app/models/youtube_account.py` | 添加 thumbnail_url 欄位 | 0b6ff0f |
+| `backend/app/api/v1/youtube.py` | 修正 dict 訪問方式；改善錯誤訊息 | 0b6ff0f |
+| `backend/.gitignore` | 添加 client_secrets.json | fdf76ca |
+| `backend/client_secrets.json.example` | 新增範例檔案 | fdf76ca |
+| `backend/.env.example` | 添加 OAuth 配置說明 | fdf76ca |
+| `frontend/src/components/setup/steps/YouTubeAuthStep.tsx` | 修正 backend URL | fdf76ca |
+| `frontend/src/components/settings/YouTubeAuthTab.tsx` | 重寫為直接 OAuth 流程 | fdf76ca |
+| `frontend/src/lib/api/youtube.ts` | 移除錯誤的 startAuth；修正 endpoints | fdf76ca |
+
+### Git Commits
+
+**Commit 1: fdf76ca**
+```
+fix: 修正 YouTube OAuth 配置與前端呼叫流程 [issue-009]
+```
+- 添加 GET /api/v1/youtube/auth 和 /callback endpoints
+- 修正前端使用正確的 backend URL
+- 添加 client_secrets.json 支援和範例
+
+**Commit 2: 0b6ff0f**
+```
+fix: 修正 YouTube OAuth 權限並添加頻道縮圖支援 [issue-009]
+```
+- 修正 OAuth scope 從 youtube.upload 改為完整權限
+- 添加 thumbnail_url 欄位並從 API 取得
+- 修正 dict 物件訪問方式
+
+### 測試結果
+
+✅ **完整的 OAuth 流程已驗證：**
+1. 點擊「連結 YouTube 帳號」→ 開啟 Google OAuth 頁面
+2. 使用者授權 → 成功取得 access token 和 refresh token
+3. 從 YouTube API 取得頻道資訊（頻道名稱、ID、訂閱數、縮圖）
+4. 資料正確儲存到資料庫
+5. 回到前端顯示已連結狀態
+6. 重複授權時正確提示「頻道已連結」
+
+**資料庫驗證：**
+```sql
+SELECT channel_name, channel_id, subscriber_count, thumbnail_url, is_authorized
+FROM youtube_accounts;
+
+-- 結果：
+-- 陳昭宇|UCRPgIZmw4RlEsqpyk6iJzKA|3|https://yt3.ggpht.com/...|1
+```
+
+---
+
+## 12. 時間記錄
+
+- **2025-10-23 01:30：** Issue 建立，根因分析完成
+- **2025-10-23 01:45：** 開始修復（添加 backend endpoints）
+- **2025-10-23 02:10：** 修正前端呼叫流程
+- **2025-10-23 02:25：** 第一次測試（發現 OAuth scope 問題）
+- **2025-10-23 02:30：** 修正 OAuth scope 和 thumbnail_url
+- **2025-10-23 02:38：** 修正 dict 訪問方式
+- **2025-10-23 02:40：** 最終測試成功
+- **2025-10-23 02:45：** 提交所有修改到 Git
+
+**實際修復時間：** 約 1.25 小時
+
+---
+
+## 13. 變更歷史
 
 | 日期 | 變更內容 | 修改者 |
 |------|---------|--------|
-| 2025-10-23 | 建立 Issue | Claude Code |
+| 2025-10-23 01:30 | 建立 Issue，完成根因分析 | Claude Code |
+| 2025-10-23 02:45 | Issue 完全解決，添加執行過程記錄 | Claude Code |

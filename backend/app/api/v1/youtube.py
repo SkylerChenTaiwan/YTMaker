@@ -99,8 +99,8 @@ async def oauth_callback(
             <div class="container">
                 <h1>✓ 授權成功！</h1>
                 <div class="channel">
-                    <p><strong>{account.channel_name}</strong></p>
-                    <p style="font-size: 0.9em; color: #888;">頻道 ID: {account.channel_id}</p>
+                    <p><strong>{account['channel_name']}</strong></p>
+                    <p style="font-size: 0.9em; color: #888;">頻道 ID: {account['channel_id']}</p>
                 </div>
                 <p>視窗將在 2 秒後自動關閉...</p>
             </div>
@@ -108,9 +108,9 @@ async def oauth_callback(
                 if (window.opener) {{
                     window.opener.postMessage({{
                         type: 'youtube-auth-success',
-                        channel_name: '{account.channel_name}',
-                        channel_id: '{account.channel_id}',
-                        thumbnail_url: '{account.thumbnail_url or ''}'
+                        channel_name: '{account['channel_name']}',
+                        channel_id: '{account['channel_id']}',
+                        thumbnail_url: '{account.get('thumbnail_url', '')}'
                     }}, window.location.origin);
                 }}
                 setTimeout(() => {{
@@ -123,7 +123,27 @@ async def oauth_callback(
         return HTMLResponse(content=html_content)
 
     except ValueError as e:
-        # OAuth 授權碼交換失敗
+        # OAuth 授權碼交換失敗或取得頻道資訊失敗
+        error_msg = str(e)
+
+        # 提供更友善的錯誤訊息和解決建議
+        suggestions = ""
+        if "YouTube 頻道資訊失敗" in error_msg or "找不到 YouTube 頻道" in error_msg:
+            suggestions = """
+            <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left;">
+                <strong>可能的原因：</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>YouTube Data API v3 未在 Google Cloud Console 啟用</li>
+                    <li>此 Google 帳號沒有建立 YouTube 頻道</li>
+                </ul>
+                <strong>解決方法：</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>請前往 Google Cloud Console 啟用 YouTube Data API v3</li>
+                    <li>或使用已建立 YouTube 頻道的 Google 帳號登入</li>
+                </ul>
+            </div>
+            """
+
         error_html = f"""
         <!DOCTYPE html>
         <html>
@@ -136,19 +156,29 @@ async def oauth_callback(
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    height: 100vh;
+                    min-height: 100vh;
                     margin: 0;
                     background: #f5f5f5;
+                    padding: 20px;
                 }}
                 .container {{
-                    text-align: center;
                     background: white;
                     padding: 40px;
                     border-radius: 10px;
                     box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+                    max-width: 600px;
                 }}
                 h1 {{
                     color: #f44336;
+                    text-align: center;
+                }}
+                .error {{
+                    background: #ffebee;
+                    padding: 15px;
+                    border-radius: 5px;
+                    color: #c62828;
+                    margin: 20px 0;
+                    word-wrap: break-word;
                 }}
                 button {{
                     margin-top: 20px;
@@ -158,6 +188,9 @@ async def oauth_callback(
                     border: none;
                     border-radius: 5px;
                     cursor: pointer;
+                    display: block;
+                    margin-left: auto;
+                    margin-right: auto;
                 }}
                 button:hover {{
                     background: #1976D2;
@@ -167,7 +200,8 @@ async def oauth_callback(
         <body>
             <div class="container">
                 <h1>✗ 授權失敗</h1>
-                <p>{str(e)}</p>
+                <div class="error">{error_msg}</div>
+                {suggestions}
                 <button onclick="window.close()">關閉視窗</button>
             </div>
         </body>
