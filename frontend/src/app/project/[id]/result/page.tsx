@@ -39,6 +39,8 @@ export default function ResultPage({ params }: { params: { id: string } }) {
         const error = err as { response?: { status: number } }
         if (error?.response?.status === 404) {
           setError('not_found')
+        } else if (error?.response?.status === 409) {
+          setError('not_completed')
         } else {
           setError('load_failed')
         }
@@ -100,6 +102,23 @@ export default function ResultPage({ params }: { params: { id: string } }) {
     )
   }
 
+  // Error state - Project not completed
+  if (error === 'not_completed') {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">
+            專案尚未完成
+          </h1>
+          <p className="text-gray-600 mb-6">
+            專案尚未完成，無法查看結果
+          </p>
+          <Button onClick={() => router.push('/')}>返回主控台</Button>
+        </div>
+      </AppLayout>
+    )
+  }
+
   // Error state - Project not found
   if (error === 'not_found' || !result) {
     return (
@@ -113,7 +132,7 @@ export default function ResultPage({ params }: { params: { id: string } }) {
     )
   }
 
-  // Error state - Project not completed
+  // Legacy check (should not happen with proper error handling above)
   if (result.status !== 'completed') {
     return (
       <AppLayout>

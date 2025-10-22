@@ -301,25 +301,44 @@ class ProjectService:
         if project.youtube_video_id:
             youtube_url = f"https://youtube.com/watch?v={project.youtube_video_id}"
 
+        # Extract YouTube settings
+        youtube_title = None
+        youtube_description = None
+        youtube_tags = []
+        privacy = None
+        publish_type = None
+        published_at = None
+        scheduled_date = None
+
+        if project.youtube_settings:
+            youtube_title = project.youtube_settings.get("title")
+            youtube_description = project.youtube_settings.get("description")
+            youtube_tags = project.youtube_settings.get("tags", [])
+            privacy = project.youtube_settings.get("privacy")
+            publish_type = project.youtube_settings.get("publish_type")
+            scheduled_date = project.youtube_settings.get("scheduled_date")
+
+        # Determine local video URL for private videos
+        local_video_url = None
+        if privacy == "private" and os.path.exists(video_path):
+            local_video_url = f"/api/v1/projects/{project_id}/download/video"
+
         return ResultResponse(
             success=True,
             data={
+                "id": project.id,
+                "project_name": project.name,
                 "youtube_url": youtube_url,
                 "youtube_video_id": project.youtube_video_id,
-                "status": "published" if youtube_url else "local_only",
-                "title": project.youtube_settings.get("title")
-                if project.youtube_settings
-                else None,
-                "description": project.youtube_settings.get("description")
-                if project.youtube_settings
-                else None,
-                "tags": project.youtube_settings.get("tags", [])
-                if project.youtube_settings
-                else [],
-                "local_files": {
-                    "video": video_path if os.path.exists(video_path) else None,
-                    "thumbnail": thumbnail_path if os.path.exists(thumbnail_path) else None,
-                },
+                "youtube_title": youtube_title,
+                "youtube_description": youtube_description,
+                "youtube_tags": youtube_tags,
+                "privacy": privacy,
+                "publish_type": publish_type,
+                "published_at": published_at,
+                "scheduled_date": scheduled_date,
+                "status": "completed",
+                "local_video_url": local_video_url,
             },
         )
 

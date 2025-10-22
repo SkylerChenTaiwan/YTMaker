@@ -160,7 +160,7 @@ export async function retryGeneration(projectId: string): Promise<{ success: boo
  */
 export async function getProjectResult(projectId: string): Promise<ProjectResult> {
   const response = await apiClient.get(`/api/v1/projects/${projectId}/result`)
-  return response.data
+  return response.data.data
 }
 
 /**

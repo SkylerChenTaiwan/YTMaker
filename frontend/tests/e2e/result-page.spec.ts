@@ -13,6 +13,16 @@ test.describe('ResultPage E2E', () => {
 
   test.beforeEach(async ({ page: p }) => {
     page = p
+
+    // Set setup-completed cookie to bypass middleware redirect
+    await page.context().addCookies([
+      {
+        name: 'setup-completed',
+        value: 'true',
+        domain: 'localhost',
+        path: '/',
+      },
+    ])
   })
 
   test('用戶應該能查看結果並下載影片', async () => {
@@ -43,8 +53,9 @@ test.describe('ResultPage E2E', () => {
       const iframeSrc = await youtubeIframe.first().getAttribute('src')
       expect(iframeSrc).toContain('youtube.com/embed/')
 
+      // allowfullscreen is a boolean attribute, it exists if present (value can be "")
       const allowFullScreen = await youtubeIframe.first().getAttribute('allowfullscreen')
-      expect(allowFullScreen).toBeTruthy()
+      expect(allowFullScreen).not.toBeNull()
     } else {
       // Verify local video player
       await expect(localVideo.first()).toBeVisible()
