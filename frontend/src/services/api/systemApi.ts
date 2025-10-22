@@ -30,7 +30,10 @@ export const systemApi = {
   ): Promise<TestApiKeyResponse> {
     const response = await apiClient.post<{ success: boolean; data: TestApiKeyResponse }>(
       '/api/v1/system/api-keys/test',
-      data
+      {
+        provider: data.provider,
+        api_key: data.apiKey, // 轉換為 snake_case
+      }
     )
     return response.data.data
   },
