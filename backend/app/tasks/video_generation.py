@@ -5,7 +5,7 @@ import logging
 from celery import Task
 
 from app.celery_app import celery_app
-from app.db.session import get_db
+from app.core.database import get_db
 from app.models.project import Project, ProjectStatus
 from app.tasks.progress import ProgressStage, publish_progress
 from app.tasks.state_manager import StateManager
