@@ -190,10 +190,11 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="font-size" className="block text-sm font-medium text-gray-700 mb-2">
                   字體大小: {config.subtitle.font_size}px
                 </label>
                 <input
+                  id="font-size"
                   type="range"
                   min="20"
                   max="100"
@@ -206,10 +207,11 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="font-color" className="block text-sm font-medium text-gray-700 mb-2">
                   顏色
                 </label>
                 <input
+                  id="font-color"
                   type="color"
                   value={config.subtitle.font_color}
                   onChange={(e) => updateSubtitle({ font_color: e.target.value })}
@@ -236,8 +238,9 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               {config.subtitle.shadow_enabled && (
                 <div className="ml-6 space-y-2">
                   <div>
-                    <label className="block text-sm text-gray-600">陰影顏色</label>
+                    <label htmlFor="shadow-color" className="block text-sm text-gray-600">陰影顏色</label>
                     <input
+                      id="shadow-color"
                       type="color"
                       value={config.subtitle.shadow_color}
                       onChange={(e) =>
@@ -257,10 +260,11 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="logo-upload" className="block text-sm font-medium text-gray-700 mb-2">
                   上傳 Logo
                 </label>
                 <input
+                  id="logo-upload"
                   type="file"
                   accept=".png,.jpg,.jpeg,.svg"
                   onChange={handleLogoUpload}
@@ -274,10 +278,11 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               {config.logo.logo_file && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="logo-size" className="block text-sm font-medium text-gray-700 mb-2">
                       大小: {config.logo.logo_size}px
                     </label>
                     <input
+                      id="logo-size"
                       type="range"
                       min="10"
                       max="200"
@@ -290,10 +295,11 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="logo-opacity" className="block text-sm font-medium text-gray-700 mb-2">
                       透明度: {config.logo.logo_opacity}%
                     </label>
                     <input
+                      id="logo-opacity"
                       type="range"
                       min="0"
                       max="100"
