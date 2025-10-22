@@ -40,8 +40,11 @@ export const YouTubeAuthStep: React.FC = () => {
     const left = window.screen.width / 2 - width / 2
     const top = window.screen.height / 2 - height / 2
 
+    // 使用正確的 backend URL
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
     window.open(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/youtube/auth`,
+      `${backendUrl}/api/v1/youtube/auth`,
       'youtube-auth',
       `width=${width},height=${height},left=${left},top=${top}`
     )
