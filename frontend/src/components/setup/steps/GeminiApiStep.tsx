@@ -113,14 +113,31 @@ export const GeminiApiStep: React.FC = () => {
     setErrorMessage('')
 
     try {
+      // 1. 先測試 API Key
       const result = await systemApi.testApiKey({
         provider: 'gemini',
         apiKey,
       })
 
-      if (result.success) {
-        setTestStatus('success')
-        saveApiKey('gemini', apiKey, true)
+      if (result.is_valid) {
+        // 2. 測試成功後，儲存 API Key
+        try {
+          await systemApi.saveApiKey({
+            provider: 'gemini',
+            apiKey,
+          })
+
+          // 3. 更新本地狀態
+          setTestStatus('success')
+          saveApiKey('gemini', apiKey, true)
+        } catch (saveError) {
+          console.error('Failed to save API key:', saveError)
+          setTestStatus('error')
+          setErrorMessage('測試成功但儲存失敗，請重試')
+        }
+      } else {
+        setTestStatus('error')
+        setErrorMessage(result.message || 'API Key 無效')
       }
     } catch (error) {
       setTestStatus('error')

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import AppException, NotFoundException, ValidationException
 from app.models.system_settings import SystemSettings
 from app.security.keychain import KeychainManager
+
+logger = logging.getLogger(__name__)
 
 
 class SystemService:
@@ -84,36 +87,62 @@ class SystemService:
                 status_code=500
             ) from e
 
-    async def test_api_key(self, provider: str) -> dict[str, Any]:
+    async def test_api_key(self, provider: str, api_key: str) -> dict[str, Any]:
         """
         測試 API Key 是否有效
 
         Args:
             provider: 服務提供者
+            api_key: 要測試的 API Key（由前端傳入）
 
         Returns:
             測試結果 {"is_valid": bool, "message": str}
-
-        Raises:
-            HTTPException: 如果 API Key 不存在
         """
-        # 從 Keychain 讀取 API Key
-        api_key = self.keychain.get_api_key(provider)
-        if not api_key:
-            raise NotFoundException(
-                message=f"尚未設定 {self._get_provider_name(provider)} 的 API Key"
-            )
-
-        # 根據 provider 測試連線
-        # TODO: 實作各 API 的測試連線邏輯
-        # 這裡先返回基本實作，後續會在整合 API clients 時完成
         try:
-            # 暫時返回成功，實際測試邏輯會在整合時加入
-            return {
-                "is_valid": True,
-                "message": "連線成功"
-            }
+            if provider == "gemini":
+                # 使用 GeminiClient 進行實際測試
+                from app.integrations.gemini_client import GeminiClient
+
+                # 嘗試列出模型（最小成本的測試方法）
+                models = GeminiClient.list_models(api_key)
+
+                if len(models) > 0:
+                    logger.info(f"Gemini API Key test successful, found {len(models)} models")
+                    return {
+                        "is_valid": True,
+                        "message": "連線成功"
+                    }
+                else:
+                    logger.warning("Gemini API Key test failed: no models found")
+                    return {
+                        "is_valid": False,
+                        "message": "API Key 無效：無法取得模型列表"
+                    }
+
+            elif provider == "stability_ai":
+                # TODO: 實作 Stability AI 測試邏輯
+                logger.info("Stability AI test not implemented, returning success")
+                return {
+                    "is_valid": True,
+                    "message": "連線成功（未實作實際測試）"
+                }
+
+            elif provider == "did":
+                # TODO: 實作 D-ID 測試邏輯
+                logger.info("D-ID test not implemented, returning success")
+                return {
+                    "is_valid": True,
+                    "message": "連線成功（未實作實際測試）"
+                }
+
+            else:
+                return {
+                    "is_valid": False,
+                    "message": f"不支援的服務提供者：{provider}"
+                }
+
         except Exception as e:
+            logger.error(f"API Key test failed for {provider}: {e}")
             return {
                 "is_valid": False,
                 "message": f"連線失敗：{str(e)}"

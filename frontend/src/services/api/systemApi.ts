@@ -6,8 +6,8 @@ export interface TestApiKeyRequest {
 }
 
 export interface TestApiKeyResponse {
-  success: boolean
-  message?: string
+  is_valid: boolean
+  message: string
 }
 
 export interface SaveApiKeyRequest {
@@ -28,11 +28,11 @@ export const systemApi = {
   async testApiKey(
     data: TestApiKeyRequest
   ): Promise<TestApiKeyResponse> {
-    const response = await apiClient.post<TestApiKeyResponse>(
-      '/api/v1/system/test-api-key',
+    const response = await apiClient.post<{ success: boolean; data: TestApiKeyResponse }>(
+      '/api/v1/system/api-keys/test',
       data
     )
-    return response.data
+    return response.data.data
   },
 
   /**

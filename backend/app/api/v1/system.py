@@ -55,12 +55,13 @@ async def test_api_key(
 
     參數：
     - provider: 服務提供者
+    - api_key: 要測試的 API Key
 
     回傳：
     - is_valid: 是否有效
     - message: 測試結果訊息
     """
-    result = await system_service.test_api_key(data.provider)
+    result = await system_service.test_api_key(data.provider, data.api_key)
     return {"success": True, "data": result}
 
 
