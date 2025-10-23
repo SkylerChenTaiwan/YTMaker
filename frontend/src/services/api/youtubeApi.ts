@@ -22,7 +22,7 @@ export const youtubeApi = {
    * 取得所有已連結的 YouTube 帳號
    */
   async getAccounts(): Promise<YouTubeAccountsResponse> {
-    const response = await apiClient.get<YouTubeAccountsResponse>('/youtube/accounts')
+    const response = await apiClient.get<YouTubeAccountsResponse>('/api/v1/youtube/accounts')
     return response.data
   },
 
@@ -30,6 +30,6 @@ export const youtubeApi = {
    * 刪除 YouTube 授權
    */
   async deleteAccount(accountId: string): Promise<void> {
-    await apiClient.delete(`/youtube/accounts/${accountId}`)
+    await apiClient.delete(`/api/v1/youtube/accounts/${accountId}`)
   },
 }
