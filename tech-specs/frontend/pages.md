@@ -331,6 +331,39 @@ const isFormValid = () => {
 - 上傳 Logo 並調整位置
 - 添加疊加元素
 
+**字幕設定項 (SubtitleConfig):**
+1. **字型選擇** (font_family)
+   - 選項：Noto Sans TC, Microsoft JhengHei, Arial
+2. **字體大小** (font_size: 20-100px)
+   - 範圍滑桿控制
+3. **字體顏色** (font_color)
+   - 顏色選擇器
+4. **字幕位置** (position: 預設位置選擇器)
+   - 9 個預設位置：上左/上中/上右/中左/中中/中右/下左/下中/下右
+   - 選擇後自動設定對應的 position_x 和 position_y
+5. **X 軸位置** (position_x: 0-960px)
+   - 範圍滑桿，可精細調整水平位置
+6. **Y 軸位置** (position_y: 0-540px)
+   - 範圍滑桿，可精細調整垂直位置
+7. **陰影設定**
+   - 啟用/停用 (shadow_enabled)
+   - 陰影顏色 (shadow_color)
+   - 陰影偏移 (shadow_offset_x, shadow_offset_y)
+8. **邊框設定**
+   - 啟用/停用 (border_enabled)
+   - 邊框顏色 (border_color)
+   - 邊框寬度 (border_width: 1-10px)
+9. **背景設定**
+   - 啟用/停用 (background_enabled)
+   - 背景顏色 (background_color)
+   - 背景透明度 (background_opacity: 0-100%)
+
+**預覽區特性:**
+- 使用漸層背景 (from-purple-900 to-blue-900) 讓字幕更明顯
+- 添加網格線 (60px x 60px) 輔助定位
+- 即時反映所有設定變更
+- 使用 transform: translate(-50%, -50%) 確保字幕置中於指定座標
+
 **元件結構:**
 
 ```tsx
