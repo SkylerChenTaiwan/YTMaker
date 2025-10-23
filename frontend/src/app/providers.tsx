@@ -2,7 +2,7 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConfigProvider } from 'antd'
+import { App, ConfigProvider } from 'antd'
 import zhTW from 'antd/locale/zh_TW'
 import { ReactNode, useState } from 'react'
 
@@ -34,7 +34,9 @@ export function Providers({ children }: { children: ReactNode }) {
           },
         }}
       >
-        {children}
+        <App>
+          {children}
+        </App>
       </ConfigProvider>
     </QueryClientProvider>
   )

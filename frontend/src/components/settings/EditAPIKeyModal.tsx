@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Modal, Input, Button, message } from 'antd'
+import { App, Modal, Input, Button } from 'antd'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { systemApi } from '@/lib/api/system'
 import type { APIProvider } from '@/types/system'
@@ -20,6 +20,7 @@ const providerNames: Record<APIProvider, string> = {
 }
 
 export const EditAPIKeyModal = ({ provider, currentKey, onClose, onSave }: Props) => {
+  const { message } = App.useApp()
   const [apiKey, setApiKey] = useState(currentKey || '')
   const [showKey, setShowKey] = useState(false)
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
