@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button, Table, Progress, message } from 'antd'
+import { App, Button, Table, Progress } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EditAPIKeyModal } from './EditAPIKeyModal'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -17,6 +17,7 @@ interface APIKeyRow {
 }
 
 export const APIKeysTab = () => {
+  const { message } = App.useApp()
   const { apiKeys, quotas, fetchAPIKeys, fetchQuotas } = useAuthStore()
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingProvider, setEditingProvider] = useState<APIProvider | null>(null)
