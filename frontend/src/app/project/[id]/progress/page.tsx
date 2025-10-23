@@ -42,7 +42,8 @@ export default function ProgressPage({ params }: ProgressPageProps) {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
 
-  const { currentProject, fetchProject } = useProjectStore()
+  const { projects, fetchProject } = useProjectStore()
+  const currentProject = projects.current
   const { progress, logs, updateProgress, addLog } = useProgressStore()
 
   // WebSocket 連線
@@ -53,7 +54,13 @@ export default function ProgressPage({ params }: ProgressPageProps) {
       } else if (message.type === 'log') {
         addLog(message.data)
       } else if (message.type === 'stage_complete') {
-        updateProgress({ stage: message.data.stage, status: 'completed' })
+        const stageName = message.data.stage as keyof typeof progress.stages
+        updateProgress({
+          stages: {
+            ...progress.stages,
+            [stageName]: { ...progress.stages[stageName], status: 'completed' }
+          }
+        })
       } else if (message.type === 'error') {
         toast.error(message.data.message)
       }
@@ -165,7 +172,7 @@ export default function ProgressPage({ params }: ProgressPageProps) {
             <div className="mt-4 flex items-center text-yellow-600">
               <span className="mr-2">⚠️</span>
               <span>連線中斷,正在重新連線...</span>
-              <Button type="text" onClick={reconnect} className="ml-2">
+              <Button type="button" onClick={reconnect} className="ml-2">
                 手動重連
               </Button>
             </div>
@@ -204,11 +211,11 @@ export default function ProgressPage({ params }: ProgressPageProps) {
               {!isPaused ? (
                 <Button onClick={handlePause}>暫停</Button>
               ) : (
-                <Button onClick={handleResume} type="primary">
+                <Button onClick={handleResume} type="button">
                   繼續
                 </Button>
               )}
-              <Button onClick={() => setShowCancelModal(true)} type="danger">
+              <Button onClick={() => setShowCancelModal(true)} type="button">
                 取消
               </Button>
             </>
@@ -216,7 +223,7 @@ export default function ProgressPage({ params }: ProgressPageProps) {
 
           {isFailed && (
             <>
-              <Button onClick={handleRetry} type="primary">
+              <Button onClick={handleRetry} type="button">
                 重試
               </Button>
               <Button onClick={() => router.push('/')}>返回主控台</Button>
@@ -226,7 +233,7 @@ export default function ProgressPage({ params }: ProgressPageProps) {
           {isCompleted && (
             <>
               <Button onClick={() => router.push('/')}>返回主控台</Button>
-              <Button onClick={handleViewResult} type="primary">
+              <Button onClick={handleViewResult} type="button">
                 查看結果
               </Button>
             </>
