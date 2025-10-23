@@ -1,9 +1,9 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from '@/app/page'
-import * as api from '@/services/api'
+import * as api from '@/services/api/'
 
-jest.mock('@/services/api', () => ({
+jest.mock('@/services/api/', () => ({
   projectsApi: {
     getProjects: jest.fn(),
     deleteProject: jest.fn(),
