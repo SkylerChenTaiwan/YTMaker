@@ -11,6 +11,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
+    "test:real": "playwright test -c ../playwright.config.real.ts",
+    "test:real:debug": "PWDEBUG=1 playwright test -c ../playwright.config.real.ts",
+    "test:real:flow0": "playwright test -c ../playwright.config.real.ts tests/e2e/real/flow-0-setup.spec.ts",
+    "test:real:flow1": "playwright test -c ../playwright.config.real.ts tests/e2e/real/flow-1-video-generation.spec.ts",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,md}\""
   },
   "dependencies": {

@@ -10,11 +10,12 @@ import type { NextRequest } from 'next/server'
  * 3. 已完成時阻止訪問 /setup
  */
 export function middleware(request: NextRequest) {
-  const setupCompleted = request.cookies.get('setup-completed')
-  const isSetupPage = request.nextUrl.pathname === '/setup'
+  const setupCompleted = request.cookies.get('setup-completed')?.value === 'true'
+  const isSetupPage = request.nextUrl.pathname.startsWith('/setup')
+  const isSettingsPage = request.nextUrl.pathname === '/settings'
 
-  // 如果未完成設定且不在設定頁,重定向到設定頁
-  if (!setupCompleted && !isSetupPage) {
+  // 如果未完成設定且不在設定頁或設定管理頁,重定向到設定頁
+  if (!setupCompleted && !isSetupPage && !isSettingsPage) {
     return NextResponse.redirect(new URL('/setup', request.url))
   }
 

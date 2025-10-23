@@ -84,7 +84,7 @@ export default function SetupPage() {
       <div className="max-w-3xl mx-auto px-6">
         {/* Logo */}
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">YTMaker</h1>
+          <h1 className="text-2xl font-bold text-gray-900">歡迎使用 YTMaker</h1>
         </div>
 
         {/* 步驟指示器 */}
