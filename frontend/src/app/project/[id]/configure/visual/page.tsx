@@ -133,6 +133,23 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
             />
             {/* 模擬影片畫面 */}
             <div className="w-full h-full flex items-center justify-center">
+              {/* 位置標記十字線 */}
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${config.subtitle.position_x}px`,
+                  top: `${config.subtitle.position_y}px`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                {/* 垂直線 */}
+                <div className="absolute w-px h-8 bg-red-500 opacity-60" style={{ left: '0', top: '-16px' }} />
+                {/* 水平線 */}
+                <div className="absolute h-px w-8 bg-red-500 opacity-60" style={{ top: '0', left: '-16px' }} />
+                {/* 中心點 */}
+                <div className="absolute w-2 h-2 bg-red-500 rounded-full" style={{ left: '-4px', top: '-4px' }} />
+              </div>
+
               {/* 字幕預覽 */}
               <div
                 className="absolute transition-all"
@@ -149,11 +166,8 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                     ? `${config.subtitle.border_width}px solid ${config.subtitle.border_color}`
                     : 'none',
                   backgroundColor: config.subtitle.background_enabled
-                    ? config.subtitle.background_color
+                    ? `${config.subtitle.background_color}${Math.round(config.subtitle.background_opacity * 2.55).toString(16).padStart(2, '0')}`
                     : 'transparent',
-                  opacity: config.subtitle.background_enabled
-                    ? config.subtitle.background_opacity / 100
-                    : 1,
                   padding: config.subtitle.background_enabled ? '8px 16px' : 0,
                   transform: 'translate(-50%, -50%)',
                 }}
