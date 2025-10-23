@@ -2,16 +2,43 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/store/useAuthStore'
+import { youtubeApi } from '@/services/api/youtubeApi'
 
 export const YouTubeAuthStep: React.FC = () => {
   const [showSkipModal, setShowSkipModal] = useState(false)
   const { youtube, setYouTubeAuth } = useAuthStore()
 
+  // 初始化時檢查授權狀態
+  useEffect(() => {
+    const checkYouTubeAuth = async () => {
+      try {
+        const response = await youtubeApi.getAccounts()
+        if (response.success && response.data.accounts.length > 0) {
+          const account = response.data.accounts[0]
+          setYouTubeAuth({
+            connected: true,
+            channel_name: account.channel_name,
+            channel_id: account.channel_id,
+            thumbnail_url: account.thumbnail_url,
+          })
+        }
+      } catch (error) {
+        console.error('檢查 YouTube 授權狀態失敗:', error)
+      }
+    }
+
+    checkYouTubeAuth()
+  }, [setYouTubeAuth])
+
   // 監聽 OAuth callback
   useEffect(() => {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const backendOrigin = new URL(backendUrl).origin
+
     const handleMessage = (event: MessageEvent) => {
-      // 安全檢查: 驗證 origin
-      if (event.origin !== window.location.origin) {
+      // 安全檢查: 只允許來自前端或後端的消息
+      const allowedOrigins = [window.location.origin, backendOrigin]
+      if (!allowedOrigins.includes(event.origin)) {
         return
       }
 
