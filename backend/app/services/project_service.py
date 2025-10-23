@@ -38,7 +38,7 @@ class ProjectService:
     def create_project(self, data: ProjectCreate) -> ProjectResponse:
         """Create new project"""
         # 1. Validate text length
-        content_length = len(data.content)
+        content_length = len(data.content_text)
         if content_length < 500 or content_length > 10000:
             raise ValidationException(
                 message="Content length must be between 500-10000 characters",
@@ -69,8 +69,8 @@ class ProjectService:
 
         # 4. Create project record
         project = Project(
-            name=data.name,
-            content=data.content,
+            name=data.project_name,
+            content=data.content_text,
             status=ProjectStatus.INITIALIZED,
             prompt_template_id=str(data.prompt_template_id) if data.prompt_template_id else None,
             gemini_model=data.gemini_model,

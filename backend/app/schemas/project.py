@@ -13,8 +13,9 @@ from pydantic import BaseModel, Field, field_validator
 class ProjectCreate(BaseModel):
     """Create project request"""
 
-    name: str = Field(..., min_length=1, max_length=200, description="Project name")
-    content: str = Field(..., min_length=500, max_length=10000, description="Text content")
+    project_name: str = Field(..., min_length=1, max_length=200, description="Project name")
+    content_text: str = Field(..., min_length=500, max_length=10000, description="Text content")
+    content_source: Optional[str] = Field(None, pattern="^(paste|upload)$", description="Content source")
     prompt_template_id: Optional[UUID] = Field(None, description="Prompt template ID")
     gemini_model: str = Field(
         "gemini-1.5-flash",
@@ -22,7 +23,7 @@ class ProjectCreate(BaseModel):
         description="Gemini model",
     )
 
-    @field_validator("content")
+    @field_validator("content_text")
     @classmethod
     def validate_content_length(cls, v: str) -> str:
         """Validate text length"""
