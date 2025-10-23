@@ -1,4 +1,4 @@
-# Issue-018: 專案創建 API 422 錯誤 - 欄位名稱不匹配
+# [已解決] Issue-018: 專案創建 API 422 錯誤 - 欄位名稱不匹配
 
 ## 基本資訊
 - **優先級：** P0 緊急
@@ -296,5 +296,27 @@ def test_create_project_with_valid_data():
 ## 解決狀態
 - [x] Spec 已更新（程式碼層級）
 - [x] 程式碼已修改
-- [ ] 測試已通過
-- [ ] 問題已驗證解決
+- [x] 測試已通過
+- [x] 問題已驗證解決
+
+## 驗證結果
+
+### API 測試結果 (2025-10-23)
+```bash
+curl -X POST http://localhost:8000/api/v1/projects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_name": "測試專案",
+    "content_text": "...",
+    "content_source": "paste",
+    "gemini_model": "gemini-1.5-flash"
+  }'
+```
+
+**結果：** ✅ 成功
+- HTTP 狀態碼: 201 Created
+- 專案 ID: d1d72f2e-9cb5-4466-a2c7-d7dcf23d7dc3
+- 專案名稱: "測試專案"
+- 狀態: "INITIALIZED"
+
+前端可以使用新的欄位名稱成功創建專案，問題已完全解決。
