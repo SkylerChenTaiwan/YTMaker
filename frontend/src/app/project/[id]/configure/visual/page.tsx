@@ -252,16 +252,18 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                   if (value === '') return
 
                   // 根據選擇更新 position_x 和 position_y
+                  // 注意：使用 translate(-50%, -50%)，所以座標是字幕中心點
+                  // 預覽區大小約 960x540，需考慮字幕大小避免超出邊界
                   const positions: Record<string, { x: number; y: number }> = {
-                    'top-left': { x: 100, y: 80 },
-                    'top-center': { x: 480, y: 80 },
-                    'top-right': { x: 860, y: 80 },
-                    'middle-left': { x: 100, y: 270 },
+                    'top-left': { x: 150, y: 60 },
+                    'top-center': { x: 480, y: 60 },
+                    'top-right': { x: 810, y: 60 },
+                    'middle-left': { x: 150, y: 270 },
                     'middle-center': { x: 480, y: 270 },
-                    'middle-right': { x: 860, y: 270 },
-                    'bottom-left': { x: 100, y: 460 },
-                    'bottom-center': { x: 480, y: 460 },
-                    'bottom-right': { x: 860, y: 460 },
+                    'middle-right': { x: 810, y: 270 },
+                    'bottom-left': { x: 150, y: 480 },
+                    'bottom-center': { x: 480, y: 480 },
+                    'bottom-right': { x: 810, y: 480 },
                   }
                   const pos = positions[value]
                   updateSubtitle({
