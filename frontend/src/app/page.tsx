@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { StatsCards } from '@/components/feature/StatsCards'
 import { ProjectList } from '@/components/feature/ProjectList'
-import { projectsApi, statsApi } from '@/services/api/'
+import { projectsApi } from '@/services/api/projects'
+import { statsApi } from '@/services/api/stats'
 import { PlusIcon } from '@heroicons/react/24/outline'
 
 export default function DashboardPage() {
