@@ -1,0 +1,11 @@
+{
+  "name": "ytmaker",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

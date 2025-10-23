@@ -173,6 +173,7 @@ export const GeminiApiStep: React.FC = () => {
         <div className="relative">
           <input
             id="gemini-api-key"
+            name="gemini_api_key"
             type={showKey ? 'text' : 'password'}
             value={apiKey}
             onChange={handleApiKeyChange}

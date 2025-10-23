@@ -50,8 +50,9 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
       const projectsCheck = await fetch('http://localhost:8000/api/v1/projects?status=incomplete')
       if (projectsCheck.ok) {
         const projects = await projectsCheck.json()
-        console.log(`API 查詢到 ${projects.data.length} 個未完成專案`)
-        projects.data.forEach((p: any, i: number) => {
+        const projectList = projects.data.projects || []
+        console.log(`API 查詢到 ${projectList.length} 個未完成專案`)
+        projectList.forEach((p: any, i: number) => {
           console.log(`  ${i + 1}. ${p.name} - ${p.status}`)
         })
       }
@@ -60,7 +61,7 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
 
   test('應該能夠從腳本生成失敗點恢復', async ({ page }) => {
     // Step 1: 建立一個專案
-    await page.goto('http://localhost:3000/project/create')
+    await page.goto('http://localhost:3000/project/new')
 
     const projectName = `Test Resume ${Date.now()}`
     await page.fill('input[name="project_name"]', projectName)
@@ -136,8 +137,8 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
     if (projectsCheck.ok) {
       const projects = await projectsCheck.json()
 
-      if (projects.data && projects.data.length > 0) {
-        const failedProject = projects.data[0]
+      if (projects.data && projects.data.projects && projects.data.projects.length > 0) {
+        const failedProject = projects.data.projects[0]
         console.log(`找到失敗專案: ${failedProject.name} (${failedProject.id})`)
 
         // 訪問專案頁面
@@ -176,8 +177,8 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
     if (projectsCheck.ok) {
       const projects = await projectsCheck.json()
 
-      if (projects.data && projects.data.length > 0) {
-        const activeProject = projects.data[0]
+      if (projects.data && projects.data.projects && projects.data.projects.length > 0) {
+        const activeProject = projects.data.projects[0]
         console.log(`檢查專案: ${activeProject.name}`)
 
         await page.goto(`http://localhost:3000/project/${activeProject.id}/progress`)
@@ -213,7 +214,7 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
 
   test('應該能夠處理網路中斷後的恢復', async ({ page, context }) => {
     // 建立專案
-    await page.goto('http://localhost:3000/project/create')
+    await page.goto('http://localhost:3000/project/new')
     await page.fill('input[name="project_name"]', `Test Network Failure ${Date.now()}`)
     await page.click('button:has-text("下一步")')
 
@@ -255,8 +256,8 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
     if (projectsCheck.ok) {
       const projects = await projectsCheck.json()
 
-      if (projects.data && projects.data.length > 0) {
-        const failedProject = projects.data[0]
+      if (projects.data && projects.data.projects && projects.data.projects.length > 0) {
+        const failedProject = projects.data.projects[0]
         console.log(`檢查失敗專案: ${failedProject.name}`)
 
         await page.goto(`http://localhost:3000/project/${failedProject.id}/result`)
@@ -302,8 +303,8 @@ test.describe('Flow-6: 斷點續傳與錯誤恢復（真實環境）', () => {
     if (projectsCheck.ok) {
       const projects = await projectsCheck.json()
 
-      if (projects.data && projects.data.length > 0) {
-        const failedProject = projects.data[0]
+      if (projects.data && projects.data.projects && projects.data.projects.length > 0) {
+        const failedProject = projects.data.projects[0]
 
         // 查詢錯誤日誌
         const logsCheck = await fetch(`http://localhost:8000/api/v1/projects/${failedProject.id}/logs`)

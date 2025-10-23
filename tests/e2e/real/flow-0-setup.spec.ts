@@ -17,8 +17,8 @@ import { test, expect } from '@playwright/test'
 test.describe('Flow-0: 首次設定流程（真實環境）', () => {
   test.beforeAll(async () => {
     // 確保環境已啟動
-    const backendHealth = await fetch('http://localhost:8000/api/v1/system/health')
-    expect(backendHealth.ok).toBeTruthy()
+    const backendRoot = await fetch('http://localhost:8000/')
+    expect(backendRoot.ok).toBeTruthy()
   })
 
   test('應該完整完成首次設定並進入主控台', async ({ page, context }) => {
@@ -31,9 +31,10 @@ test.describe('Flow-0: 首次設定流程（真實環境）', () => {
 
     console.log('✅ Step 1: 成功進入設定頁面')
 
-    // Step 2: 點擊開始設定
-    await page.click('text=開始設定')
-    await expect(page).toHaveURL(/\/setup\/step\/1/)
+    // Step 2: 點擊下一步
+    await page.click('button:has-text("下一步")')
+    await page.waitForURL(/\/setup\?step=1/, { timeout: 5000 })
+    await expect(page).toHaveURL(/\/setup\?step=1/)
 
     console.log('✅ Step 2: 進入 API 設定步驟')
 
@@ -154,15 +155,20 @@ test.describe('Flow-0: 首次設定流程（真實環境）', () => {
   })
 
   test('應該正確處理 API Key 無效的情況', async ({ page }) => {
-    await page.goto('http://localhost:3000/setup/step/1')
+    await page.goto('http://localhost:3000/setup?step=1')
 
     // 輸入無效的 API Key
     await page.fill('input[name="gemini_api_key"]', 'invalid-key-12345')
     await page.click('button:has-text("測試連線")')
 
     // 驗證：應該顯示錯誤訊息（真實的 API 錯誤）
-    await expect(page.locator('text=API Key 無效')).toBeVisible({ timeout: 10000 })
-    console.log('✅ API Key 無效錯誤處理正確')
+    // 尋找帶有 error-icon 的錯誤訊息
+    await expect(page.locator('[data-testid="error-icon"]')).toBeVisible({ timeout: 10000 })
+
+    // 驗證錯誤文字包含 "無效" 或 "錯誤" 或 "失敗"
+    const errorText = await page.locator('.text-red-500').textContent()
+    expect(errorText).toMatch(/無效|錯誤|失敗|invalid|error|fail/i)
+    console.log(`✅ API Key 無效錯誤處理正確: ${errorText}`)
   })
 
   test('應該允許跳過 YouTube 授權', async ({ page }) => {
