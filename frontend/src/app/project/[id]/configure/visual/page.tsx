@@ -246,8 +246,11 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               {/* 字幕位置 */}
               <Select
                 label="字幕位置"
-                value={config.subtitle.position}
+                value={config.subtitle.position || ''}
                 onChange={(value) => {
+                  // 如果選擇自訂位置，不做任何事
+                  if (value === '') return
+
                   // 根據選擇更新 position_x 和 position_y
                   const positions: Record<string, { x: number; y: number }> = {
                     'top-left': { x: 100, y: 80 },
@@ -268,6 +271,7 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                   })
                 }}
                 options={[
+                  { label: '自訂位置 (使用下方滑桿)', value: '' },
                   { label: '上左', value: 'top-left' },
                   { label: '上中', value: 'top-center' },
                   { label: '上右', value: 'top-right' },
@@ -292,7 +296,10 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                   max="960"
                   value={config.subtitle.position_x}
                   onChange={(e) =>
-                    updateSubtitle({ position_x: parseInt(e.target.value) })
+                    updateSubtitle({
+                      position: '', // 清空預設位置，允許重新選擇
+                      position_x: parseInt(e.target.value)
+                    })
                   }
                   className="w-full"
                   aria-label="X 軸位置"
@@ -311,7 +318,10 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                   max="540"
                   value={config.subtitle.position_y}
                   onChange={(e) =>
-                    updateSubtitle({ position_y: parseInt(e.target.value) })
+                    updateSubtitle({
+                      position: '', // 清空預設位置，允許重新選擇
+                      position_y: parseInt(e.target.value)
+                    })
                   }
                   className="w-full"
                   aria-label="Y 軸位置"
