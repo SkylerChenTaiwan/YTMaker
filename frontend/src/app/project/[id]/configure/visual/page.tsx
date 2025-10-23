@@ -20,8 +20,8 @@ const defaultConfig: VisualConfig = {
     font_size: 48,
     font_color: '#FFFFFF',
     position: 'bottom-center',
-    position_x: 480,
-    position_y: 460,
+    position_x: 50, // 改用百分比 (50% = 中間)
+    position_y: 85, // 改用百分比 (85% = 接近底部)
     border_enabled: false,
     border_color: '#000000',
     border_width: 2,
@@ -137,8 +137,8 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               <div
                 className="absolute pointer-events-none"
                 style={{
-                  left: `${config.subtitle.position_x}px`,
-                  top: `${config.subtitle.position_y}px`,
+                  left: `${config.subtitle.position_x}%`,
+                  top: `${config.subtitle.position_y}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
               >
@@ -154,8 +154,8 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               <div
                 className="absolute transition-all"
                 style={{
-                  left: `${config.subtitle.position_x}px`,
-                  top: `${config.subtitle.position_y}px`,
+                  left: `${config.subtitle.position_x}%`,
+                  top: `${config.subtitle.position_y}%`,
                   fontFamily: config.subtitle.font_family,
                   fontSize: `${config.subtitle.font_size}px`,
                   color: config.subtitle.font_color,
@@ -252,18 +252,17 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                   if (value === '') return
 
                   // 根據選擇更新 position_x 和 position_y
-                  // 注意：使用 translate(-50%, -50%)，所以座標是字幕中心點
-                  // 預覽區大小約 960x540，需考慮字幕大小避免超出邊界
+                  // 使用百分比定位，配合 translate(-50%, -50%) 完美置中
                   const positions: Record<string, { x: number; y: number }> = {
-                    'top-left': { x: 150, y: 60 },
-                    'top-center': { x: 480, y: 60 },
-                    'top-right': { x: 810, y: 60 },
-                    'middle-left': { x: 150, y: 270 },
-                    'middle-center': { x: 480, y: 270 },
-                    'middle-right': { x: 810, y: 270 },
-                    'bottom-left': { x: 150, y: 480 },
-                    'bottom-center': { x: 480, y: 480 },
-                    'bottom-right': { x: 810, y: 480 },
+                    'top-left': { x: 15, y: 12 },
+                    'top-center': { x: 50, y: 12 },
+                    'top-right': { x: 85, y: 12 },
+                    'middle-left': { x: 15, y: 50 },
+                    'middle-center': { x: 50, y: 50 },
+                    'middle-right': { x: 85, y: 50 },
+                    'bottom-left': { x: 15, y: 88 },
+                    'bottom-center': { x: 50, y: 88 },
+                    'bottom-right': { x: 85, y: 88 },
                   }
                   const pos = positions[value]
                   updateSubtitle({
@@ -289,13 +288,13 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               {/* X 軸位置 */}
               <div>
                 <label htmlFor="position-x" className="block text-sm font-medium text-gray-700 mb-2">
-                  X 軸位置: {config.subtitle.position_x}px
+                  X 軸位置: {config.subtitle.position_x}%
                 </label>
                 <input
                   id="position-x"
                   type="range"
                   min="0"
-                  max="960"
+                  max="100"
                   value={config.subtitle.position_x}
                   onChange={(e) =>
                     updateSubtitle({
@@ -311,13 +310,13 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
               {/* Y 軸位置 */}
               <div>
                 <label htmlFor="position-y" className="block text-sm font-medium text-gray-700 mb-2">
-                  Y 軸位置: {config.subtitle.position_y}px
+                  Y 軸位置: {config.subtitle.position_y}%
                 </label>
                 <input
                   id="position-y"
                   type="range"
                   min="0"
-                  max="540"
+                  max="100"
                   value={config.subtitle.position_y}
                   onChange={(e) =>
                     updateSubtitle({
