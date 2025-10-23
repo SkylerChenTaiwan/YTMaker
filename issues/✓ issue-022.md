@@ -1,4 +1,4 @@
-# Issue-022: Prompt 範本頁面渲染錯誤 - templates.map is not a function
+# [已解決] Issue-022: Prompt 範本頁面渲染錯誤 - templates.map is not a function
 
 ## 問題資訊
 - **發現時機：** 測試階段 (瀏覽器執行時)

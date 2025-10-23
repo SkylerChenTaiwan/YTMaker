@@ -56,12 +56,18 @@ export default function NewProjectPage() {
 
   // Create Project Mutation
   const createMutation = useMutation({
-    mutationFn: projectsApi.createProject,
+    mutationFn: (data) => {
+      console.log('🌐 開始調用 API，資料:', data)
+      return projectsApi.createProject(data)
+    },
     onSuccess: (project) => {
+      console.log('✅ API 調用成功！專案:', project)
       toast.success('專案創建成功！')
       router.push(`/project/${project.id}/configure/visual`)
     },
     onError: (error: any) => {
+      console.error('❌ API 調用失敗:', error)
+      console.error('錯誤詳情:', error.response?.data || error.message)
       toast.error(error.message || '專案創建失敗')
     },
   })
@@ -108,8 +114,16 @@ export default function NewProjectPage() {
 
   // 表單提交
   const handleSubmit = () => {
+    console.log('🔵 handleSubmit 被調用')
+    console.log('📝 表單資料:', {
+      project_name: formData.project_name,
+      content_text_length: formData.content_text.length,
+      content_source: formData.content_source,
+    })
+
     // 驗證表單
     const result = projectFormSchema.safeParse(formData)
+    console.log('✅ 驗證結果:', result.success ? '通過' : '失敗', result)
 
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
@@ -117,6 +131,7 @@ export default function NewProjectPage() {
         const field = issue.path[0] as string
         fieldErrors[field] = issue.message
       })
+      console.log('❌ 驗證錯誤:', fieldErrors)
       setErrors(fieldErrors)
       return
     }
@@ -124,6 +139,7 @@ export default function NewProjectPage() {
     // 清除錯誤
     setErrors({})
 
+    console.log('🚀 準備提交到 API')
     // 提交
     createMutation.mutate({
       project_name: formData.project_name,
@@ -253,7 +269,12 @@ export default function NewProjectPage() {
           <Button
             variant="primary"
             loading={createMutation.isPending}
-            onClick={handleSubmit}
+            onClick={() => {
+              console.log('🖱️ 按鈕被點擊')
+              console.log('📊 isFormValid():', isFormValid())
+              console.log('⏳ isPending:', createMutation.isPending)
+              handleSubmit()
+            }}
             disabled={!isFormValid() || createMutation.isPending}
           >
             下一步

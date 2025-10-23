@@ -45,7 +45,12 @@ export const projectsApi = {
 
   async createProject(request: CreateProjectRequest): Promise<Project> {
     const { data } = await axiosInstance.post('/api/v1/projects', request)
-    return data.data
+    // 後端直接返回專案數據，不是包在 data.data 中
+    // 且後端使用 'name' 而非 'project_name'
+    return {
+      ...data,
+      project_name: data.name,
+    }
   },
 
   async deleteProject(projectId: string): Promise<void> {
