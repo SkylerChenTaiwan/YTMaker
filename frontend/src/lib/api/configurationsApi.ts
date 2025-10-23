@@ -46,14 +46,29 @@ export async function copyConfiguration(id: string): Promise<ApiResponse<{ id: s
 
 // 列出視覺配置模板
 export async function getVisualTemplates(): Promise<ApiResponse<{ templates: VisualTemplate[] }>> {
-  const response = await apiClient.get<ApiResponse<{ templates: VisualTemplate[] }>>(
-    '/api/v1/configurations/templates'
+  const response = await apiClient.get<ApiResponse<{ configurations: Configuration[] }>>(
+    '/api/v1/configurations'
   )
-  return response.data
+  // 轉換 Configuration 為 VisualTemplate 格式以保持前端元件不變
+  const configurations = response.data.data?.configurations || []
+  return {
+    ...response.data,
+    data: {
+      templates: configurations.map(config => ({
+        id: config.id,
+        name: config.name,
+        description: '', // configurations 沒有 description 欄位，使用空字串
+        thumbnail_url: null, // configurations 沒有 thumbnail_url 欄位
+        configuration_data: config.configuration_data,
+        created_at: config.created_at,
+        usage_count: config.usage_count
+      }))
+    }
+  }
 }
 
 // 刪除視覺模板
 export async function deleteVisualTemplate(id: string): Promise<ApiResponse<{ message: string }>> {
-  const response = await apiClient.delete<ApiResponse<{ message: string }>>(`/api/v1/configurations/templates/${id}`)
+  const response = await apiClient.delete<ApiResponse<{ message: string }>>(`/api/v1/configurations/${id}`)
   return response.data
 }
