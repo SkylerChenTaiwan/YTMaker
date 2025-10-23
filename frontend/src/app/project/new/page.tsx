@@ -44,6 +44,16 @@ export default function NewProjectPage() {
   // 字數統計
   const charCount = formData.content_text.length
 
+  // 表單驗證邏輯
+  const isFormValid = () => {
+    return (
+      formData.project_name.trim().length > 0 &&
+      formData.project_name.length <= 100 &&
+      charCount >= 500 &&
+      charCount <= 10000
+    )
+  }
+
   // Create Project Mutation
   const createMutation = useMutation({
     mutationFn: projectsApi.createProject,
@@ -244,7 +254,7 @@ export default function NewProjectPage() {
             variant="primary"
             loading={createMutation.isPending}
             onClick={handleSubmit}
-            disabled={charCount < 500 || charCount > 10000}
+            disabled={!isFormValid() || createMutation.isPending}
           >
             下一步
           </Button>

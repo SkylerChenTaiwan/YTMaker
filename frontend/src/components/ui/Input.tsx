@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 import { cn } from '@/lib/cn'
 
 export interface InputProps
@@ -26,7 +26,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).slice(2, 9)}`
+    const autoId = useId()
+    const inputId = id || autoId
 
     return (
       <div className="w-full">

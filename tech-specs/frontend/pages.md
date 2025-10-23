@@ -294,12 +294,28 @@ export default function NewProjectPage() {
             type="primary"
             loading={createMutation.isLoading}
             onClick={handleSubmit}
+            disabled={!isFormValid() || createMutation.isLoading}
           >
             下一步
           </Button>
         </div>
       </div>
     </AppLayout>
+  )
+}
+
+```
+
+**表單驗證邏輯:**
+
+```typescript
+// 在元件內部定義
+const isFormValid = () => {
+  return (
+    formData.project_name.trim().length > 0 &&
+    formData.project_name.length <= 100 &&
+    formData.content_text.length >= 500 &&
+    formData.content_text.length <= 10000
   )
 }
 ```
