@@ -75,7 +75,7 @@ export async function getProject(projectId: string): Promise<Project> {
  */
 export async function getPromptTemplates(): Promise<PromptTemplate[]> {
   const response = await apiClient.get('/api/v1/prompt-templates')
-  return response.data
+  return response.data.templates
 }
 
 /**
