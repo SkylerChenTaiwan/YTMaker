@@ -159,19 +159,29 @@ class ProjectService:
         if not project:
             raise ProjectNotFoundException(project_id)
 
-        # Validate prompt template exists
-        prompt_template = (
-            self.db.query(PromptTemplate)
-            .filter(PromptTemplate.id == str(data.prompt_template_id))
-            .first()
-        )
-        if not prompt_template:
+        # 至少要提供一個欄位
+        if data.prompt_template_id is None and data.gemini_model is None:
             raise ValidationException(
-                message=f"Prompt template '{data.prompt_template_id}' not found"
+                message="At least one field (prompt_template_id or gemini_model) must be provided"
             )
 
-        project.prompt_template_id = str(data.prompt_template_id)
-        project.gemini_model = data.gemini_model
+        # 如果有提供 prompt_template_id，驗證它是否存在
+        if data.prompt_template_id is not None:
+            prompt_template = (
+                self.db.query(PromptTemplate)
+                .filter(PromptTemplate.id == str(data.prompt_template_id))
+                .first()
+            )
+            if not prompt_template:
+                raise ValidationException(
+                    message=f"Prompt template '{data.prompt_template_id}' not found"
+                )
+            project.prompt_template_id = str(data.prompt_template_id)
+
+        # 如果有提供 gemini_model，更新它
+        if data.gemini_model is not None:
+            project.gemini_model = data.gemini_model
+
         project.updated_at = datetime.now(timezone.utc)
         self.db.commit()
 

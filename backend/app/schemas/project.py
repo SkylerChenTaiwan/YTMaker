@@ -45,8 +45,8 @@ class ProjectConfigurationUpdate(BaseModel):
 class PromptModelUpdate(BaseModel):
     """Update Prompt and model request"""
 
-    prompt_template_id: UUID
-    gemini_model: str = Field(..., pattern="^(gemini-1.5-pro|gemini-1.5-flash)$")
+    prompt_template_id: Optional[UUID] = None
+    gemini_model: Optional[str] = Field(None, pattern="^(gemini-1.5-pro|gemini-1.5-flash)$")
 
 
 class YouTubeSettingsUpdate(BaseModel):
