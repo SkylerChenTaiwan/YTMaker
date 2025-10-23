@@ -29,6 +29,22 @@ async def get_init_status(
     return {"success": True, "data": data}
 
 
+@router.get("/api-keys")
+async def get_api_keys(
+    system_service: SystemService = Depends(get_system_service)
+):
+    """
+    取得所有已儲存的 API Keys（回傳實際 key 內容）
+
+    回傳：
+    - gemini: Google Gemini API Key（如已設定）
+    - stabilityAI: Stability AI API Key（如已設定）
+    - dId: D-ID API Key（如已設定）
+    """
+    data = await system_service.get_api_keys_status()
+    return {"success": True, "data": data}
+
+
 @router.post("/api-keys", status_code=status.HTTP_200_OK)
 async def save_api_key(
     data: APIKeyRequest,
@@ -65,8 +81,8 @@ async def test_api_key(
     return {"success": True, "data": result}
 
 
-@router.get("/quota", response_model=QuotaResponse)
-async def get_quota(
+@router.get("/quotas", response_model=QuotaResponse)
+async def get_quotas(
     system_service: SystemService = Depends(get_system_service)
 ):
     """

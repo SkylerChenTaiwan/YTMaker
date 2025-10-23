@@ -51,6 +51,19 @@ class SystemService:
             "youtube_connected": youtube_connected
         }
 
+    async def get_api_keys_status(self) -> dict[str, str | None]:
+        """
+        取得所有 API Keys 的設定狀態（不回傳實際 key 內容）
+
+        Returns:
+            各 provider 的 API Key（如已設定）或 None
+        """
+        return {
+            "gemini": self.keychain.get_api_key("gemini"),
+            "stabilityAI": self.keychain.get_api_key("stability_ai"),
+            "dId": self.keychain.get_api_key("did"),
+        }
+
     async def save_api_key(self, provider: str, api_key: str):
         """
         儲存 API Key 到 Keychain
