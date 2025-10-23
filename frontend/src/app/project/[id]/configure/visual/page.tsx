@@ -21,7 +21,7 @@ const defaultConfig: VisualConfig = {
     font_color: '#FFFFFF',
     position: 'bottom-center',
     position_x: 480,
-    position_y: 490,
+    position_y: 460,
     border_enabled: false,
     border_color: '#000000',
     border_width: 2,
@@ -121,7 +121,16 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
       <div className="flex flex-col lg:flex-row gap-6 p-6 h-[calc(100vh-200px)]">
         {/* 左側：預覽區 (60%) */}
         <div className="w-full lg:w-3/5">
-          <div className="border rounded-lg overflow-hidden bg-gray-900 aspect-video relative">
+          <div className="border rounded-lg overflow-hidden bg-gradient-to-br from-purple-900 to-blue-900 aspect-video relative">
+            {/* 添加網格背景幫助定位 */}
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage:
+                  'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
+                backgroundSize: '60px 60px',
+              }}
+            />
             {/* 模擬影片畫面 */}
             <div className="w-full h-full flex items-center justify-center">
               {/* 字幕預覽 */}
@@ -220,6 +229,81 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                 />
               </div>
 
+              {/* 字幕位置 */}
+              <Select
+                label="字幕位置"
+                value={config.subtitle.position}
+                onChange={(value) => {
+                  // 根據選擇更新 position_x 和 position_y
+                  const positions: Record<string, { x: number; y: number }> = {
+                    'top-left': { x: 100, y: 80 },
+                    'top-center': { x: 480, y: 80 },
+                    'top-right': { x: 860, y: 80 },
+                    'middle-left': { x: 100, y: 270 },
+                    'middle-center': { x: 480, y: 270 },
+                    'middle-right': { x: 860, y: 270 },
+                    'bottom-left': { x: 100, y: 460 },
+                    'bottom-center': { x: 480, y: 460 },
+                    'bottom-right': { x: 860, y: 460 },
+                  }
+                  const pos = positions[value]
+                  updateSubtitle({
+                    position: value,
+                    position_x: pos.x,
+                    position_y: pos.y
+                  })
+                }}
+                options={[
+                  { label: '上左', value: 'top-left' },
+                  { label: '上中', value: 'top-center' },
+                  { label: '上右', value: 'top-right' },
+                  { label: '中左', value: 'middle-left' },
+                  { label: '中中', value: 'middle-center' },
+                  { label: '中右', value: 'middle-right' },
+                  { label: '下左', value: 'bottom-left' },
+                  { label: '下中', value: 'bottom-center' },
+                  { label: '下右', value: 'bottom-right' },
+                ]}
+              />
+
+              {/* X 軸位置 */}
+              <div>
+                <label htmlFor="position-x" className="block text-sm font-medium text-gray-700 mb-2">
+                  X 軸位置: {config.subtitle.position_x}px
+                </label>
+                <input
+                  id="position-x"
+                  type="range"
+                  min="0"
+                  max="960"
+                  value={config.subtitle.position_x}
+                  onChange={(e) =>
+                    updateSubtitle({ position_x: parseInt(e.target.value) })
+                  }
+                  className="w-full"
+                  aria-label="X 軸位置"
+                />
+              </div>
+
+              {/* Y 軸位置 */}
+              <div>
+                <label htmlFor="position-y" className="block text-sm font-medium text-gray-700 mb-2">
+                  Y 軸位置: {config.subtitle.position_y}px
+                </label>
+                <input
+                  id="position-y"
+                  type="range"
+                  min="0"
+                  max="540"
+                  value={config.subtitle.position_y}
+                  onChange={(e) =>
+                    updateSubtitle({ position_y: parseInt(e.target.value) })
+                  }
+                  className="w-full"
+                  aria-label="Y 軸位置"
+                />
+              </div>
+
               <div>
                 <label className="flex items-center">
                   <input
@@ -248,6 +332,112 @@ export default function VisualConfigPage({ params }: { params: { id: string } })
                         updateSubtitle({ shadow_color: e.target.value })
                       }
                       className="w-full h-8 rounded border"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 邊框設定 */}
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={config.subtitle.border_enabled}
+                    onChange={(e) =>
+                      updateSubtitle({ border_enabled: e.target.checked })
+                    }
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    啟用邊框
+                  </span>
+                </label>
+              </div>
+
+              {config.subtitle.border_enabled && (
+                <div className="ml-6 space-y-2">
+                  <div>
+                    <label htmlFor="border-color" className="block text-sm text-gray-600">
+                      邊框顏色
+                    </label>
+                    <input
+                      id="border-color"
+                      type="color"
+                      value={config.subtitle.border_color}
+                      onChange={(e) =>
+                        updateSubtitle({ border_color: e.target.value })
+                      }
+                      className="w-full h-8 rounded border"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="border-width" className="block text-sm text-gray-600">
+                      邊框寬度: {config.subtitle.border_width}px
+                    </label>
+                    <input
+                      id="border-width"
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={config.subtitle.border_width}
+                      onChange={(e) =>
+                        updateSubtitle({ border_width: parseInt(e.target.value) })
+                      }
+                      className="w-full"
+                      aria-label="邊框寬度"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 背景設定 */}
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={config.subtitle.background_enabled}
+                    onChange={(e) =>
+                      updateSubtitle({ background_enabled: e.target.checked })
+                    }
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    啟用背景
+                  </span>
+                </label>
+              </div>
+
+              {config.subtitle.background_enabled && (
+                <div className="ml-6 space-y-2">
+                  <div>
+                    <label htmlFor="bg-color" className="block text-sm text-gray-600">
+                      背景顏色
+                    </label>
+                    <input
+                      id="bg-color"
+                      type="color"
+                      value={config.subtitle.background_color}
+                      onChange={(e) =>
+                        updateSubtitle({ background_color: e.target.value })
+                      }
+                      className="w-full h-8 rounded border"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="bg-opacity" className="block text-sm text-gray-600">
+                      背景透明度: {config.subtitle.background_opacity}%
+                    </label>
+                    <input
+                      id="bg-opacity"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={config.subtitle.background_opacity}
+                      onChange={(e) =>
+                        updateSubtitle({ background_opacity: parseInt(e.target.value) })
+                      }
+                      className="w-full"
+                      aria-label="背景透明度"
                     />
                   </div>
                 </div>
