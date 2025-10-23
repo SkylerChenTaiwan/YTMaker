@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRETS_FILE: str = "client_secrets.json"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/youtube/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost"
 
     # Token 加密金鑰 (Fernet key)
     ENCRYPTION_KEY: str = ""
