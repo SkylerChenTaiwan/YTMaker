@@ -23,6 +23,7 @@
 | status | ENUM | NOT NULL | 專案狀態（見下方） |
 | configuration | JSON | NULLABLE | 視覺化配置 |
 | prompt_template_id | UUID | FOREIGN KEY | Prompt 範本 ID |
+| prompt_content | TEXT | NULLABLE | 自訂 Prompt 內容（優先於範本） |
 | gemini_model | VARCHAR(50) | NOT NULL | Gemini 模型名稱 |
 | youtube_settings | JSON | NULLABLE | YouTube 設定 |
 | youtube_video_id | VARCHAR(50) | NULLABLE | YouTube 影片 ID |

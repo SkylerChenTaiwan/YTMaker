@@ -155,15 +155,26 @@
 ### 1.4.5 更新 Prompt 與模型設定
 
 **端點：** `PUT /api/v1/projects/:id/prompt-model`
-**說明：** 更新專案的 Prompt 範本和 Gemini 模型
+**說明：** 更新專案的 Prompt 範本、自訂內容和 Gemini 模型
 
 **請求：**
 ```json
 {
   "prompt_template_id": "uuid",
+  "prompt_content": "自訂的 Prompt 內容...",
   "gemini_model": "gemini-1.5-pro"
 }
 ```
+
+**欄位說明：**
+- `prompt_template_id` (可選): Prompt 範本 ID
+- `prompt_content` (可選): 自訂 Prompt 內容，如果提供則優先使用此內容
+- `gemini_model` (必填): Gemini 模型名稱
+
+**邏輯：**
+- 如果提供 `prompt_content`，使用自訂內容（優先）
+- 如果只提供 `prompt_template_id`，從範本讀取內容
+- 生成影片時，使用 `prompt_content`（如有）或從 `prompt_template_id` 讀取
 
 **回應：**
 ```json
