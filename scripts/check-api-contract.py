@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-API 契約檢查工具
-自動檢查前後端 API 欄位是否匹配
+API 契約自動檢查工具 - 完全自動化版本
+自動掃描所有前後端 API 並檢查是否匹配
 """
 import json
 import re
@@ -32,8 +32,8 @@ class APIContractChecker:
         content = file_path.read_text()
 
         # 匹配 interface 定義
-        interface_pattern = r'interface\s+(\w+)\s*{([^}]+)}'
-        for match in re.finditer(interface_pattern, content, re.MULTILINE):
+        interface_pattern = r'export\s+interface\s+(\w+)\s*{([^}]+)}'
+        for match in re.finditer(interface_pattern, content, re.MULTILINE | re.DOTALL):
             interface_name = match.group(1)
             interface_body = match.group(2)
 
@@ -54,142 +54,228 @@ class APIContractChecker:
         schemas = {}
         content = file_path.read_text()
 
-        # 匹配 class 定義
-        class_pattern = r'class\s+(\w+)\(BaseModel\):.*?\n((?:    .*\n)*)'
+        # 匹配 class 定義 - 更寬鬆的匹配
+        class_pattern = r'class\s+(\w+)\(BaseModel\):[^\n]*\n((?:(?:    |\t).*\n)*)'
         for match in re.finditer(class_pattern, content, re.MULTILINE):
             class_name = match.group(1)
             class_body = match.group(2)
 
-            # 提取欄位名稱（排除方法和註解）
-            field_pattern = r'^\s+(\w+):\s*(?:Mapped\[)?'
+            # 提取欄位名稱
+            field_pattern = r'^\s+(\w+):\s*'
             fields = set()
             for line in class_body.split('\n'):
-                if line.strip().startswith('def ') or line.strip().startswith('@'):
+                line_stripped = line.strip()
+                # 跳過空行、註解、方法、裝飾器、model_config
+                if (not line_stripped or
+                    line_stripped.startswith('#') or
+                    line_stripped.startswith('def ') or
+                    line_stripped.startswith('@') or
+                    line_stripped.startswith('model_config') or
+                    line_stripped.startswith('"""') or
+                    line_stripped.startswith("'''")):
                     continue
+
                 field_match = re.match(field_pattern, line)
                 if field_match:
                     field_name = field_match.group(1)
                     if not field_name.startswith('_'):
                         fields.add(field_name)
 
-            schemas[class_name] = fields
+            if fields:  # 只添加有欄位的 schema
+                schemas[class_name] = fields
 
         return schemas
 
-    def find_api_calls(self) -> List[Tuple[str, str, str]]:
-        """找出所有前端 API 呼叫"""
+    def extract_api_calls_with_schemas(self, file_path: Path) -> List[Dict]:
+        """提取前端 API 呼叫及其使用的 schema"""
         api_calls = []
+        content = file_path.read_text()
 
-        # 搜尋前端 API 相關檔案
-        api_files = [
-            self.frontend_dir / "services" / "api" / "projects.ts",
-            self.frontend_dir / "lib" / "api" / "projects.ts",
-        ]
+        # 匹配函數定義及其內部的 API 呼叫
+        # 匹配: export async function functionName(param: Type, data: DataType): Promise<ReturnType>
+        function_pattern = r'export\s+async\s+function\s+(\w+)\s*\([^)]*data:\s*(\w+)[^)]*\)[^{]*\{([^}]+(?:\{[^}]*\}[^}]*)*)\}'
 
-        for api_file in api_files:
-            if not api_file.exists():
-                continue
+        for match in re.finditer(function_pattern, content, re.MULTILINE | re.DOTALL):
+            function_name = match.group(1)
+            data_type = match.group(2)
+            function_body = match.group(3)
 
-            content = api_file.read_text()
+            # 在函數體中查找 API 呼叫
+            call_pattern = r'(axios|apiClient|axiosInstance)\.(post|get|put|delete|patch)\s*\(\s*[\'"`]([^\'"`:]+)[\'"`]'
+            for call_match in re.finditer(call_pattern, function_body):
+                method = call_match.group(2).upper()
+                path = call_match.group(3)
 
-            # 提取 API 呼叫
-            # 匹配 axios.post/get/put/delete
-            call_pattern = r'(axios|apiClient|axiosInstance)\.(post|get|put|delete|patch)\([\'"]([^\'"]+)[\'"]'
-            for match in re.finditer(call_pattern, content):
-                method = match.group(2).upper()
-                path = match.group(3)
-                api_calls.append((method, path, str(api_file)))
+                # 移除變數插值，保留路徑結構
+                path = re.sub(r'\$\{[^}]+\}', '{id}', path)
+
+                api_calls.append({
+                    'method': method,
+                    'path': path,
+                    'function': function_name,
+                    'schema': data_type,
+                    'file': str(file_path)
+                })
 
         return api_calls
 
-    def check_schema_match(self, api_name: str, frontend_name: str, backend_name: str,
-                          frontend_interfaces: Dict, backend_schemas: Dict):
-        """檢查單一 schema 是否匹配"""
-        if frontend_name not in frontend_interfaces or backend_name not in backend_schemas:
-            return
+    def extract_backend_routes(self, file_path: Path) -> List[Dict]:
+        """提取後端路由及其使用的 schema"""
+        routes = []
+        content = file_path.read_text()
 
-        frontend_fields = frontend_interfaces[frontend_name]
-        backend_fields = backend_schemas[backend_name]
+        # 匹配路由定義
+        # @router.method("path", ...)
+        # def function_name(data: SchemaType, ...)
+        route_pattern = r'@router\.(get|post|put|delete|patch)\s*\(\s*[\'"]([^\'"]+)[\'"]\s*[^)]*\)[^)]*\n\s*(?:async\s+)?def\s+\w+\s*\([^)]*?(?:data:\s*(\w+))?[^)]*\)'
 
-        missing_in_backend = frontend_fields - backend_fields
-        missing_in_frontend = backend_fields - frontend_fields
+        for match in re.finditer(route_pattern, content, re.MULTILINE | re.DOTALL):
+            method = match.group(1).upper()
+            path = match.group(2)
+            schema = match.group(3)  # 可能是 None
 
-        if missing_in_backend or missing_in_frontend:
-            issue = {
-                "api": api_name,
-                "type": "Field Mismatch",
-                "severity": "P0",
-                "frontend_schema": frontend_name,
-                "backend_schema": backend_name,
-                "frontend_fields": sorted(frontend_fields),
-                "backend_fields": sorted(backend_fields),
-                "missing_in_backend": sorted(missing_in_backend),
-                "missing_in_frontend": sorted(missing_in_frontend),
-            }
-            self.issues.append(issue)
+            routes.append({
+                'method': method,
+                'path': path,
+                'schema': schema,
+                'file': str(file_path)
+            })
 
-            print(f"  ❌ {frontend_name} vs {backend_name} 不匹配:")
-            print(f"     前端欄位: {sorted(frontend_fields)}")
-            print(f"     後端欄位: {sorted(backend_fields)}")
-            if missing_in_backend:
-                print(f"     ⚠️  後端缺少: {sorted(missing_in_backend)}")
-            if missing_in_frontend:
-                print(f"     ⚠️  前端缺少: {sorted(missing_in_frontend)}")
-        else:
-            print(f"  ✅ {frontend_name} 欄位匹配")
+        return routes
 
-    def check_projects_api(self):
-        """檢查 Projects API"""
-        print("\n🔍 檢查 Projects API...")
+    def normalize_path(self, path: str) -> str:
+        """標準化路徑格式"""
+        # 替換路徑參數為統一格式
+        path = re.sub(r'\{[^}]+\}', '{id}', path)
+        # 確保以 /api/v1 開頭
+        if not path.startswith('/api/v1'):
+            path = '/api/v1' + path if path.startswith('/') else '/api/v1/' + path
+        return path
 
-        # 讀取前端 interface (嘗試兩個可能的路徑)
-        frontend_api_paths = [
-            self.frontend_dir / "services" / "api" / "projects.ts",
-            self.frontend_dir / "lib" / "api" / "projects.ts",
-        ]
+    def check_all_apis_automatically(self):
+        """自動檢查所有 API"""
+        print("\n" + "="*80)
+        print("🤖 API 契約自動檢查工具 - 完全自動化")
+        print("="*80)
 
-        frontend_interfaces = {}
-        for path in frontend_api_paths:
-            if path.exists():
-                frontend_interfaces = self.extract_typescript_interfaces(path)
-                break
+        # 1. 掃描前端 API 檔案
+        print("\n📁 掃描前端 API 檔案...")
+        frontend_api_files = []
+        for pattern in ['lib/api/*.ts', 'services/api/*.ts']:
+            frontend_api_files.extend(self.frontend_dir.glob(pattern))
 
-        # 讀取後端 schema
-        backend_schema = self.backend_dir / "schemas" / "project.py"
-        backend_schemas = {}
-        if backend_schema.exists():
-            backend_schemas = self.extract_pydantic_schemas(backend_schema)
+        print(f"   找到 {len(frontend_api_files)} 個前端 API 檔案")
 
-        # 檢查各個 API
-        self.check_schema_match("POST /api/v1/projects",
-                               "CreateProjectRequest", "ProjectCreate",
-                               frontend_interfaces, backend_schemas)
+        # 提取所有前端 interface 和 API 呼叫
+        all_frontend_interfaces = {}
+        all_frontend_calls = []
 
-        self.check_schema_match("PUT /api/v1/projects/{id}/prompt-model",
-                               "PromptModelSettings", "PromptModelUpdate",
-                               frontend_interfaces, backend_schemas)
+        for file_path in frontend_api_files:
+            interfaces = self.extract_typescript_interfaces(file_path)
+            all_frontend_interfaces.update(interfaces)
 
-        self.check_schema_match("PUT /api/v1/projects/{id}/youtube-settings",
-                               "YouTubeSettings", "YouTubeSettingsUpdate",
-                               frontend_interfaces, backend_schemas)
+            calls = self.extract_api_calls_with_schemas(file_path)
+            all_frontend_calls.extend(calls)
 
-    def check_all_apis(self):
-        """檢查所有 API"""
-        print("\n" + "="*60)
-        print("🔍 API 契約自動檢查工具")
-        print("="*60)
+        print(f"   找到 {len(all_frontend_interfaces)} 個 interface")
+        print(f"   找到 {len(all_frontend_calls)} 個 API 呼叫")
 
-        # 檢查各個 API
-        self.check_projects_api()
-        # 可以加入更多 API 檢查...
+        # 2. 掃描後端 schema 檔案
+        print("\n📁 掃描後端 Schema 檔案...")
+        backend_schema_files = list(self.backend_dir.glob('schemas/*.py'))
+        print(f"   找到 {len(backend_schema_files)} 個後端 schema 檔案")
+
+        all_backend_schemas = {}
+        for file_path in backend_schema_files:
+            schemas = self.extract_pydantic_schemas(file_path)
+            all_backend_schemas.update(schemas)
+
+        print(f"   找到 {len(all_backend_schemas)} 個 Pydantic schema")
+
+        # 3. 掃描後端路由檔案
+        print("\n📁 掃描後端路由檔案...")
+        backend_route_files = list(self.backend_dir.glob('api/**/*.py'))
+        print(f"   找到 {len(backend_route_files)} 個後端路由檔案")
+
+        all_backend_routes = []
+        for file_path in backend_route_files:
+            routes = self.extract_backend_routes(file_path)
+            all_backend_routes.extend(routes)
+
+        print(f"   找到 {len(all_backend_routes)} 個後端路由")
+
+        # 4. 匹配前後端 API
+        print("\n🔍 開始匹配前後端 API...")
+
+        for frontend_call in all_frontend_calls:
+            frontend_path = self.normalize_path(frontend_call['path'])
+            frontend_method = frontend_call['method']
+            frontend_schema = frontend_call['schema']
+
+            # 查找對應的後端路由
+            matched = False
+            for backend_route in all_backend_routes:
+                backend_path = self.normalize_path(backend_route['path'])
+                backend_method = backend_route['method']
+                backend_schema = backend_route['schema']
+
+                if frontend_method == backend_method and frontend_path == backend_path:
+                    matched = True
+                    print(f"\n✓ 找到匹配: {frontend_method} {frontend_path}")
+                    print(f"  前端: {frontend_call['function']}() 使用 {frontend_schema}")
+                    print(f"  後端: 使用 {backend_schema}")
+
+                    # 檢查 schema 欄位是否匹配
+                    if frontend_schema in all_frontend_interfaces and backend_schema and backend_schema in all_backend_schemas:
+                        frontend_fields = all_frontend_interfaces[frontend_schema]
+                        backend_fields = all_backend_schemas[backend_schema]
+
+                        missing_in_backend = frontend_fields - backend_fields
+                        missing_in_frontend = backend_fields - frontend_fields
+
+                        if missing_in_backend or missing_in_frontend:
+                            print(f"  ❌ Schema 欄位不匹配!")
+                            print(f"     前端欄位 ({frontend_schema}): {sorted(frontend_fields)}")
+                            print(f"     後端欄位 ({backend_schema}): {sorted(backend_fields)}")
+                            if missing_in_backend:
+                                print(f"     ⚠️  後端缺少: {sorted(missing_in_backend)}")
+                            if missing_in_frontend:
+                                print(f"     ⚠️  前端缺少: {sorted(missing_in_frontend)}")
+
+                            self.issues.append({
+                                'api': f"{frontend_method} {frontend_path}",
+                                'type': 'Field Mismatch',
+                                'severity': 'P0',
+                                'frontend_schema': frontend_schema,
+                                'backend_schema': backend_schema,
+                                'frontend_fields': sorted(frontend_fields),
+                                'backend_fields': sorted(backend_fields),
+                                'missing_in_backend': sorted(missing_in_backend),
+                                'missing_in_frontend': sorted(missing_in_frontend),
+                            })
+                        else:
+                            print(f"  ✅ Schema 欄位完全匹配")
+                    break
+
+            if not matched:
+                print(f"\n⚠️  前端 API 沒有對應的後端路由:")
+                print(f"  {frontend_method} {frontend_path}")
+                print(f"  函數: {frontend_call['function']}()")
+
+                self.issues.append({
+                    'api': f"{frontend_method} {frontend_path}",
+                    'type': 'Missing Backend Route',
+                    'severity': 'P1',
+                    'frontend_function': frontend_call['function'],
+                })
 
         return self.issues
 
     def generate_report(self):
         """產生問題報告"""
-        print("\n" + "="*60)
+        print("\n" + "="*80)
         print("📊 檢查結果摘要")
-        print("="*60)
+        print("="*80)
 
         if not self.issues:
             print("\n✅ 所有 API 契約檢查通過！")
@@ -201,13 +287,19 @@ class APIContractChecker:
             print(f"{i}. {issue['api']}")
             print(f"   類型: {issue['type']}")
             print(f"   嚴重程度: {issue['severity']}")
-            print(f"   前端欄位: {issue['frontend_fields']}")
-            print(f"   後端欄位: {issue['backend_fields']}")
 
-            if issue['missing_in_backend']:
-                print(f"   ⚠️  後端需要新增: {issue['missing_in_backend']}")
-            if issue['missing_in_frontend']:
-                print(f"   ⚠️  前端需要新增: {issue['missing_in_frontend']}")
+            if issue['type'] == 'Field Mismatch':
+                print(f"   前端 Schema: {issue['frontend_schema']}")
+                print(f"   後端 Schema: {issue['backend_schema']}")
+                print(f"   前端欄位: {issue['frontend_fields']}")
+                print(f"   後端欄位: {issue['backend_fields']}")
+                if issue['missing_in_backend']:
+                    print(f"   ⚠️  後端需要新增: {issue['missing_in_backend']}")
+                if issue['missing_in_frontend']:
+                    print(f"   ⚠️  前端需要新增: {issue['missing_in_frontend']}")
+            elif issue['type'] == 'Missing Backend Route':
+                print(f"   前端函數: {issue['frontend_function']}()")
+
             print()
 
         # 儲存為 JSON
@@ -222,7 +314,7 @@ def main():
     project_root = Path(__file__).parent.parent
     checker = APIContractChecker(project_root)
 
-    issues = checker.check_all_apis()
+    issues = checker.check_all_apis_automatically()
     checker.generate_report()
 
     # 返回錯誤碼

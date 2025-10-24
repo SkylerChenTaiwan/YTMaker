@@ -1,0 +1,8 @@
+[
+  {
+    "api": "POST /api/v1/prompt-templates",
+    "type": "Missing Backend Route",
+    "severity": "P1",
+    "frontend_function": "createPromptTemplate"
+  }
+]
