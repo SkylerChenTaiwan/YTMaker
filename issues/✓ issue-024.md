@@ -268,5 +268,10 @@ await updatePromptModel(projectId, {
 **相關 Commits：**
 - f70ee5d: docs: 建立 issue-024 記錄 prompt-settings API 404 錯誤
 - 109503d: fix: 修正前端 API endpoint 為 prompt-model 以匹配後端
+- d64760c: fix: 移除前端發送的 prompt_content 欄位,只發送後端接受的欄位
+
+**問題進展：**
+1. **第一階段 (404 錯誤):** API 端點名稱不一致 → 已修正
+2. **第二階段 (422 錯誤):** 前端發送了額外的 prompt_content 欄位 → 已修正
 
 **最後更新：** 2025-10-24
