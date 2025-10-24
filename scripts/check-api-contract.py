@@ -102,49 +102,76 @@ class APIContractChecker:
 
         return api_calls
 
+    def check_schema_match(self, api_name: str, frontend_name: str, backend_name: str,
+                          frontend_interfaces: Dict, backend_schemas: Dict):
+        """檢查單一 schema 是否匹配"""
+        if frontend_name not in frontend_interfaces or backend_name not in backend_schemas:
+            return
+
+        frontend_fields = frontend_interfaces[frontend_name]
+        backend_fields = backend_schemas[backend_name]
+
+        missing_in_backend = frontend_fields - backend_fields
+        missing_in_frontend = backend_fields - frontend_fields
+
+        if missing_in_backend or missing_in_frontend:
+            issue = {
+                "api": api_name,
+                "type": "Field Mismatch",
+                "severity": "P0",
+                "frontend_schema": frontend_name,
+                "backend_schema": backend_name,
+                "frontend_fields": sorted(frontend_fields),
+                "backend_fields": sorted(backend_fields),
+                "missing_in_backend": sorted(missing_in_backend),
+                "missing_in_frontend": sorted(missing_in_frontend),
+            }
+            self.issues.append(issue)
+
+            print(f"  ❌ {frontend_name} vs {backend_name} 不匹配:")
+            print(f"     前端欄位: {sorted(frontend_fields)}")
+            print(f"     後端欄位: {sorted(backend_fields)}")
+            if missing_in_backend:
+                print(f"     ⚠️  後端缺少: {sorted(missing_in_backend)}")
+            if missing_in_frontend:
+                print(f"     ⚠️  前端缺少: {sorted(missing_in_frontend)}")
+        else:
+            print(f"  ✅ {frontend_name} 欄位匹配")
+
     def check_projects_api(self):
         """檢查 Projects API"""
         print("\n🔍 檢查 Projects API...")
 
-        # 讀取前端 interface
-        frontend_api = self.frontend_dir / "services" / "api" / "projects.ts"
-        if frontend_api.exists():
-            frontend_interfaces = self.extract_typescript_interfaces(frontend_api)
+        # 讀取前端 interface (嘗試兩個可能的路徑)
+        frontend_api_paths = [
+            self.frontend_dir / "services" / "api" / "projects.ts",
+            self.frontend_dir / "lib" / "api" / "projects.ts",
+        ]
+
+        frontend_interfaces = {}
+        for path in frontend_api_paths:
+            if path.exists():
+                frontend_interfaces = self.extract_typescript_interfaces(path)
+                break
 
         # 讀取後端 schema
         backend_schema = self.backend_dir / "schemas" / "project.py"
+        backend_schemas = {}
         if backend_schema.exists():
             backend_schemas = self.extract_pydantic_schemas(backend_schema)
 
-        # 檢查 CreateProject
-        if "CreateProjectRequest" in frontend_interfaces and "ProjectCreate" in backend_schemas:
-            frontend_fields = frontend_interfaces["CreateProjectRequest"]
-            backend_fields = backend_schemas["ProjectCreate"]
+        # 檢查各個 API
+        self.check_schema_match("POST /api/v1/projects",
+                               "CreateProjectRequest", "ProjectCreate",
+                               frontend_interfaces, backend_schemas)
 
-            missing_in_backend = frontend_fields - backend_fields
-            missing_in_frontend = backend_fields - frontend_fields
+        self.check_schema_match("PUT /api/v1/projects/{id}/prompt-model",
+                               "PromptModelSettings", "PromptModelUpdate",
+                               frontend_interfaces, backend_schemas)
 
-            if missing_in_backend or missing_in_frontend:
-                issue = {
-                    "api": "POST /api/v1/projects",
-                    "type": "Field Mismatch",
-                    "severity": "P0",
-                    "frontend_fields": sorted(frontend_fields),
-                    "backend_fields": sorted(backend_fields),
-                    "missing_in_backend": sorted(missing_in_backend),
-                    "missing_in_frontend": sorted(missing_in_frontend),
-                }
-                self.issues.append(issue)
-
-                print(f"  ❌ 發現不匹配:")
-                print(f"     前端欄位: {sorted(frontend_fields)}")
-                print(f"     後端欄位: {sorted(backend_fields)}")
-                if missing_in_backend:
-                    print(f"     ⚠️  後端缺少: {sorted(missing_in_backend)}")
-                if missing_in_frontend:
-                    print(f"     ⚠️  前端缺少: {sorted(missing_in_frontend)}")
-            else:
-                print(f"  ✅ CreateProject 欄位匹配")
+        self.check_schema_match("PUT /api/v1/projects/{id}/youtube-settings",
+                               "YouTubeSettings", "YouTubeSettingsUpdate",
+                               frontend_interfaces, backend_schemas)
 
     def check_all_apis(self):
         """檢查所有 API"""
