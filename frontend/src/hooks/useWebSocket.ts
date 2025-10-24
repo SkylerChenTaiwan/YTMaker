@@ -141,11 +141,18 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
 
     // 清理函數
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
+      // 清除重連計時器
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current)
+      }
+
+      // 關閉 WebSocket 連線
+      // 注意：這個 cleanup 會在組件 unmount 或 connect 改變時執行
+      // 在 StrictMode 下會導致連線被關閉並重新建立
+      if (wsRef.current) {
+        console.log('[WebSocket] Cleanup: 關閉連線')
+        wsRef.current.close(1000, 'Component cleanup')
+        wsRef.current = null
       }
     }
   }, [connect])
