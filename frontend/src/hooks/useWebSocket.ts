@@ -44,6 +44,12 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
   }, [onMessage, onError, onReconnect])
 
   const connect = useCallback(() => {
+    // 如果已有連線且狀態正常，不重複連線
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('[WebSocket] 已有活動連線，跳過重複連線')
+      return
+    }
+
     // 關閉現有連線
     if (wsRef.current) {
       wsRef.current.close()
@@ -93,16 +99,20 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
       onErrorRef.current?.(error)
     }
 
-    ws.onclose = () => {
-      console.log('WebSocket 連線關閉')
+    ws.onclose = (event) => {
+      console.log('WebSocket 連線關閉', { code: event.code, reason: event.reason, wasClean: event.wasClean })
       setIsConnected(false)
 
-      // 自動重連
-      reconnectTimerRef.current = setTimeout(() => {
-        console.log('嘗試重新連線...')
-        onReconnectRef.current?.()
-        connect()
-      }, reconnectInterval)
+      // 只有非正常關閉才自動重連（避免無限重連循環）
+      if (event.code !== 1000 && event.code !== 1005) {
+        reconnectTimerRef.current = setTimeout(() => {
+          console.log('嘗試重新連線...', { closeCode: event.code })
+          onReconnectRef.current?.()
+          connect()
+        }, reconnectInterval)
+      } else {
+        console.log('正常關閉連線，不自動重連')
+      }
     }
 
     wsRef.current = ws
