@@ -32,7 +32,7 @@ jest.mock('sonner', () => ({
 jest.mock('@/lib/api/projects', () => ({
   getProject: jest.fn(),
   getPromptTemplates: jest.fn(),
-  updatePromptSettings: jest.fn(),
+  updatePromptModel: jest.fn(),
 }))
 
 const createTestQueryClient = () =>

@@ -30,7 +30,7 @@ jest.mock('sonner', () => ({
 jest.mock('@/lib/api/projects', () => ({
   getProject: jest.fn(),
   getPromptTemplates: jest.fn(),
-  updatePromptSettings: jest.fn(),
+  updatePromptModel: jest.fn(),
   updateYouTubeSettings: jest.fn(),
   startGeneration: jest.fn(),
 }))
@@ -73,7 +73,7 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
       { id: 'custom-1', name: '自訂範本 1', content: '自訂內容...' + 'x'.repeat(193) }, // 7 + 193 = 200
     ])
 
-    ;(projectsApi.updatePromptSettings as jest.Mock).mockResolvedValue({
+    ;(projectsApi.updatePromptModel as jest.Mock).mockResolvedValue({
       id: 'project-123',
       prompt_template_id: 'custom-1',
       prompt_content: '自訂內容...' + 'x'.repeat(193), // 7 + 193 = 200
@@ -116,7 +116,7 @@ describe('整合測試 - 測試 10: 完整流程 Prompt 設定 -> YouTube 設定
 
     // 4. Verify API called
     await waitFor(() => {
-      expect(projectsApi.updatePromptSettings).toHaveBeenCalledWith('project-123', {
+      expect(projectsApi.updatePromptModel).toHaveBeenCalledWith('project-123', {
         prompt_template_id: 'custom-1',
         prompt_content: expect.stringContaining('自訂內容'),
         gemini_model: 'gemini-1.5-pro',
