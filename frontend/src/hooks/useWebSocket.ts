@@ -30,6 +30,7 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const reconnectTimerRef = useRef<NodeJS.Timeout>()
+  const isIntentionalCloseRef = useRef(false) // 追蹤是否為主動關閉
 
   // 使用 ref 儲存回調函數，避免依賴變化導致重新連線
   const onMessageRef = useRef(onMessage)
@@ -52,7 +53,9 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
 
     // 關閉現有連線
     if (wsRef.current) {
+      isIntentionalCloseRef.current = true
       wsRef.current.close()
+      isIntentionalCloseRef.current = false
     }
 
     // 建立 WebSocket 連線
@@ -100,18 +103,32 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
     }
 
     ws.onclose = (event) => {
-      console.log('WebSocket 連線關閉', { code: event.code, reason: event.reason, wasClean: event.wasClean })
+      console.log('WebSocket 連線關閉', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        intentional: isIntentionalCloseRef.current
+      })
       setIsConnected(false)
 
-      // 只有非正常關閉才自動重連（避免無限重連循環）
-      if (event.code !== 1000 && event.code !== 1005) {
+      // 不自動重連的情況：
+      // 1. 主動關閉（cleanup）
+      // 2. 正常關閉 (1000)
+      // 3. 無狀態關閉 (1005, 1006) - 通常是 StrictMode 導致
+      const shouldNotReconnect =
+        isIntentionalCloseRef.current ||
+        event.code === 1000 ||
+        event.code === 1005 ||
+        event.code === 1006
+
+      if (!shouldNotReconnect) {
         reconnectTimerRef.current = setTimeout(() => {
           console.log('嘗試重新連線...', { closeCode: event.code })
           onReconnectRef.current?.()
           connect()
         }, reconnectInterval)
       } else {
-        console.log('正常關閉連線，不自動重連')
+        console.log('不自動重連', { code: event.code, intentional: isIntentionalCloseRef.current })
       }
     }
 
@@ -151,8 +168,10 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
       // 在 StrictMode 下會導致連線被關閉並重新建立
       if (wsRef.current) {
         console.log('[WebSocket] Cleanup: 關閉連線')
+        isIntentionalCloseRef.current = true
         wsRef.current.close(1000, 'Component cleanup')
         wsRef.current = null
+        isIntentionalCloseRef.current = false
       }
     }
   }, [connect])
