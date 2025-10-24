@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // 暫時關閉以避免 WebSocket double-render 警告
 
   // 暫時禁用 TypeScript 和 ESLint 檢查以讓開發伺服器運行
   typescript: {
