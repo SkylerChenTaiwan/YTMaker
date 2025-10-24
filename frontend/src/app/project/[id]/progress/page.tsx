@@ -49,20 +49,35 @@ export default function ProgressPage({ params }: ProgressPageProps) {
   // WebSocket 連線
   const { isConnected, reconnect } = useWebSocket(projectId, {
     onMessage: (message) => {
-      if (message.type === 'progress') {
+      // Backend 使用 'event' 而不是 'type'
+      if (message.event === 'progress_update') {
         updateProgress(message.data)
-      } else if (message.type === 'log') {
+      } else if (message.event === 'log') {
         addLog(message.data)
-      } else if (message.type === 'stage_complete') {
-        const stageName = message.data.stage as keyof typeof progress.stages
+      } else if (message.event === 'stage_change') {
+        const stageName = message.data.current_stage as keyof typeof progress.stages
         updateProgress({
           stages: {
             ...progress.stages,
-            [stageName]: { ...progress.stages[stageName], status: 'completed' }
+            [stageName]: { ...progress.stages[stageName], status: 'in_progress' }
           }
         })
-      } else if (message.type === 'error') {
-        toast.error(message.data.message)
+        // 標記前一個階段為完成
+        if (message.data.previous_stage) {
+          const prevStageName = message.data.previous_stage as keyof typeof progress.stages
+          updateProgress({
+            stages: {
+              ...progress.stages,
+              [prevStageName]: { ...progress.stages[prevStageName], status: 'completed' }
+            }
+          })
+        }
+      } else if (message.event === 'complete') {
+        toast.success('影片生成完成！')
+        // 可以導向結果頁面
+        // router.push(`/project/${projectId}/result`)
+      } else if (message.event === 'error') {
+        toast.error(message.data.message || '發生錯誤')
       }
     },
     onError: (error) => {

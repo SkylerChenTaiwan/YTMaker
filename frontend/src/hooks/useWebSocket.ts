@@ -53,21 +53,22 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
       console.log('WebSocket 連線成功')
       setIsConnected(true)
 
-      // 啟動心跳檢測
-      heartbeatTimerRef.current = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' }))
-        }
-      }, heartbeatInterval)
+      // 不需要主動發送心跳 - backend 會發送 ping，我們只需要回應 pong
     }
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data)
 
-        // 處理 pong 訊息 (心跳回應)
-        if (message.type === 'pong') {
-          console.log('Received heartbeat pong')
+        // 處理 ping 訊息 (心跳檢測) - backend 會發送 ping，我們回應 pong
+        if (message.event === 'ping') {
+          ws.send(JSON.stringify({ event: 'pong' }))
+          return
+        }
+
+        // 處理 connected 訊息
+        if (message.event === 'connected') {
+          console.log('WebSocket 已連線:', message.data)
           return
         }
 
@@ -86,11 +87,6 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
     ws.onclose = () => {
       console.log('WebSocket 連線關閉')
       setIsConnected(false)
-
-      // 清除心跳計時器
-      if (heartbeatTimerRef.current) {
-        clearInterval(heartbeatTimerRef.current)
-      }
 
       // 自動重連
       reconnectTimerRef.current = setTimeout(() => {
@@ -131,9 +127,6 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
       }
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current)
-      }
-      if (heartbeatTimerRef.current) {
-        clearInterval(heartbeatTimerRef.current)
       }
     }
   }, [connect])
