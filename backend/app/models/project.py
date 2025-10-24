@@ -61,6 +61,7 @@ class Project(Base, TimestampMixin):
         ForeignKey("prompt_templates.id", ondelete="SET NULL"),
         nullable=True,
     )
+    prompt_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     gemini_model: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # YouTube Settings

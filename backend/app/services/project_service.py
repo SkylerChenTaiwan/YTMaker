@@ -160,9 +160,13 @@ class ProjectService:
             raise ProjectNotFoundException(project_id)
 
         # 至少要提供一個欄位
-        if data.prompt_template_id is None and data.gemini_model is None:
+        if (
+            data.prompt_template_id is None
+            and data.prompt_content is None
+            and data.gemini_model is None
+        ):
             raise ValidationException(
-                message="At least one field (prompt_template_id or gemini_model) must be provided"
+                message="At least one field (prompt_template_id, prompt_content, or gemini_model) must be provided"
             )
 
         # 如果有提供 prompt_template_id，驗證它是否存在
@@ -177,6 +181,10 @@ class ProjectService:
                     message=f"Prompt template '{data.prompt_template_id}' not found"
                 )
             project.prompt_template_id = str(data.prompt_template_id)
+
+        # 如果有提供 prompt_content，更新它（自訂內容優先）
+        if data.prompt_content is not None:
+            project.prompt_content = data.prompt_content
 
         # 如果有提供 gemini_model，更新它
         if data.gemini_model is not None:

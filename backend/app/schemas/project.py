@@ -46,6 +46,7 @@ class PromptModelUpdate(BaseModel):
     """Update Prompt and model request"""
 
     prompt_template_id: Optional[UUID] = None
+    prompt_content: Optional[str] = None
     gemini_model: Optional[str] = Field(None, pattern="^(gemini-1.5-pro|gemini-1.5-flash)$")
 
 
@@ -85,6 +86,7 @@ class ProjectResponse(BaseModel):
     content: Optional[str] = None
     configuration: Optional[dict[str, Any]] = None
     prompt_template_id: Optional[str] = None
+    prompt_content: Optional[str] = None
     gemini_model: Optional[str] = None
     youtube_settings: Optional[dict[str, Any]] = None
     youtube_video_id: Optional[str] = None

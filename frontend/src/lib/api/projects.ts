@@ -10,6 +10,7 @@ export interface PromptTemplate {
 
 export interface PromptModelSettings {
   prompt_template_id: string
+  prompt_content?: string
   gemini_model: 'gemini-1.5-pro' | 'gemini-1.5-flash'
 }
 

@@ -26,6 +26,7 @@ import { getGeminiModels, type GeminiModel } from '@/lib/api/gemini'
 const createPromptFormSchema = (availableModels: string[]) =>
   z.object({
     prompt_template_id: z.string().min(1, '請選擇 Prompt 範本'),
+    prompt_content: z.string().min(1, 'Prompt 內容不能為空'),
     gemini_model: z.string().refine(
       (model) => availableModels.length === 0 || availableModels.includes(model),
       {
@@ -36,6 +37,7 @@ const createPromptFormSchema = (availableModels: string[]) =>
 
 interface PromptFormData {
   prompt_template_id: string
+  prompt_content: string
   gemini_model: string
 }
 
@@ -48,6 +50,7 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
   const router = useRouter()
   const [formData, setFormData] = useState<PromptFormData>({
     prompt_template_id: '',
+    prompt_content: '',
     gemini_model: '', // 等待從 API 載入
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -96,9 +99,12 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
               ? modelsData.value[0].name.split('/').pop() || ''
               : ''
 
+          const defaultTemplateId = projectData.prompt_template_id || templates[0]?.id || ''
+          const defaultTemplate = templates.find((t) => t.id === defaultTemplateId)
+
           setFormData({
-            prompt_template_id:
-              projectData.prompt_template_id || templates[0]?.id || '',
+            prompt_template_id: defaultTemplateId,
+            prompt_content: projectData.prompt_content || defaultTemplate?.content || '',
             gemini_model: projectData.gemini_model || defaultModel,
           })
         } else {
@@ -119,9 +125,11 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
 
   // Handle template selection
   const handleTemplateChange = (templateId: string) => {
+    const selectedTemplate = templates.find((t) => t.id === templateId)
     setFormData({
       ...formData,
       prompt_template_id: templateId,
+      prompt_content: selectedTemplate?.content || '',
     })
     // Clear errors when template changes
     setErrors({})
@@ -150,9 +158,10 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
       setErrors({})
       setSaving(true)
 
-      // Save settings - only send template_id and model, not content
+      // Save settings with prompt content
       await updatePromptModel(params.id, {
         prompt_template_id: formData.prompt_template_id,
+        prompt_content: formData.prompt_content,
         gemini_model: formData.gemini_model,
       })
 
@@ -219,6 +228,26 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
             />
             {errors.prompt_template_id && (
               <p className="mt-2 text-sm text-red-600">{errors.prompt_template_id}</p>
+            )}
+          </div>
+
+          {/* Prompt Editor Section */}
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4">Prompt 內容</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              您可以編輯範本的預設內容，自訂後的內容將用於生成影片
+            </p>
+            <textarea
+              value={formData.prompt_content}
+              onChange={(e) =>
+                setFormData({ ...formData, prompt_content: e.target.value })
+              }
+              className="w-full min-h-[300px] p-4 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="請選擇範本或輸入自訂 Prompt..."
+              data-testid="prompt-editor"
+            />
+            {errors.prompt_content && (
+              <p className="mt-2 text-sm text-red-600">{errors.prompt_content}</p>
             )}
           </div>
 
