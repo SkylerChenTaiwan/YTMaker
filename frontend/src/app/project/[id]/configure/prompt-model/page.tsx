@@ -21,18 +21,29 @@ import {
   type PromptSettings,
   type PromptTemplate,
 } from '@/lib/api/projects'
+import { getGeminiModels, type GeminiModel } from '@/lib/api/gemini'
 
-// Validation schema
-const promptFormSchema = z.object({
-  prompt_template_id: z.string().min(1, '請選擇 Prompt 範本'),
-  prompt_content: z
-    .string()
-    .min(200, 'Prompt 長度必須在 200-1000 字之間')
-    .max(1000, 'Prompt 長度必須在 200-1000 字之間'),
-  gemini_model: z.enum(['gemini-1.5-pro', 'gemini-1.5-flash']),
-})
+// Validation schema - 動態驗證模型
+const createPromptFormSchema = (availableModels: string[]) =>
+  z.object({
+    prompt_template_id: z.string().min(1, '請選擇 Prompt 範本'),
+    prompt_content: z
+      .string()
+      .min(200, 'Prompt 長度必須在 200-1000 字之間')
+      .max(1000, 'Prompt 長度必須在 200-1000 字之間'),
+    gemini_model: z.string().refine(
+      (model) => availableModels.length === 0 || availableModels.includes(model),
+      {
+        message: '請選擇有效的 Gemini 模型',
+      }
+    ),
+  })
 
-type PromptFormData = z.infer<typeof promptFormSchema>
+interface PromptFormData {
+  prompt_template_id: string
+  prompt_content: string
+  gemini_model: string
+}
 
 export default function PromptModelPage({ params }: { params: { id: string } }) {
   // 驗證 UUID 格式
@@ -44,36 +55,71 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
   const [formData, setFormData] = useState<PromptFormData>({
     prompt_template_id: '',
     prompt_content: '',
-    gemini_model: 'gemini-1.5-flash',
+    gemini_model: '', // 等待從 API 載入
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [templates, setTemplates] = useState<PromptTemplate[]>([])
+  const [models, setModels] = useState<GeminiModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
+  const [modelsError, setModelsError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Load project and templates data
+  // Load project, templates, and models data
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true)
-        const [project, templatesData] = await Promise.all([
+        setModelsLoading(true)
+
+        // 並行載入 project, templates, 和 models
+        const [project, templatesData, modelsData] = await Promise.allSettled([
           getProject(params.id),
           getPromptTemplates(),
+          getGeminiModels(),
         ])
 
-        setTemplates(templatesData)
+        // 處理 templates
+        const templates = templatesData.status === 'fulfilled' ? templatesData.value : []
+        setTemplates(templates)
 
-        // Set form data from project
-        setFormData({
-          prompt_template_id: project.prompt_template_id || templatesData[0]?.id || '',
-          prompt_content: project.prompt_content || templatesData[0]?.content || '',
-          gemini_model: project.gemini_model || 'gemini-1.5-flash',
-        })
+        // 處理 models
+        if (modelsData.status === 'fulfilled') {
+          setModels(modelsData.value)
+          setModelsError(null)
+        } else {
+          console.error('Failed to load models:', modelsData.reason)
+          setModelsError(
+            modelsData.reason?.message || '無法載入模型列表，請稍後再試'
+          )
+          setModels([])
+        }
+
+        // 處理 project data
+        if (project.status === 'fulfilled') {
+          const projectData = project.value
+          const defaultModel =
+            modelsData.status === 'fulfilled' && modelsData.value.length > 0
+              ? modelsData.value[0].name.split('/').pop() || ''
+              : ''
+
+          setFormData({
+            prompt_template_id:
+              projectData.prompt_template_id || templates[0]?.id || '',
+            prompt_content:
+              projectData.prompt_content || templates[0]?.content || '',
+            gemini_model: projectData.gemini_model || defaultModel,
+          })
+        } else {
+          console.error('Failed to load project:', project.reason)
+          toast.error('載入專案資料失敗')
+        }
       } catch (error) {
         console.error('Failed to load data:', error)
         toast.error('載入資料失敗')
       } finally {
         setLoading(false)
+        setModelsLoading(false)
       }
     }
 
@@ -97,16 +143,17 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
   // Handle form submit
   const handleNext = async () => {
     try {
+      // 動態創建驗證 schema
+      const availableModelIds = models.map((m) => m.name.split('/').pop() || m.name)
+      const promptFormSchema = createPromptFormSchema(availableModelIds)
+
       // Validate
       const result = promptFormSchema.safeParse(formData)
       if (!result.success) {
         const fieldErrors = result.error.flatten().fieldErrors
         setErrors(
           Object.fromEntries(
-            Object.entries(fieldErrors).map(([key, value]) => [
-              key,
-              value?.[0] || '',
-            ])
+            Object.entries(fieldErrors).map(([key, value]) => [key, value?.[0] || ''])
           )
         )
         toast.error('請檢查表單內容')
@@ -162,7 +209,7 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
 
         <StepIndicator current={2} total={4} steps={steps} />
 
-        <div className="max-w-4xl mx-auto mt-8">
+        <div className="max-w-6xl mx-auto mt-8">
           <h1 className="text-3xl font-bold mb-6">Prompt 與模型設定</h1>
 
           {/* Prompt Template Section */}
@@ -199,7 +246,7 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
                 目前字數: {formData.prompt_content.length} / 1000
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                建議: 包含段落時長要求(5-20 秒)以獲得更好的效果
+                建議: 確保 Prompt 包含完整的 JSON schema 和段落結構說明以獲得更好的效果
               </p>
             </div>
           </div>
@@ -208,9 +255,15 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">選擇 Gemini 模型</h2>
             <ModelSelector
+              models={models}
               selected={formData.gemini_model}
               onChange={(model) => setFormData({ ...formData, gemini_model: model })}
+              loading={modelsLoading}
+              error={modelsError}
             />
+            {errors.gemini_model && (
+              <p className="mt-2 text-sm text-red-600">{errors.gemini_model}</p>
+            )}
           </div>
 
           {/* Navigation Buttons */}
@@ -225,7 +278,7 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
               variant="primary"
               onClick={handleNext}
               loading={saving}
-              disabled={saving}
+              disabled={saving || modelsLoading || (models.length === 0 && !modelsError)}
             >
               下一步
             </Button>
