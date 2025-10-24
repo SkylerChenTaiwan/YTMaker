@@ -30,7 +30,18 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const reconnectTimerRef = useRef<NodeJS.Timeout>()
-  const heartbeatTimerRef = useRef<NodeJS.Timeout>()
+
+  // 使用 ref 儲存回調函數，避免依賴變化導致重新連線
+  const onMessageRef = useRef(onMessage)
+  const onErrorRef = useRef(onError)
+  const onReconnectRef = useRef(onReconnect)
+
+  // 更新 refs
+  useEffect(() => {
+    onMessageRef.current = onMessage
+    onErrorRef.current = onError
+    onReconnectRef.current = onReconnect
+  }, [onMessage, onError, onReconnect])
 
   const connect = useCallback(() => {
     // 關閉現有連線
@@ -52,8 +63,6 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
     ws.onopen = () => {
       console.log('WebSocket 連線成功')
       setIsConnected(true)
-
-      // 不需要主動發送心跳 - backend 會發送 ping，我們只需要回應 pong
     }
 
     ws.onmessage = (event) => {
@@ -72,7 +81,7 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
           return
         }
 
-        onMessage(message)
+        onMessageRef.current(message)
       } catch (error) {
         console.error('WebSocket 訊息解析錯誤:', error)
       }
@@ -81,7 +90,7 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
     ws.onerror = (error) => {
       console.error('WebSocket 錯誤:', error)
       setIsConnected(false)
-      onError?.(error)
+      onErrorRef.current?.(error)
     }
 
     ws.onclose = () => {
@@ -91,13 +100,13 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
       // 自動重連
       reconnectTimerRef.current = setTimeout(() => {
         console.log('嘗試重新連線...')
-        onReconnect?.()
+        onReconnectRef.current?.()
         connect()
       }, reconnectInterval)
     }
 
     wsRef.current = ws
-  }, [projectId, onMessage, onError, onReconnect, reconnectInterval, heartbeatInterval])
+  }, [projectId, reconnectInterval])
 
   // 手動重連
   const reconnect = useCallback(() => {
