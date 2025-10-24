@@ -346,6 +346,88 @@ class IntegrationTester:
                 request_data=test_data
             )
 
+    def test_get_prompt_templates(self) -> TestResult:
+        """測試獲取 Prompt 範本列表 API"""
+        print("\n📝 測試: GET /api/v1/prompt-templates (獲取 Prompt 範本)")
+
+        try:
+            response = requests.get(
+                f"{self.backend_url}/api/v1/prompt-templates",
+                timeout=10
+            )
+
+            result = TestResult(
+                api="/api/v1/prompt-templates",
+                method="GET",
+                status_code=response.status_code,
+                success=response.status_code == 200,
+                response_data=response.json() if response.status_code == 200 else None
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                # 驗證響應格式
+                if 'success' not in data or 'data' not in data:
+                    result.success = False
+                    result.error_message = "響應格式錯誤：缺少 success 或 data 欄位"
+                    result.issue_type = "Response Format Error"
+                    print(f"   ❌ 響應格式錯誤")
+
+                    self.issues.append({
+                        "api": "/api/v1/prompt-templates",
+                        "method": "GET",
+                        "severity": "P1",
+                        "type": "Response Format Error",
+                        "error_detail": "Missing 'success' or 'data' field",
+                        "actual_response": data,
+                    })
+                elif 'templates' not in data.get('data', {}):
+                    result.success = False
+                    result.error_message = "響應格式錯誤：data 中缺少 templates 欄位"
+                    result.issue_type = "Response Format Error"
+                    print(f"   ❌ 響應格式錯誤：缺少 templates")
+
+                    self.issues.append({
+                        "api": "/api/v1/prompt-templates",
+                        "method": "GET",
+                        "severity": "P1",
+                        "type": "Response Format Error",
+                        "error_detail": "Missing 'templates' field in data",
+                        "actual_response": data,
+                    })
+                elif not isinstance(data['data']['templates'], list):
+                    result.success = False
+                    result.error_message = "響應格式錯誤：templates 不是陣列"
+                    result.issue_type = "Response Format Error"
+                    print(f"   ❌ templates 不是陣列")
+
+                    self.issues.append({
+                        "api": "/api/v1/prompt-templates",
+                        "method": "GET",
+                        "severity": "P1",
+                        "type": "Response Format Error",
+                        "error_detail": "templates is not an array",
+                        "actual_type": type(data['data']['templates']).__name__,
+                    })
+                else:
+                    count = len(data['data']['templates'])
+                    print(f"   ✅ 成功取得 {count} 個 Prompt 範本")
+                    print(f"   ℹ️  響應格式正確: {{success, data: {{templates: []}}}}")
+            else:
+                print(f"   ⚠️  狀態碼: {response.status_code}")
+
+            return result
+
+        except Exception as e:
+            return TestResult(
+                api="/api/v1/prompt-templates",
+                method="GET",
+                status_code=0,
+                success=False,
+                error_message=str(e)
+            )
+
     def run_all_tests(self):
         """執行所有測試"""
         print("\n" + "="*60)
@@ -364,6 +446,10 @@ class IntegrationTester:
         # 測試列表
         list_result = self.test_list_projects()
         self.results.append(list_result)
+
+        # 測試 Prompt 範本列表
+        templates_result = self.test_get_prompt_templates()
+        self.results.append(templates_result)
 
         # 測試創建專案
         create_result = self.test_create_project()
