@@ -17,8 +17,8 @@ import { ModelSelector } from '@/components/ui/ModelSelector'
 import {
   getProject,
   getPromptTemplates,
-  updatePromptSettings,
-  type PromptSettings,
+  updatePromptModel,
+  type PromptModelSettings,
   type PromptTemplate,
 } from '@/lib/api/projects'
 import { getGeminiModels, type GeminiModel } from '@/lib/api/gemini'
@@ -164,7 +164,7 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
       setSaving(true)
 
       // Save settings
-      await updatePromptSettings(params.id, formData)
+      await updatePromptModel(params.id, formData)
 
       toast.success('設定已儲存')
       router.push(`/project/${params.id}/configure/youtube`)

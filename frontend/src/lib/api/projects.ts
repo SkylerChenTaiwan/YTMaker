@@ -8,7 +8,7 @@ export interface PromptTemplate {
   updated_at?: string
 }
 
-export interface PromptSettings {
+export interface PromptModelSettings {
   prompt_template_id: string
   prompt_content: string
   gemini_model: 'gemini-1.5-pro' | 'gemini-1.5-flash'
@@ -89,14 +89,14 @@ export async function createPromptTemplate(
 }
 
 /**
- * 更新專案的 Prompt 設定
+ * 更新專案的 Prompt 範本與模型設定
  */
-export async function updatePromptSettings(
+export async function updatePromptModel(
   projectId: string,
-  data: PromptSettings
+  data: PromptModelSettings
 ): Promise<Project> {
   const response = await apiClient.put(
-    `/api/v1/projects/${projectId}/prompt-settings`,
+    `/api/v1/projects/${projectId}/prompt-model`,
     data
   )
   return response.data
