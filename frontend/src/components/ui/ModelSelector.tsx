@@ -2,6 +2,7 @@
 'use client'
 
 import { cn } from '@/lib/cn'
+import { Select } from './Select'
 import type { GeminiModel } from '@/lib/api/gemini'
 import { extractModelId } from '@/lib/api/gemini'
 
@@ -24,10 +25,10 @@ export function ModelSelector({
 }: ModelSelectorProps) {
   if (loading) {
     return (
-      <div className={cn('flex items-center justify-center py-12', className)}>
+      <div className={cn('flex items-center justify-center py-8', className)}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">載入模型列表中...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-3 text-sm text-gray-600">載入模型列表中...</p>
         </div>
       </div>
     )
@@ -36,11 +37,11 @@ export function ModelSelector({
   if (error) {
     return (
       <div className={cn('', className)}>
-        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-6">
+        <div className="border-2 border-red-300 bg-red-50 rounded-lg p-4">
           <div className="flex items-start">
             <div className="flex-shrink-0">
               <svg
-                className="h-6 w-6 text-red-600"
+                className="h-5 w-5 text-red-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -55,9 +56,9 @@ export function ModelSelector({
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">無法載入模型列表</h3>
-              <p className="mt-2 text-sm text-red-700">{error}</p>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
               {error.includes('API Key') && (
-                <p className="mt-3 text-sm text-red-700">
+                <p className="mt-2 text-sm text-red-700">
                   請前往<span className="font-medium">系統設定</span>配置 Gemini API Key
                 </p>
               )}
@@ -71,11 +72,11 @@ export function ModelSelector({
   if (models.length === 0) {
     return (
       <div className={cn('', className)}>
-        <div className="border-2 border-yellow-300 bg-yellow-50 rounded-lg p-6">
+        <div className="border-2 border-yellow-300 bg-yellow-50 rounded-lg p-4">
           <div className="flex items-start">
             <div className="flex-shrink-0">
               <svg
-                className="h-6 w-6 text-yellow-600"
+                className="h-5 w-5 text-yellow-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -90,7 +91,7 @@ export function ModelSelector({
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">沒有可用的模型</h3>
-              <p className="mt-2 text-sm text-yellow-700">
+              <p className="mt-1 text-sm text-yellow-700">
                 目前沒有可用的 Gemini 模型。請檢查 API Key 設定或稍後再試。
               </p>
             </div>
@@ -100,49 +101,44 @@ export function ModelSelector({
     )
   }
 
+  // 找到選中的模型以顯示詳細資訊
+  const selectedModel = models.find((m) => {
+    const modelId = extractModelId(m.name)
+    return selected === modelId || selected === m.name
+  })
+
+  // 準備選單選項
+  const selectOptions = models.map((model) => ({
+    value: extractModelId(model.name),
+    label: model.display_name,
+  }))
+
   return (
     <div className={className}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {models.map((model) => {
-          const modelId = extractModelId(model.name)
-          const isSelected = selected === modelId || selected === model.name
+      <Select
+        label="選擇模型"
+        value={selected}
+        onChange={onChange}
+        options={selectOptions}
+        data-testid="model-selector"
+      />
 
-          return (
-            <label
-              key={model.name}
-              className={cn(
-                'border-2 rounded-lg p-4 cursor-pointer transition-all hover:shadow-md',
-                isSelected
-                  ? 'border-blue-500 bg-blue-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
-              )}
-            >
-              <input
-                type="radio"
-                name="model"
-                value={modelId}
-                checked={isSelected}
-                onChange={(e) => onChange(e.target.value)}
-                className="sr-only"
-                data-testid={`model-${modelId.replace(/\./g, '-')}`}
-                aria-label={model.display_name}
-              />
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-bold text-base">{model.display_name}</h3>
-                {isSelected && <span className="text-blue-500 text-xl">✓</span>}
-              </div>
-              <p className="text-sm text-gray-600 line-clamp-2">{model.description}</p>
-              <p className="text-xs text-gray-400 mt-2">{modelId}</p>
-            </label>
-          )
-        })}
-      </div>
+      {/* 顯示選中模型的詳細資訊 */}
+      {selectedModel && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start justify-between mb-2">
+            <h4 className="font-semibold text-blue-900">{selectedModel.display_name}</h4>
+            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+              {extractModelId(selectedModel.name)}
+            </span>
+          </div>
+          <p className="text-sm text-blue-800">{selectedModel.description}</p>
+        </div>
+      )}
 
-      <div className="mt-4 text-sm text-gray-500">
-        <p>
-          共 {models.length} 個可用模型 · 模型列表會自動從 Google API 更新
-        </p>
-      </div>
+      <p className="mt-3 text-xs text-gray-500">
+        共 {models.length} 個可用模型 · 模型列表會自動從 Google API 更新
+      </p>
     </div>
   )
 }
