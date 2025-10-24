@@ -109,9 +109,24 @@ export async function updateYouTubeSettings(
   projectId: string,
   data: YouTubeSettings
 ): Promise<Project> {
+  // 轉換欄位名稱以符合後端 API
+  const payload: any = {
+    title: data.youtube_title,
+    description: data.youtube_description || '',
+    tags: data.youtube_tags,
+    privacy: data.privacy,
+    publish_type: data.publish_type,
+    ai_content_flag: data.ai_content_flag,
+  }
+
+  // 如果是排程發布，合併日期和時間為 ISO datetime 字串
+  if (data.publish_type === 'scheduled' && data.scheduled_date && data.scheduled_time) {
+    payload.scheduled_time = `${data.scheduled_date}T${data.scheduled_time}:00`
+  }
+
   const response = await apiClient.put(
     `/api/v1/projects/${projectId}/youtube-settings`,
-    data
+    payload
   )
   return response.data
 }
