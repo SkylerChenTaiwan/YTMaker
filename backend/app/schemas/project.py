@@ -19,7 +19,7 @@ class ProjectCreate(BaseModel):
     prompt_template_id: Optional[UUID] = Field(None, description="Prompt template ID")
     gemini_model: str = Field(
         "gemini-1.5-flash",
-        pattern="^(gemini-1.5-pro|gemini-1.5-flash)$",
+        pattern="^gemini-",
         description="Gemini model",
     )
 
@@ -47,7 +47,7 @@ class PromptModelUpdate(BaseModel):
 
     prompt_template_id: Optional[UUID] = None
     prompt_content: Optional[str] = None
-    gemini_model: Optional[str] = Field(None, pattern="^(gemini-1.5-pro|gemini-1.5-flash)$")
+    gemini_model: Optional[str] = Field(None, pattern="^gemini-")
 
 
 class YouTubeSettingsUpdate(BaseModel):

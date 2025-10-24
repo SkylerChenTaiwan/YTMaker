@@ -3,8 +3,8 @@
 # 支援的語音性別
 VOICE_GENDERS = ["male", "female"]
 
-# 支援的 Gemini 模型
-GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash"]
+# 常見的 Gemini 模型（非限制性列表，系統接受所有以 gemini- 開頭的模型）
+GEMINI_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-flash-preview-05-20"]
 
 # 專案狀態
 PROJECT_STATUS = [

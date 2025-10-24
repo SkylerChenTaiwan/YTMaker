@@ -3,6 +3,7 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -112,6 +113,28 @@ async def log_requests(request: Request, call_next):
 
 
 # 全局異常處理器
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """處理 Pydantic 驗證錯誤 (422)"""
+    logger.warning(
+        f"請求驗證失敗: {request.url.path}",
+        extra={
+            "path": request.url.path,
+            "errors": exc.errors(),
+        },
+    )
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "error_code": "VALIDATION_ERROR",
+            "message": "請求資料格式不正確",
+            "details": exc.errors(),
+        },
+    )
+
+
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
     """處理自訂業務異常"""

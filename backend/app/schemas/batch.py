@@ -27,9 +27,8 @@ class BatchTaskCreate(BaseModel):
     @field_validator("gemini_model")
     @classmethod
     def validate_gemini_model(cls, v: str) -> str:
-        valid_models = ["gemini-1.5-pro", "gemini-1.5-flash"]
-        if v not in valid_models:
-            raise ValueError(f"Gemini 模型必須是 {valid_models} 之一")
+        if not v.startswith("gemini-"):
+            raise ValueError(f"Gemini 模型必須以 'gemini-' 開頭")
         return v
 
 

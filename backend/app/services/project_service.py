@@ -60,11 +60,10 @@ class ProjectService:
                     message=f"Prompt template '{data.prompt_template_id}' not found"
                 )
 
-        # 3. Validate Gemini model
-        valid_models = ["gemini-1.5-pro", "gemini-1.5-flash"]
-        if data.gemini_model not in valid_models:
+        # 3. Validate Gemini model (must start with 'gemini-')
+        if not data.gemini_model.startswith("gemini-"):
             raise ValidationException(
-                message=f"Invalid Gemini model, valid values: {', '.join(valid_models)}"
+                message=f"Invalid Gemini model, must start with 'gemini-'"
             )
 
         # 4. Create project record
