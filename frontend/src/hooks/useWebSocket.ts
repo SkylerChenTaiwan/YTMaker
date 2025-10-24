@@ -39,7 +39,14 @@ export function useWebSocket(projectId: string, options: UseWebSocketOptions) {
     }
 
     // 建立 WebSocket 連線
-    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/api/v1/projects/${projectId}/progress`
+    // 從 NEXT_PUBLIC_API_URL 推導 WebSocket URL
+    // http://localhost:8000 -> ws://localhost:8000
+    // https://example.com -> wss://example.com
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const wsBaseUrl = apiUrl.replace(/^http/, 'ws')
+    const wsUrl = `${wsBaseUrl}/api/v1/projects/${projectId}/progress`
+
+    console.log('[WebSocket] 連線 URL:', wsUrl)
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
