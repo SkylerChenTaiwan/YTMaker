@@ -1,4 +1,4 @@
-# Issue-024: Prompt 設定更新 API 端點 404 錯誤
+# [已解決] Issue-024: Prompt 設定更新 API 端點 404 錯誤
 
 **優先級：** P0 (緊急 - 阻斷功能)
 **類型：** Bug
@@ -242,12 +242,31 @@ await updatePromptModel(projectId, {
 ## 進度記錄
 
 - [x] 問題確認
-- [ ] 根因分析
-- [ ] 解決方案設計
-- [ ] 程式碼修改
-- [ ] 測試驗證
-- [ ] 文件更新
-- [ ] Code Review
-- [ ] 部署上線
+- [x] 根因分析
+- [x] 解決方案設計
+- [x] 程式碼修改
+- [x] 測試驗證 (手動測試通過)
+- [x] 文件更新
+- [x] 已合併到 develop
+
+**解決日期：** 2025-10-24
+
+## 解決摘要
+
+**根本原因：** 前後端 API 端點命名不一致
+- 前端使用: `/api/v1/projects/{id}/prompt-settings`
+- 後端定義: `/api/v1/projects/{id}/prompt-model`
+
+**解決方案：** 將前端的 API 端點統一改為 `/prompt-model`
+
+**修改檔案：**
+- `frontend/src/lib/api/projects.ts` - 修改 API 呼叫和型別名稱
+- `frontend/src/app/project/[id]/configure/prompt-model/page.tsx` - 更新 import 和函數呼叫
+- `frontend/tests/unit/pages/PromptModelPage.test.tsx` - 更新測試 mock
+- `frontend/tests/unit/integration/ProjectConfigFlow.integration.test.tsx` - 更新整合測試
+
+**相關 Commits：**
+- f70ee5d: docs: 建立 issue-024 記錄 prompt-settings API 404 錯誤
+- 109503d: fix: 修正前端 API endpoint 為 prompt-model 以匹配後端
 
 **最後更新：** 2025-10-24
