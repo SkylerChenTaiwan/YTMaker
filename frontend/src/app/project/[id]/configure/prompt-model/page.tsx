@@ -163,8 +163,11 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
       setErrors({})
       setSaving(true)
 
-      // Save settings
-      await updatePromptModel(params.id, formData)
+      // Save settings - only send template_id and model, not content
+      await updatePromptModel(params.id, {
+        prompt_template_id: formData.prompt_template_id,
+        gemini_model: formData.gemini_model,
+      })
 
       toast.success('設定已儲存')
       router.push(`/project/${params.id}/configure/youtube`)
