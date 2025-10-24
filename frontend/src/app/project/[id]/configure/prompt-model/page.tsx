@@ -25,7 +25,7 @@ import { getGeminiModels, type GeminiModel } from '@/lib/api/gemini'
 // Validation schema - 動態驗證模型
 const createPromptFormSchema = (availableModels: string[]) =>
   z.object({
-    prompt_template_id: z.string().min(1, '請選擇 Prompt 範本'),
+    prompt_template_id: z.string().optional(),
     prompt_content: z.string().min(1, 'Prompt 內容不能為空'),
     gemini_model: z.string().refine(
       (model) => availableModels.length === 0 || availableModels.includes(model),
@@ -159,11 +159,17 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
       setSaving(true)
 
       // Save settings with prompt content
-      await updatePromptModel(params.id, {
-        prompt_template_id: formData.prompt_template_id,
+      // Only send prompt_template_id if it's not empty
+      const payload: any = {
         prompt_content: formData.prompt_content,
         gemini_model: formData.gemini_model,
-      })
+      }
+
+      if (formData.prompt_template_id && formData.prompt_template_id.trim() !== '') {
+        payload.prompt_template_id = formData.prompt_template_id
+      }
+
+      await updatePromptModel(params.id, payload)
 
       toast.success('設定已儲存')
       router.push(`/project/${params.id}/configure/youtube`)
