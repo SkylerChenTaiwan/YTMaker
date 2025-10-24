@@ -12,7 +12,6 @@ import { Breadcrumb } from '@/components/layout/Breadcrumb'
 import { StepIndicator } from '@/components/setup/StepIndicator'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
-import { PromptEditor } from '@/components/ui/PromptEditor'
 import { ModelSelector } from '@/components/ui/ModelSelector'
 import {
   getProject,
@@ -27,10 +26,6 @@ import { getGeminiModels, type GeminiModel } from '@/lib/api/gemini'
 const createPromptFormSchema = (availableModels: string[]) =>
   z.object({
     prompt_template_id: z.string().min(1, '請選擇 Prompt 範本'),
-    prompt_content: z
-      .string()
-      .min(200, 'Prompt 長度必須在 200-1000 字之間')
-      .max(1000, 'Prompt 長度必須在 200-1000 字之間'),
     gemini_model: z.string().refine(
       (model) => availableModels.length === 0 || availableModels.includes(model),
       {
@@ -41,7 +36,6 @@ const createPromptFormSchema = (availableModels: string[]) =>
 
 interface PromptFormData {
   prompt_template_id: string
-  prompt_content: string
   gemini_model: string
 }
 
@@ -54,7 +48,6 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
   const router = useRouter()
   const [formData, setFormData] = useState<PromptFormData>({
     prompt_template_id: '',
-    prompt_content: '',
     gemini_model: '', // 等待從 API 載入
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -106,8 +99,6 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
           setFormData({
             prompt_template_id:
               projectData.prompt_template_id || templates[0]?.id || '',
-            prompt_content:
-              projectData.prompt_content || templates[0]?.content || '',
             gemini_model: projectData.gemini_model || defaultModel,
           })
         } else {
@@ -128,16 +119,12 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
 
   // Handle template selection
   const handleTemplateChange = (templateId: string) => {
-    const template = templates.find((t) => t.id === templateId)
-    if (template) {
-      setFormData({
-        ...formData,
-        prompt_template_id: templateId,
-        prompt_content: template.content,
-      })
-      // Clear errors when template changes
-      setErrors({})
-    }
+    setFormData({
+      ...formData,
+      prompt_template_id: templateId,
+    })
+    // Clear errors when template changes
+    setErrors({})
   }
 
   // Handle form submit
@@ -219,39 +206,20 @@ export default function PromptModelPage({ params }: { params: { id: string } }) 
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Prompt 範本</h2>
 
-            <div className="mb-4">
-              <Select
-                label="選擇範本"
-                value={formData.prompt_template_id}
-                onChange={handleTemplateChange}
-                options={templates.map((t) => ({
-                  label: t.name,
-                  value: t.id,
-                }))}
-                className="w-full"
-                data-testid="prompt-template-select"
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block mb-2 font-medium text-gray-700">
-                Prompt 內容
-              </label>
-              <PromptEditor
-                value={formData.prompt_content}
-                onChange={(value) =>
-                  setFormData({ ...formData, prompt_content: value })
-                }
-                error={errors.prompt_content}
-                data-testid="prompt-editor"
-              />
-              <p className="text-sm text-gray-500 mt-2">
-                目前字數: {formData.prompt_content.length} / 1000
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                建議: 確保 Prompt 包含完整的 JSON schema 和段落結構說明以獲得更好的效果
-              </p>
-            </div>
+            <Select
+              label="選擇範本"
+              value={formData.prompt_template_id}
+              onChange={handleTemplateChange}
+              options={templates.map((t) => ({
+                label: t.name,
+                value: t.id,
+              }))}
+              className="w-full"
+              data-testid="prompt-template-select"
+            />
+            {errors.prompt_template_id && (
+              <p className="mt-2 text-sm text-red-600">{errors.prompt_template_id}</p>
+            )}
           </div>
 
           {/* Model Selection Section */}
