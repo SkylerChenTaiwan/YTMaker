@@ -1,4 +1,4 @@
-# Issue-023: Prompt 範本品質不佳與 Gemini 模型選擇應從 API 動態載入
+# [已解決] Issue-023: Prompt 範本品質不佳與 Gemini 模型選擇應從 API 動態載入
 
 **類型：** Design + Integration
 **優先級：** P1 (高)
@@ -6,6 +6,7 @@
 **相關 Task：** 無
 **頁面：** `/project/[id]/configure/prompt-model`
 **日期：** 2025-10-24
+**解決日期：** 2025-10-24
 
 ---
 
